@@ -1,6 +1,18 @@
 # Issue-derived dataset
 
-`issue-candidates.csv` is a researched candidate list, not yet a validated benchmark. An entry becomes a benchmark episode only after the team pins a vulnerable revision and demonstrates three clean reproductions.
+`issue-candidates.csv` is the original researched candidate list. The category-oriented revision is available as:
+
+- `failure-category-candidates.csv`: machine-readable selection matrix.
+- `failure-category-candidates.md`: environment gates, scenario mapping, and the recommended eight-episode release set.
+
+These are candidate lists, not yet a validated benchmark. An entry becomes a benchmark episode only after the team pins a vulnerable revision and demonstrates three clean reproductions.
+
+Every episode must be labeled as exactly one of:
+
+- `exact_reproduction`: the original software, accelerator class, topology, model, and trigger are matched;
+- `hardware_gated`: an exact reproduction is possible only if the Brev inventory matches;
+- `controlled_real_fault`: the failure is really induced, but it is not claimed as the exact upstream environment;
+- `simulated_telemetry`: an event such as cooling loss or XID is injected as data and mirrored into a safe real action.
 
 ## Incident manifest fields
 
@@ -48,4 +60,6 @@ provenance:
 - Preserve links and licenses for every adapted fixture.
 - Split train/dev/test by root-cause family.
 - Include at least one `ABSTAIN` case where the safe action is escalation.
+- Never describe a synthetic XID, thermal excursion, or power event as a real hardware failure.
+- Capture `nvidia-smi`, `nvidia-smi topo -m`, the container digest, driver, CUDA, model revision, and vulnerable source revision before running an exact reproduction.
 
