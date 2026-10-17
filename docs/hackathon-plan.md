@@ -100,39 +100,46 @@ The loop is a deterministic controller around Nemotron, not an unconstrained cha
 
 ### Context strategy
 
-Start with the incident symptom, service topology, recent metrics, and a small log window. Let the model request additional evidence through tools. File retrieval is symbol/path aware; it does not preload a repository. Every observation records provenance and timestamp.
+Start with the incident symptom and environment manifest. Let the model request
+only the resource state, metrics, logs, probes, artifacts, and source needed to
+test a hypothesis. File retrieval is path bounded; it does not preload a
+repository. Every observation records provenance and timestamp.
 
-### Tool groups
+### Capability groups
+
+The controller exposes generic operations. Each environment manifest declares
+the valid resources, configuration keys, metrics, probes, artifact sections,
+verifiers, and repair actions.
 
 Read:
 
-- `get_topology()`
-- `query_metrics(metric, window, labels)`
-- `read_logs(service, since, pattern, limit)`
-- `read_config(service, keys)`
+- `describe_environment()`
+- `list_resources()`
+- `get_resource_state(resource_id, fields)`
+- `query_metrics(resource_id, metric, window)`
+- `query_logs(resource_id, since, query, limit)`
+- `get_configuration(resource_id, keys)`
+- `run_probe(probe_id, inputs)`
+- `read_artifact(artifact_id, section)`
 - `read_file(path, start_line, end_line)`
-- `search_code(query, paths)`
-- `retrieve_incidents(query, limit)`
+- `search_repository(query, paths, limit)`
 
-Test and simulate:
+Environment-specific probes and simulations are declared as typed probe IDs;
+examples include:
 
-- `run_canary(case_id)`
-- `run_repro(incident_id)`
-- `simulate_action(action, horizon, seed)`
-- `run_patch_tests(test_ids)`
-- `compare_slo(before_window, after_window)`
+- `run_probe("functional-canary", inputs)`
+- `run_probe("incident-reproduction", inputs)`
+- `run_probe("action-simulation", inputs)`
+- `run_probe("focused-tests", inputs)`
+- `run_probe("slo-comparison", inputs)`
 
-Act:
+Repairs use `apply_action(action_id, target, parameters)`. Concrete action IDs
+such as restart, drain, reroute, configuration patch, or source patch are
+manifest data rather than hardcoded agent tools.
 
-- `restart_worker(worker_id)`
-- `drain_worker(worker_id)`
-- `set_route_weight(worker_id, weight)`
-- `set_concurrency(limit)`
-- `patch_config(patch_id, changes)`
-- `apply_source_patch(diff)`
-- `rollback(change_id)`
-
-Every mutating tool accepts a typed schema, validates targets against an allowlist, records before/after state, and returns a rollback token. The model never receives a generic shell tool.
+Every declared action has a typed parameter schema, validates targets against
+an allowlist, captures before-state, and receives a rollback token. The model
+never receives a generic shell tool.
 
 ## 6. Recovery certificate
 
@@ -162,6 +169,11 @@ Use three episode classes:
 3. `abstain`: evidence is insufficient or the only repair exceeds policy.
 
 The initial candidates are in `data/issue-candidates.csv`. Promote a candidate to the benchmark only after its reproduction passes three times from a clean reset. Preserve the issue URL, repository license, issue/PR status, vulnerable revision, fix revision if known, and any adapted fixture attribution.
+
+The evaluation harness consumes this catalog as control data. It must generate
+the agent's `DiagnosticInput` from the live reproduction's logs, metrics, state,
+and probe results; it must not reveal the catalog's verifier or expected cause
+to the diagnostic model.
 
 ### Recommended six-episode MVP
 

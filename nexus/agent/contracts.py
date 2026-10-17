@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 
@@ -36,6 +37,219 @@ def _require_string(value: Any, label: str, *, allow_empty: bool = False) -> str
     if not isinstance(value, str) or (not allow_empty and not value.strip()):
         raise ContractError(f"{label} must be a non-empty string")
     return value
+
+
+def _require_timestamp(value: Any, label: str) -> str:
+    timestamp = _require_string(value, label)
+    try:
+        parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ContractError(f"{label} must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ContractError(f"{label} must include a timezone")
+    return timestamp
+
+
+@dataclass(frozen=True)
+class InitialObservation:
+    """One bounded observation supplied when a diagnostic run starts."""
+
+    source_type: str
+    source: str
+    finding: str
+    content: Any
+    trust: str
+    truncated: bool = False
+    resource_id: str | None = None
+    observed_at: str | None = None
+
+    @classmethod
+    def from_dict(cls, payload: Any) -> "InitialObservation":
+        item = _require_object(payload, "initial observation")
+        allowed = {
+            "source_type",
+            "source",
+            "finding",
+            "content",
+            "trust",
+            "truncated",
+            "resource_id",
+            "observed_at",
+        }
+        required = {"source_type", "source", "finding", "content", "trust"}
+        extra = set(item) - allowed
+        missing = required - set(item)
+        if extra:
+            raise ContractError(
+                f"initial observation has unsupported fields: {sorted(extra)}"
+            )
+        if missing:
+            raise ContractError(
+                f"initial observation is missing required fields: {sorted(missing)}"
+            )
+        trust = _require_string(item.get("trust"), "initial observation trust")
+        if trust not in {"trusted", "untrusted"}:
+            raise ContractError("initial observation trust must be trusted or untrusted")
+        truncated = item.get("truncated", False)
+        if not isinstance(truncated, bool):
+            raise ContractError("initial observation truncated must be a boolean")
+        resource_id = item.get("resource_id")
+        if resource_id is not None:
+            resource_id = _require_string(resource_id, "initial observation resource_id")
+        observed_at = item.get("observed_at")
+        if observed_at is not None:
+            observed_at = _require_timestamp(
+                observed_at, "initial observation observed_at"
+            )
+        try:
+            json.dumps(item["content"], ensure_ascii=False)
+        except (TypeError, ValueError) as exc:
+            raise ContractError(
+                "initial observation content must be JSON serializable"
+            ) from exc
+        return cls(
+            source_type=_require_string(
+                item.get("source_type"), "initial observation source_type"
+            ),
+            source=_require_string(item.get("source"), "initial observation source"),
+            finding=_require_string(
+                item.get("finding"), "initial observation finding"
+            ),
+            content=item["content"],
+            trust=trust,
+            truncated=truncated,
+            resource_id=resource_id,
+            observed_at=observed_at,
+        )
+
+    def evidence_content(self) -> dict[str, Any]:
+        return {
+            "resource_id": self.resource_id,
+            "observed_at": self.observed_at,
+            "data": self.content,
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = {
+            "source_type": self.source_type,
+            "source": self.source,
+            "finding": self.finding,
+            "content": self.content,
+            "trust": self.trust,
+            "truncated": self.truncated,
+        }
+        if self.resource_id is not None:
+            payload["resource_id"] = self.resource_id
+        if self.observed_at is not None:
+            payload["observed_at"] = self.observed_at
+        return payload
+
+
+@dataclass(frozen=True)
+class DiagnosticInput:
+    """Structured trigger and initial evidence supplied to the inner loop."""
+
+    trigger_id: str
+    summary: str
+    observed_at: str
+    affected_resources: tuple[str, ...] = ()
+    initial_observations: tuple[InitialObservation, ...] = ()
+    human_context: str | None = None
+    time_window: str | None = None
+    correlation_ids: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, payload: Any) -> "DiagnosticInput":
+        item = _require_object(payload, "diagnostic input")
+        allowed = {
+            "trigger_id",
+            "summary",
+            "observed_at",
+            "affected_resources",
+            "initial_observations",
+            "human_context",
+            "time_window",
+            "correlation_ids",
+        }
+        required = {
+            "trigger_id",
+            "summary",
+            "observed_at",
+            "affected_resources",
+            "initial_observations",
+        }
+        extra = set(item) - allowed
+        missing = required - set(item)
+        if extra:
+            raise ContractError(
+                f"diagnostic input has unsupported fields: {sorted(extra)}"
+            )
+        if missing:
+            raise ContractError(
+                f"diagnostic input is missing required fields: {sorted(missing)}"
+            )
+        resources = item["affected_resources"]
+        if not isinstance(resources, list) or not all(
+            isinstance(value, str) and value.strip() for value in resources
+        ):
+            raise ContractError(
+                "diagnostic input affected_resources must be an array of strings"
+            )
+        if len(resources) != len(set(resources)):
+            raise ContractError("diagnostic input affected_resources must be unique")
+        observations = item["initial_observations"]
+        if not isinstance(observations, list):
+            raise ContractError("diagnostic input initial_observations must be an array")
+        human_context = item.get("human_context")
+        if human_context is not None:
+            human_context = _require_string(human_context, "diagnostic input human_context")
+        time_window = item.get("time_window")
+        if time_window is not None:
+            time_window = _require_string(time_window, "diagnostic input time_window")
+        correlations = item.get("correlation_ids", {})
+        if not isinstance(correlations, dict) or not all(
+            isinstance(key, str)
+            and key.strip()
+            and isinstance(value, str)
+            and value.strip()
+            for key, value in correlations.items()
+        ):
+            raise ContractError(
+                "diagnostic input correlation_ids must map strings to strings"
+            )
+        return cls(
+            trigger_id=_require_string(item.get("trigger_id"), "diagnostic input trigger_id"),
+            summary=_require_string(item.get("summary"), "diagnostic input summary"),
+            observed_at=_require_timestamp(
+                item.get("observed_at"), "diagnostic input observed_at"
+            ),
+            affected_resources=tuple(resources),
+            initial_observations=tuple(
+                InitialObservation.from_dict(value) for value in observations
+            ),
+            human_context=human_context,
+            time_window=time_window,
+            correlation_ids=dict(correlations),
+        )
+
+    def trigger_context(self) -> dict[str, Any]:
+        return {
+            "trigger_id": self.trigger_id,
+            "summary": self.summary,
+            "observed_at": self.observed_at,
+            "affected_resources": list(self.affected_resources),
+            "human_context": self.human_context,
+            "time_window": self.time_window,
+            "correlation_ids": dict(self.correlation_ids),
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            **self.trigger_context(),
+            "initial_observations": [
+                observation.to_dict() for observation in self.initial_observations
+            ],
+        }
 
 
 @dataclass(frozen=True)

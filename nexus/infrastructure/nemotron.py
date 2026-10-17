@@ -9,7 +9,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .contracts import ContractError, ModelTurn
+from ..agent.contracts import ContractError, ModelTurn
 
 
 class ModelClientError(RuntimeError):

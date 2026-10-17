@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from nexus.agent.contracts import ContractError
-from nexus.agent.repository import BoundedRepository
+from nexus.infrastructure.repository import BoundedRepository
 
 
 class BoundedRepositoryTests(unittest.TestCase):

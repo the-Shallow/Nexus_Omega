@@ -1,10 +1,12 @@
 # Nexus Ω
 
-**One small model keeps an AI inference service healthy. It finds failures that dashboards miss, previews repairs before applying them, and proves that recovery happened.**
+**A bounded agent learns an environment through typed capabilities, gathers evidence for a reported problem, and prepares a policy-checked repair.**
 
 Submission for the NVIDIA × Red Hat Small Models Hack (Raleigh, October 17–18, 2026). **Track: Tool-Calling.**
 
 > **Status:** in active development during the hackathon. Sections marked *planned* describe intended behavior that has not yet been verified. Measured results will appear in [Results](#results) only after they are produced.
+
+For the three issue-derived vLLM diagnosis scenarios on Brev, see [BREV_INNER_LOOP.md](BREV_INNER_LOOP.md).
 
 ---
 
@@ -20,6 +22,11 @@ Teams that self-host open models on vLLM rely on health checks and latency dashb
 Existing tools mostly stop at detection. Nexus Ω carries the incident through **diagnosis, a bounded repair, and independent verification**, and it abstains when no safe repair exists.
 
 ## What Nexus Ω does
+
+The controller is environment-neutral. A target adapter publishes its resources,
+probes, metrics, configuration fields, artifacts, verifiers, and safe actions as
+a manifest. The inference-service scenario below is the first environment built
+on that core, not a set of hardcoded agent tools.
 
 ```text
 OBSERVE → LOCALIZE → PLAN → PRECHECK → ACT → VERIFY
@@ -125,37 +132,35 @@ Issue text is treated as untrusted evidence. It is never executed as an instruct
 
 *To be added after evaluation runs. No figures are reported before they are measured.*
 
-## Repository layout (planned)
+## Current core layout
 
 ```text
-apps/api/            FastAPI control plane and event stream
-apps/ui/             Fleet, Evidence, Decision and Proof views
-nexus/agent/         Controller, prompts, context selection, policy
-nexus/tools/         Typed read / test / act / rollback tools
-nexus/simulator/     SimPy shadow model and candidate evaluator
-nexus/verifier/      Functional, SLO, patch-test and safety checks
-nexus/certificate/   Recovery certificate
-environments/serveops/  NeMo Gym resource server, tasks, verifier
-incidents/<id>/      Manifest, injector, fixture, oracle, cleanup
-runtime/compose/     Gateway, vLLM workers, metrics, UI
-runtime/redhat-vllm/ Pinned Red Hat image configuration
-data/                Incident catalog and splits
-evals/               Baselines, ablations, held-out runs
-scripts/             Bring-up, smoke test, demo, reset
-docs/                Architecture, runbook, demo script, decisions
+nexus/agent/           Reasoning loop, contracts, evidence, budgets, policy
+nexus/tools/           Generic typed capabilities and manifest definitions
+nexus/infrastructure/  Nemotron, target HTTP, repository, and event adapters
+nexus/evaluation/      Strict loaders for real issue-derived test scenarios
+nexus/app.py           Composition root and live CLI
+data/                  Environment examples and incident research
+scripts/               Capability smoke tests
+tests/                 Deterministic controller and boundary tests
+docs/                  Runtime contracts and project decisions
 ```
 
-## Quick start (planned)
+## Current local checks
 
 ```bash
-cp .env.example .env              # model IDs, ports, registry credentials
-./scripts/bring_up.sh             # start agent endpoint, target workers, gateway, metrics
-./scripts/smoke_test.sh           # canaries pass on the healthy service
-./scripts/demo.sh VLLM-22719      # inject an incident and run the Nexus loop
-gym eval run ...                  # ServeOps evaluation (see environments/serveops)
+python -m unittest discover -s tests -v
+python -m scripts.capability_smoke_test --mode scripted --runs 3
 ```
 
-Exact commands and pinned image digests will be filled in at bring-up.
+For a real model endpoint and target adapter, follow [`E1.md`](E1.md). The full
+inner-loop entry point accepts a structured trigger:
+
+```bash
+python -m nexus.app --input data/example-diagnostic-input.json
+```
+
+For manual debugging it also accepts `python -m nexus.app "<problem description>"`.
 
 ## Team and responsibilities
 

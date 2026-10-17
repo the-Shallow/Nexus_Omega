@@ -1,0 +1,27 @@
+{
+  "trigger_id": "trigger-184",
+  "summary": "The target returned HTTP 200 but emitted no structured tool call.",
+  "observed_at": "2026-10-17T14:22:31Z",
+  "affected_resources": ["target-a"],
+  "initial_observations": [
+    {
+      "source_type": "probe_result",
+      "source": "probe:tool-call-visible:request-184",
+      "finding": "The request succeeded but contained zero structured tool calls.",
+      "content": {
+        "http_status": 200,
+        "structured_tool_call_count": 0,
+        "artifact_id": "request-184"
+      },
+      "trust": "trusted",
+      "resource_id": "target-a",
+      "observed_at": "2026-10-17T14:22:30Z"
+    }
+  ],
+  "human_context": "The failure began after the latest target deployment.",
+  "time_window": "10m",
+  "correlation_ids": {
+    "request_id": "request-184",
+    "deployment_id": "deployment-42"
+  }
+}
