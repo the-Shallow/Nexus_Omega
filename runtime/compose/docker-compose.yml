@@ -1,4 +1,4 @@
-# Static infrastructure: gateway, Prometheus, GPU telemetry.
+# Static infrastructure: HAProxy data plane, gateway admin, Prometheus, GPU telemetry.
 # vLLM workers are launched separately by nexus.target.manager so they can be
 # reconfigured and rolled back one at a time. Everything shares the "nexus" network.
 name: nexus
@@ -8,18 +8,30 @@ networks:
     external: true
 
 services:
+  haproxy:
+    # Inference traffic on :8100 (workers a and b; b via Toxiproxy). Its runtime
+    # API (:9999) is reachable only on the nexus network, by the gateway admin.
+    image: haproxy:3.0.5
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "8100:8100"
+      - "127.0.0.1:8405:8405"
+    networks: [nexus]
+    restart: unless-stopped
+
   gateway:
+    # Admin API only: drain / undrain / weight, applied through HAProxy's runtime API.
     image: python:3.11-slim
     working_dir: /app
-    command: sh -c "pip install -q httpx fastapi uvicorn && uvicorn main:app --host 0.0.0.0 --port 8100"
+    command: sh -c "pip install -q fastapi uvicorn && uvicorn main:app --host 0.0.0.0 --port 8110"
     volumes:
       - ../../apps/gateway:/app:ro
     environment:
-      NEXUS_WORKERS: ${NEXUS_WORKERS:-a=http://nexus-a:8000,b=http://toxiproxy:8666}
-      NEXUS_MAX_INFLIGHT: ${NEXUS_MAX_INFLIGHT:-0}
+      NEXUS_HAPROXY_RUNTIME: haproxy:9999
       NEXUS_ADMIN_TOKEN: ${NEXUS_ADMIN_TOKEN:-}
     ports:
-      - "8100:8100"
+      - "127.0.0.1:8110:8110"
     networks: [nexus]
     restart: unless-stopped
 

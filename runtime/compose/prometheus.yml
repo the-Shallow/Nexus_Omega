@@ -8,9 +8,9 @@ scrape_configs:
   - job_name: agent
     static_configs:
       - targets: ["nexus-agent:8000"]
-  - job_name: gateway
+  - job_name: haproxy
     static_configs:
-      - targets: ["gateway:8100"]
+      - targets: ["haproxy:8405"]
   - job_name: dcgm
     static_configs:
       - targets: ["dcgm-exporter:9400"]

@@ -1,7 +1,7 @@
 """Fleet SLO check against Prometheus.
 
 Reads worker-side vLLM metrics (TTFT, queue depth, KV-cache use, scrape
-health) and gateway-side route metrics (p95 latency, error rate) over a
+health) and HAProxy route metrics (average latency, error rate) over a
 recent window and compares them with limits. A series with no traffic in the
 window reports null and is not counted as a breach; a worker that is not
 scraping ("up" = 0) always is.
@@ -27,10 +27,14 @@ CHECKS = {
                    '(rate(vllm:time_to_first_token_seconds_bucket[{w}])))', "instance", "max_ttft_p95"),
     "queue_waiting": ('max_over_time(vllm:num_requests_waiting[{w}])', "instance", "max_waiting"),
     "kv_cache_usage": ('max_over_time(vllm:kv_cache_usage_perc[{w}])', "instance", "max_kv_usage"),
-    "route_p95_s": ('histogram_quantile(0.95, sum by (worker, le) '
-                    '(rate(nexus_gateway_request_seconds_bucket[{w}])))', "worker", "max_route_p95"),
-    "route_error_rate": ('sum by (worker) (rate(nexus_gateway_errors_total[{w}])) / '
-                         'sum by (worker) (rate(nexus_gateway_requests_total[{w}]))', "worker", "max_error_rate"),
+    # HAProxy keeps a moving average over its last 1024 requests per server, not a percentile.
+    "route_avg_s": ('max_over_time(haproxy_server_total_time_average_seconds{{proxy="vllm"}}[{w}])',
+                    "server", "max_route_p95"),
+    "route_error_rate": ('sum by (server) (rate(haproxy_server_connection_errors_total{{proxy="vllm"}}[{w}]) + '
+                         'rate(haproxy_server_response_errors_total{{proxy="vllm"}}[{w}]) + '
+                         'rate(haproxy_server_http_responses_total{{proxy="vllm",code="5xx"}}[{w}])) / '
+                         'sum by (server) (rate(haproxy_server_sessions_total{{proxy="vllm"}}[{w}]))',
+                         "server", "max_error_rate"),
 }
 
 
@@ -65,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-ttft-p95", type=float, default=1.0, help="seconds")
     parser.add_argument("--max-waiting", type=float, default=10)
     parser.add_argument("--max-kv-usage", type=float, default=0.95, help="fraction 0-1")
-    parser.add_argument("--max-route-p95", type=float, default=0.5, help="seconds, at the gateway")
+    parser.add_argument("--max-route-p95", type=float, default=0.5, help="seconds, route average at HAProxy")
     parser.add_argument("--max-error-rate", type=float, default=0.01)
     parser.add_argument("--out", help="write the full JSON result here")
     args = parser.parse_args(argv)
