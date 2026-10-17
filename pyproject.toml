@@ -1,0 +1,17 @@
+[project]
+name = "nexus-omega"
+version = "0.1.0"
+description = "Nexus Ω: a small-model SRE agent for vLLM inference services"
+requires-python = ">=3.12"
+dependencies = [
+  "simpy>=4.1",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

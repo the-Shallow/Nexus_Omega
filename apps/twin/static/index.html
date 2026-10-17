@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nexus Ω Digital Twin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext x='4' y='26' font-size='26' fill='%234de8ff'%3E%CE%A9%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div id="hud">
+    <header class="top">
+      <div class="brand">
+        <span class="omega">Ω</span>
+        <div>
+          <b>NEXUS Ω</b>
+          <small>DIGITAL TWIN · <span id="profile">connecting…</span></small>
+        </div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="clock">
+        <span class="sim-badge" title="Every value on this screen comes from the SimPy model">SIMULATED</span>
+        <span id="simclock">T+00:00</span>
+        <div class="speed" id="speed">
+          <button data-speed="0" title="Pause (space)">❚❚</button>
+          <button data-speed="1" class="on">1×</button>
+          <button data-speed="4">4×</button>
+          <button data-speed="10">10×</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="banner" class="banner"></div>
+
+    <aside class="panel left">
+      <h3>Chaos deck <small>inject a failure</small></h3>
+      <div id="cards" class="cards"></div>
+      <h3>Incidents</h3>
+      <div id="incidents" class="incidents"><p class="empty">No active incidents</p></div>
+    </aside>
+
+    <aside class="panel right" id="inspector"></aside>
+
+    <section class="bottom">
+      <div class="panel log">
+        <h3>Event stream</h3>
+        <ol id="log"></ol>
+      </div>
+      <div class="panel whatif">
+        <header>
+          <h3>SimPy what-if <small id="whatif-sub">fork the twin, try each fix, compare</small></h3>
+          <button id="preview" class="primary">Preview remediation <kbd>P</kbd></button>
+        </header>
+        <div id="cands" class="cands"><p class="empty">Inject a fault, then preview candidate fixes. Each candidate runs 3 seeds on a fork of the live twin.</p></div>
+      </div>
+    </section>
+
+    <nav class="views" id="views">
+      <button data-view="overview" title="1">Overview</button>
+      <button data-view="cold" title="2">Cold aisle</button>
+      <button data-view="hot" title="3">Hot aisle</button>
+      <button data-view="plenum" title="4">Plenum</button>
+      <button data-view="top" title="5">Top</button>
+      <button data-view="power" title="6">Power</button>
+      <button data-view="network" title="7">Network</button>
+      <span class="sep"></span>
+      <button data-toggle="cinematic" title="C">Cinematic</button>
+      <button data-toggle="thermal" class="on" title="T">Thermal</button>
+      <button data-toggle="labels" class="on" title="L">Labels</button>
+      <button data-toggle="focus" class="on" title="F">Auto-focus</button>
+    </nav>
+
+    <div class="legend">
+      <span><i style="--c:#4de8ff"></i>request</span>
+      <span><i style="--c:#3dffa0"></i>200 OK</span>
+      <span><i style="--c:#ffb020"></i>200 OK, tool call dropped</span>
+      <span><i style="--c:#ff3355"></i>error / timeout</span>
+      <span><i style="--c:#b46bff"></i>shed 429</span>
+      <span><i style="--c:#ffc861"></i>power</span>
+      <span class="ramp">air <b></b> 18 → 95 °C</span>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <div id="hint">H hide HUD · 1–7 views · C cinematic · T thermal · P preview · space pause</div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
