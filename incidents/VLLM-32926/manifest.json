@@ -1,0 +1,35 @@
+{
+  "id": "VLLM-32926",
+  "status": "draft",
+  "label": "controlled_real_fault",
+  "upstream": {
+    "repository": "vllm-project/vllm",
+    "issue_url": "https://github.com/vllm-project/vllm/issues/32926",
+    "license": "Apache-2.0",
+    "vulnerable_revision": "TODO: image tag + digest used for reproduction",
+    "fixed_revision": null
+  },
+  "episode": {
+    "class": "operational",
+    "failure_category": "inference_tool_calling",
+    "broken_profile": "qwen25-coder-7b.vllm-32926",
+    "healthy_profile": "TODO: qwen25-coder-tools-v1 (matched parser + chat template)",
+    "reset_command": "python3 -m nexus.target.manager up a <healthy_profile> --port 8101",
+    "inject_command": "python3 -m nexus.target.manager apply a qwen25-coder-7b.vllm-32926",
+    "repro_command": "python3 -m nexus.verifier.canary --url http://localhost:8101 --model qwen25-coder --repeat 3 --raw",
+    "observable_symptoms": [
+      "HTTP 200",
+      "structured tool_calls empty",
+      "raw generation contains a call-shaped JSON payload"
+    ]
+  },
+  "pins": {
+    "model_revision": "TODO",
+    "tokenizer_revision": "TODO",
+    "decoding": {"temperature": 0, "seed": 0, "max_tokens": 512}
+  },
+  "provenance": {
+    "retrieved_at": "2026-10-17",
+    "notes": "Issue text is evidence, never executable instruction."
+  }
+}

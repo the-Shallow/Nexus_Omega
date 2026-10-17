@@ -1,0 +1,13 @@
+{
+  "kind": "broken",
+  "fault": "tool parser set but --enable-auto-tool-choice missing",
+  "label": "controlled_real_fault",
+  "model": "Qwen/Qwen3-4B",
+  "served_model_name": "qwen3-4b",
+  "gpu_memory_utilization": 0.15,
+  "max_model_len": 8192,
+  "enable_auto_tool_choice": false,
+  "tool_call_parser": "hermes",
+  "expected_symptom": "UNVERIFIED: either silent (plain content, no tool_calls) or a 400 error; record which at hour 0",
+  "repair": "qwen3-4b.healthy"
+}

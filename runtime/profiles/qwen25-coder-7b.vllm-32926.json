@@ -1,0 +1,14 @@
+{
+  "kind": "broken",
+  "incident": "VLLM-32926",
+  "label": "controlled_real_fault",
+  "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "served_model_name": "qwen25-coder",
+  "gpu_memory_utilization": 0.25,
+  "max_model_len": 8192,
+  "enable_auto_tool_choice": true,
+  "tool_call_parser": "hermes",
+  "expected_symptom": "HTTP 200; model emits tool JSON in a code block; hermes parses no tool_calls (issue #32926)",
+  "repair": "TODO: define the matched parser/template profile (qwen25-coder-tools-v1) after reproduction",
+  "notes": "Pin image digest, model revision, and tokenizer revision in incidents/VLLM-32926/manifest.json once reproduced."
+}

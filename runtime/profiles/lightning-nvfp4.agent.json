@@ -1,0 +1,21 @@
+{
+  "kind": "agent",
+  "model": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4",
+  "served_model_name": "nemotron-lightning",
+  "gpu_memory_utilization": 0.35,
+  "max_model_len": 32768,
+  "enable_auto_tool_choice": true,
+  "tool_call_parser": "qwen3_coder",
+  "reasoning_parser": "nemotron_v3",
+  "extra_args": [
+    "--trust-remote-code",
+    "--moe-backend", "humming",
+    "--linear-backend", "humming",
+    "--enable-prefix-caching",
+    "--async-scheduling",
+    "--mamba-backend", "flashinfer",
+    "--mamba-ssm-cache-dtype", "float16",
+    "--mamba-cache-mode", "align"
+  ],
+  "notes": "Owned by E1. Flags from the vLLM Lightning blog recipe (image v0.27.1). Agent endpoint, not a repair target."
+}

@@ -1,0 +1,47 @@
+# Static infrastructure: gateway, Prometheus, GPU telemetry.
+# vLLM workers are launched separately by nexus.target.manager so they can be
+# reconfigured and rolled back one at a time. Everything shares the "nexus" network.
+name: nexus
+
+networks:
+  nexus:
+    external: true
+
+services:
+  gateway:
+    image: python:3.11-slim
+    working_dir: /app
+    command: sh -c "pip install -q httpx fastapi uvicorn && uvicorn main:app --host 0.0.0.0 --port 8100"
+    volumes:
+      - ../../apps/gateway:/app:ro
+    environment:
+      NEXUS_WORKERS: ${NEXUS_WORKERS:-a=http://nexus-a:8000}
+    ports:
+      - "8100:8100"
+    networks: [nexus]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks: [nexus]
+    restart: unless-stopped
+
+  dcgm-exporter:
+    # Verify the tag on NGC at bring-up; basic DCGM_FI_DEV_* metrics need no extra privileges.
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.1-ubuntu22.04
+    cap_add: [SYS_ADMIN]
+    ports:
+      - "9400:9400"
+    networks: [nexus]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
