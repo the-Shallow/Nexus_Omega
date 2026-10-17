@@ -28,6 +28,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = ROOT / "runtime" / "profiles"
 TEMPLATES_DIR = ROOT / "runtime" / "templates"
+PLUGINS_DIR = ROOT / "runtime" / "plugins"
 STATE_DIR = ROOT / "runtime" / "state"
 
 NETWORK = os.environ.get("NEXUS_NETWORK", "nexus")
@@ -76,6 +77,8 @@ def vllm_args(profile: dict) -> list[str]:
     ]
     if profile.get("enable_auto_tool_choice"):
         args.append("--enable-auto-tool-choice")
+    if profile.get("tool_parser_plugin"):
+        args += ["--tool-parser-plugin", f"/plugins/{profile['tool_parser_plugin']}"]
     if profile.get("tool_call_parser"):
         args += ["--tool-call-parser", profile["tool_call_parser"]]
     if profile.get("reasoning_parser"):
@@ -96,6 +99,7 @@ def docker_run_command(worker: str, port: int, profile: dict) -> list[str]:
         "-p", f"{port}:8000",
         "-v", f"{HF_HOME}:/root/.cache/huggingface",
         "-v", f"{TEMPLATES_DIR}:/templates:ro",
+        "-v", f"{PLUGINS_DIR}:/plugins:ro",
         "--label", f"nexus.worker={worker}",
         "--label", f"nexus.profile={profile['name']}",
     ]

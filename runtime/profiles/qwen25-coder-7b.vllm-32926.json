@@ -9,6 +9,10 @@
   "enable_auto_tool_choice": true,
   "tool_call_parser": "hermes",
   "expected_symptom": "HTTP 200; model emits tool JSON in a code block; hermes parses no tool_calls (issue #32926)",
-  "repair": "TODO: define the matched parser/template profile (qwen25-coder-tools-v1) after reproduction",
-  "notes": "Pin image digest, model revision, and tokenizer revision in incidents/VLLM-32926/manifest.json once reproduced."
+  "repair": "qwen25-coder-7b.tools-template (PR vllm#32931 parser plugin + <tools> template)",
+  "notes": "Upstream #32926 is a closed (stale-bot) feature request, not a pinned regression; docs recommend hermes for Qwen2.5, which this model does not follow. Model revision pinned.",
+  "extra_args": [
+    "--revision",
+    "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+  ]
 }
