@@ -1,7 +1,8 @@
 .env
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 runtime/state/
 artifacts/runs/
 artifacts/env/
+artifacts/checkpoint-0/

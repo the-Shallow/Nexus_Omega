@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus-omega.local/schemas/agent-decision.schema.json",
+  "title": "Nexus Omega agent decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "summary", "hypotheses", "stop_reason"],
+  "properties": {
+    "state": {
+      "enum": [
+        "INGEST",
+        "DIAGNOSE",
+        "EXPAND_CONTEXT",
+        "PLAN",
+        "PRECHECK",
+        "ACT",
+        "VERIFY",
+        "VERIFIED",
+        "ROLLED_BACK",
+        "REQUIRES_APPROVAL",
+        "ABSTAIN"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "confidence", "supports", "contradicts"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "supports": {"type": "array", "items": {"type": "string"}},
+          "contradicts": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "stop_reason": {
+      "type": ["string", "null"]
+    }
+  }
+}
