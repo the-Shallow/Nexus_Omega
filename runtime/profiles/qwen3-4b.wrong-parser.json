@@ -8,6 +8,7 @@
   "max_model_len": 8192,
   "enable_auto_tool_choice": true,
   "tool_call_parser": "llama3_json",
-  "expected_symptom": "HTTP 200; tool_calls empty; raw generation contains a <tool_call> envelope",
-  "repair": "qwen3-4b.healthy"
+  "expected_symptom": "MEASURED 2026-10-17 on vLLM v0.27.1, H100 PCIe: /health 200; every chat request HTTP 500 (including no-tool requests); raw generation contains a valid <tool_call> envelope. Loud at the request level, silent at the health check.",
+  "repair": "qwen3-4b.healthy",
+  "silent": false
 }
