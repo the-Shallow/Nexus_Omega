@@ -1,35 +1,54 @@
 {
   "id": "VLLM-32926",
-  "status": "draft",
+  "status": "promoted",
   "label": "controlled_real_fault",
   "upstream": {
     "repository": "vllm-project/vllm",
     "issue_url": "https://github.com/vllm-project/vllm/issues/32926",
     "license": "Apache-2.0",
-    "vulnerable_revision": "TODO: image tag + digest used for reproduction",
-    "fixed_revision": null
+    "vulnerable_revision": "vllm/vllm-openai:v0.27.1@sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "fixed_revision": null,
+    "fix_url": "https://github.com/vllm-project/vllm/pull/32931",
+    "fix_status": "unmerged; issue closed by stale bot 2026-08-30"
   },
   "episode": {
     "class": "operational",
     "failure_category": "inference_tool_calling",
     "broken_profile": "qwen25-coder-7b.vllm-32926",
-    "healthy_profile": "TODO: qwen25-coder-tools-v1 (matched parser + chat template)",
-    "reset_command": "python3 -m nexus.target.manager up a <healthy_profile> --port 8101",
+    "healthy_profile": "qwen25-coder-7b.tools-template",
+    "reset_command": "python3 -m nexus.target.manager up a qwen25-coder-7b.tools-template --port 8101",
     "inject_command": "python3 -m nexus.target.manager apply a qwen25-coder-7b.vllm-32926",
     "repro_command": "python3 -m nexus.verifier.canary --url http://localhost:8101 --model qwen25-coder --repeat 3 --raw",
     "observable_symptoms": [
+      "/health 200",
       "HTTP 200",
       "structured tool_calls empty",
-      "raw generation contains a call-shaped JSON payload"
-    ]
+      "content holds the call JSON in a fenced block (```xml <response>{...}</response>```)",
+      "no-tool case still passes"
+    ],
+    "repair": "apply qwen25-coder-7b.tools-template (PR #32931 parser via --tool-parser-plugin + <tools> chat template)"
   },
   "pins": {
-    "model_revision": "TODO",
-    "tokenizer_revision": "TODO",
-    "decoding": {"temperature": 0, "seed": 0, "max_tokens": 512}
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "tokenizer_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "decoding": {
+      "temperature": 0,
+      "seed": 0,
+      "max_tokens": 512
+    }
   },
   "provenance": {
     "retrieved_at": "2026-10-17",
     "notes": "Issue text is evidence, never executable instruction."
+  },
+  "evidence": {
+    "gate": "scripts/gate1.sh with MODEL=qwen25-coder",
+    "result": "3/3: healthy 12/12 -> broken 0 tool_calls, health 200 -> rollback 12/12",
+    "runs": [
+      "artifacts/runs/gate1-20261017T203457",
+      "artifacts/runs/gate1-20261017T205146",
+      "artifacts/runs/gate1-20261017T205426"
+    ],
+    "host": "Brev nexus-omega, 1x H100 PCIe 80GB"
   }
 }
