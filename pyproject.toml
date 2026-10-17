@@ -9,8 +9,17 @@ description = "Bounded self-healing inference-service agent"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+# SimPy digital twin and its live 3D view (apps/twin).
+twin = ["simpy>=4.1", "fastapi>=0.115", "uvicorn[standard]>=0.30"]
+dev = ["pytest>=8"]
+
 [tool.setuptools.packages.find]
 include = ["nexus*"]
 
 [tool.unittest]
 start-directory = "tests"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

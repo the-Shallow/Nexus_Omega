@@ -1,0 +1,138 @@
+{
+  "name": "pod-h100",
+  "title": "H100 pod: 2 rows x 8 racks, shared inference + batch",
+  "seed": 7,
+  "calibration": {
+    "source": "default profile (uncalibrated)",
+    "confidence": "low",
+    "notes": "Engineering estimates. Replace serving (prefill/TPOT) and thermal (R_th, tau) values with measurements from the live target before quoting predictions."
+  },
+  "hall": {
+    "rows": [
+      "A",
+      "B"
+    ],
+    "racks_per_row": 8,
+    "nodes_per_rack": 4,
+    "gpus_per_node": 8,
+    "supply_setpoint_c": 18.0,
+    "max_supply_c": 45.0,
+    "thermal_mass_kj_per_c": 700.0,
+    "rack_airflow_m3s": 2.4,
+    "recirculation_c": 6.0,
+    "slot_rise_c": 0.6,
+    "cooling_cop": 4.0,
+    "crah_fan_kw": 8.0,
+    "ups_loss_frac": 0.03
+  },
+  "crah": [
+    {
+      "id": "CRAH-1",
+      "row": "A",
+      "capacity_kw": 300
+    },
+    {
+      "id": "CRAH-2",
+      "row": "B",
+      "capacity_kw": 300
+    }
+  ],
+  "power": {
+    "ups": [
+      "UPS-A",
+      "UPS-B"
+    ],
+    "single_feed_kw": 20.0
+  },
+  "gpu": {
+    "model": "H100 SXM5 80GB",
+    "tdp_w": 700,
+    "idle_w": 90,
+    "max_sm_clock_mhz": 1980,
+    "idle_sm_clock_mhz": 345,
+    "r_th_c_per_w": 0.065,
+    "tau_s": 25,
+    "slowdown_c": 87,
+    "shutdown_c": 95,
+    "fb_total_mb": 81559
+  },
+  "node": {
+    "overhead_kw": 2.0
+  },
+  "inference": {
+    "model_label": "tool-calling LLM (simulated serving profile)",
+    "max_num_seqs": 128,
+    "kv_capacity_tokens": 100000,
+    "prefill_tps": 20000,
+    "tpot_base_s": 0.01,
+    "tpot_per_seq_s": 0.00012,
+    "startup_s": 40,
+    "weights_mb": 24000,
+    "workers": [
+      {
+        "id": "vllm-0",
+        "node": "A1-n2"
+      },
+      {
+        "id": "vllm-1",
+        "node": "A2-n1"
+      },
+      {
+        "id": "vllm-2",
+        "node": "A4-n2"
+      },
+      {
+        "id": "vllm-3",
+        "node": "A6-n0"
+      },
+      {
+        "id": "vllm-4",
+        "node": "B1-n1"
+      },
+      {
+        "id": "vllm-5",
+        "node": "B3-n2"
+      },
+      {
+        "id": "vllm-6",
+        "node": "B5-n0"
+      },
+      {
+        "id": "vllm-7",
+        "node": "B7-n1"
+      }
+    ]
+  },
+  "batch": {
+    "util_mean": 0.82,
+    "util_min": 0.6,
+    "util_max": 0.97
+  },
+  "traffic": {
+    "base_rps": 36,
+    "diurnal_amp": 0.12,
+    "diurnal_period_s": 900,
+    "prompt_median": 900,
+    "prompt_sigma": 0.8,
+    "prompt_min": 32,
+    "prompt_max": 8000,
+    "output_median": 220,
+    "output_sigma": 0.7,
+    "output_min": 8,
+    "output_max": 2000,
+    "tool_fraction": 0.35,
+    "timeout_s": 30
+  },
+  "gateway": {
+    "max_queue": 5000,
+    "health_interval_s": 2.0
+  },
+  "canary": {
+    "interval_s": 5.0
+  },
+  "slo": {
+    "ttft_p95_s": 1.0,
+    "tpot_p95_s": 0.025,
+    "error_rate": 0.01
+  }
+}
