@@ -2,6 +2,8 @@
 
 `issue-candidates.csv` is the single canonical machine-readable candidate list. Every row includes exactly one `incident_class`: `Tool-call correctness`, `Process health`, `Capacity`, `Network`, `Serving-code defects`, or `Abstain`.
 
+`infra_candidate_csv.csv` preserves the previous infrastructure-oriented candidate taxonomy for the simulation and infrastructure workstream. It is a reference list; `issue-candidates.csv` remains the active agent benchmark shortlist.
+
 `failure-category-candidates.md` provides the accompanying environment gates, scenario mapping, and recommended eight-episode release set.
 
 These are candidate lists, not yet a validated benchmark. An entry becomes a benchmark episode only after the team pins a vulnerable revision and demonstrates three clean reproductions.
