@@ -1,0 +1,3 @@
+[
+  {"name": "b", "listen": "0.0.0.0:8666", "upstream": "nexus-b:8000", "enabled": true}
+]

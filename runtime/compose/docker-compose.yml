@@ -15,9 +15,21 @@ services:
     volumes:
       - ../../apps/gateway:/app:ro
     environment:
-      NEXUS_WORKERS: ${NEXUS_WORKERS:-a=http://nexus-a:8000}
+      NEXUS_WORKERS: ${NEXUS_WORKERS:-a=http://nexus-a:8000,b=http://toxiproxy:8666}
     ports:
       - "8100:8100"
+    networks: [nexus]
+    restart: unless-stopped
+
+  toxiproxy:
+    # Network-fault point between the gateway and worker b (proxy "b" in toxiproxy.json).
+    # Faults are added and removed through the API by nexus.faults.network.
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "127.0.0.1:8474:8474"
     networks: [nexus]
     restart: unless-stopped
 
