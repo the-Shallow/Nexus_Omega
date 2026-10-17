@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -71,7 +72,8 @@ def capture(service: str, worker: str, profile: str) -> dict:
 def environment() -> str:
     def sh(*cmd: str) -> str:
         return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
-    sha = sh("git", "-C", str(ROOT), "rev-parse", "HEAD") or "(rsync copy; see the handoff message)"
+    # The Brev copy is synced with rsync and has no .git; the sync step passes the local HEAD.
+    sha = os.environ.get("NEXUS_COMMIT") or "(not recorded; set NEXUS_COMMIT when syncing)"
     return "\n".join([
         "# Brev environment", "",
         f"- repository commit: {sha}",

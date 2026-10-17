@@ -1,0 +1,11 @@
+{
+  "case": "visible_tool_call",
+  "request_id": "req-83d5c749",
+  "http_status": 200,
+  "readiness": 200,
+  "parsed_tool_call_count": 0,
+  "structured_response": {
+    "content": "```xml\n<response>\n    {\"name\": \"get_weather\", \"arguments\": {\"city\": \"Raleigh\", \"unit\": \"celsius\"}}\n</response>\n```",
+    "tool_calls": []
+  }
+}

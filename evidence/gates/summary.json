@@ -1,0 +1,584 @@
+{
+  "qwen3-4b.wrong-parser": [
+    {
+      "run": "gate1-20261017T182032",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "cases_ok": 0,
+        "cases": 12,
+        "tool_calls_parsed": 0,
+        "http": [
+          500
+        ]
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      }
+    }
+  ],
+  "qwen3-4b.no-auto-tool-choice": [
+    {
+      "run": "gate1-20261017T182351",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "cases_ok": 0,
+        "cases": 12,
+        "tool_calls_parsed": 0,
+        "http": [
+          400
+        ]
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      }
+    }
+  ],
+  "qwen25-coder-7b.vllm-32926": [
+    {
+      "run": "gate1-20261017T203457",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "cases_ok": 3,
+        "cases": 12,
+        "tool_calls_parsed": 0,
+        "http": [
+          200
+        ]
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      }
+    },
+    {
+      "run": "gate1-20261017T205146",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "cases_ok": 3,
+        "cases": 12,
+        "tool_calls_parsed": 0,
+        "http": [
+          200
+        ]
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      }
+    },
+    {
+      "run": "gate1-20261017T205426",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "cases_ok": 3,
+        "cases": 12,
+        "tool_calls_parsed": 0,
+        "http": [
+          200
+        ]
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "cases_ok": 12,
+        "cases": 12,
+        "tool_calls_parsed": 9,
+        "http": [
+          200
+        ]
+      }
+    }
+  ],
+  "net-b-blackhole": [
+    {
+      "run": "net-b-blackhole-20261017T211253",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.04,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 5.01,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.041,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "net-b-blackhole-20261017T211402",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.04,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.04,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 5.01,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "net-b-blackhole-20261017T211515",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 5.01,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      }
+    }
+  ],
+  "net-b-latency": [
+    {
+      "run": "net-b-latency-20261017T211142",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 1.646,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "net-b-latency-20261017T211205",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 1.656,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "net-b-latency-20261017T211230",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 1.711,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          }
+        }
+      }
+    }
+  ],
+  "process-b-kill": [
+    {
+      "run": "process-b-kill-20261017T212654",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.04,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.006,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.108,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "process-b-kill-20261017T212809",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.037,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.007,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.038,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.151,
+            "error_rate": 0.0
+          }
+        }
+      }
+    },
+    {
+      "run": "process-b-kill-20261017T212923",
+      "healthy": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          }
+        }
+      },
+      "broken": {
+        "health": 200,
+        "passed": false,
+        "workers": {
+          "a": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.007,
+            "error_rate": 1.0
+          }
+        }
+      },
+      "recovered": {
+        "health": 200,
+        "passed": true,
+        "workers": {
+          "a": {
+            "p95_s": 0.043,
+            "error_rate": 0.0
+          },
+          "b": {
+            "p95_s": 0.039,
+            "error_rate": 0.0
+          }
+        }
+      }
+    }
+  ]
+}

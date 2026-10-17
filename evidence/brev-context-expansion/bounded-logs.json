@@ -1,0 +1,14 @@
+{
+  "service": "target-a",
+  "since": "5m",
+  "pattern": "tool|parser|template|ERROR",
+  "limit": 50,
+  "lines": [
+    "(APIServer pid=1) INFO 10-17 22:16:25 [api_utils.py:273] non-default args: {'model_tag': 'Qwen/Qwen2.5-Coder-7B-Instruct', 'enable_auto_tool_choice': True, 'tool_call_parser': 'hermes', 'model': 'Qwen/Qwen2.5-Coder-7B-Instruct', 'revision': 'c03e6d358207e414f1eca0bb1891e29f1db0e242', 'max_model_len': 8192, 'served_model_name': ['qwen25-coder'], 'gpu_memory_utilization': 0.25}",
+    "(EngineCore pid=185) INFO 10-17 22:16:47 [core.py:121] Initializing a V1 LLM engine (v0.27.1) with config: model='Qwen/Qwen2.5-Coder-7B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-Coder-7B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=c03e6d358207e414f1eca0bb1891e29f1db0e242, tokenizer_revision=c03e6d358207e414f1eca0bb1891e29f1db0e242, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=1",
+    "(APIServer pid=1) INFO 10-17 22:17:19 [parser_manager.py:37] \"auto\" tool choice has been enabled.",
+    "(APIServer pid=1) INFO 10-17 22:17:20 [hf.py:540] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this."
+  ],
+  "matched_lines": 4,
+  "truncated": false
+}
