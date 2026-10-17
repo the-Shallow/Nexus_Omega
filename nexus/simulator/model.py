@@ -28,6 +28,22 @@ DRAIN_GRACE_S = 20.0  # max wait for in-flight requests before a drained restart
 FAILED = ("err", "timeout", "shed")
 PROFILE_DIR = Path(__file__).parent / "profiles"
 
+# vLLM serving contract: tool calls survive only when the tool parser and the
+# chat template agree on the call envelope (vLLM #32926).
+COMPATIBLE_PAIRS = {("hermes", "hermes-tools"), ("qwen25_coder", "qwen25-coder-tools")}
+SERVING_PROFILES = {
+    "baseline-0.27": {"image": "vllm 0.27.1", "tool_parser": "hermes", "chat_template": "hermes-tools"},
+    "qwen25-coder-tools-v1": {"image": "vllm 0.28.0", "tool_parser": "qwen25_coder", "chat_template": "qwen25-coder-tools"},
+}
+
+
+def default_config() -> dict:
+    return dict(SERVING_PROFILES["baseline-0.27"])
+
+
+def tools_compatible(config: dict) -> bool:
+    return (config["tool_parser"], config["chat_template"]) in COMPATIBLE_PAIRS
+
 
 def load_profile(name: str = "pod-h100") -> dict:
     return json.loads((PROFILE_DIR / f"{name}.json").read_text())
@@ -126,7 +142,8 @@ class Worker:
     weight: float = 1.0
     cap: int | None = None  # gateway in-flight cap
     tool_ok: bool = True
-    pending_tool_ok: bool | None = None
+    config: dict = field(default_factory=default_config)
+    pending_config: dict | None = None  # applied when the next restart completes
     readmit: bool = False  # restore routing weight once the restart completes
     drain_deadline: float | None = None  # set while draining ahead of a restart
     running: list[Request] = field(default_factory=list)
@@ -174,6 +191,7 @@ class TwinState:
     faults: dict[str, dict] = field(default_factory=dict)
     timers: list[tuple] = field(default_factory=list)  # heap of (t, seq, kind, payload)
     changes: dict[str, dict] = field(default_factory=dict)
+    config_log: list[dict] = field(default_factory=list)  # serving-config change history
     events: deque = field(default_factory=lambda: deque(maxlen=400))
     event_seq: int = 0
     series: deque = field(default_factory=lambda: deque(maxlen=1800))
@@ -299,12 +317,21 @@ class Twin:
         w.log_rate = 2.0 + 4.0 * lost * lost
         self.log("error", f"{w.id}: {reason}; {lost} in-flight requests failed", w.id, "crash")
 
-    def restart(self, w: Worker, tool_ok: bool | None = None, readmit: bool = False) -> bool:
+    def set_config(self, w: Worker, config: dict, source: str) -> None:
+        """Change a worker's serving config now and record it in the change history."""
+        before = dict(w.config)
+        w.config = dict(config)
+        w.tool_ok = tools_compatible(w.config)
+        diff = {k: [before.get(k), v] for k, v in w.config.items() if before.get(k) != v}
+        if diff:
+            self.state.config_log.append({"t": round(self.env.now, 1), "worker": w.id, "source": source, "diff": diff})
+
+    def restart(self, w: Worker, config: dict | None = None, readmit: bool = False) -> bool:
         """Restart an engine. With ``readmit`` it is drained first and re-admitted after a canary pass."""
         if w.state == "cordoned":
             return False
-        if tool_ok is not None:
-            w.pending_tool_ok = tool_ok
+        if config is not None:
+            w.pending_config = dict(config)
         if readmit:
             w.weight, w.readmit = 0.0, True
             inflight = len(w.running) + len(w.waiting)
@@ -411,7 +438,7 @@ class Twin:
             s.burst = 1.0
             self.log("info", "traffic burst subsided", None, "traffic")
         elif kind == "restart":
-            self.restart(s.workers[payload["worker"]], payload.get("tool_ok"), payload.get("readmit", False))
+            self.restart(s.workers[payload["worker"]], payload.get("config"), payload.get("readmit", False))
 
     def _pick(self, pool: list[Worker]) -> Worker:
         total = sum(w.weight for w in pool)
@@ -512,8 +539,9 @@ class Twin:
             self.log("error", f"{w.id}: engine init failed, CUDA device lost (XID {g.xid} on g{g.local})", w.id, "crash")
             return
         w.state, w.restarts = "ready", w.restarts + 1
-        if w.pending_tool_ok is not None:
-            w.tool_ok, w.pending_tool_ok = w.pending_tool_ok, None
+        if w.pending_config is not None:
+            self.set_config(w, w.pending_config, "patch_serving_config")
+            w.pending_config = None
         self.log("info", f"{w.id}: engine ready" + (", awaiting canary before re-admit" if w.readmit else ""), w.id, "ready")
 
     def _expire(self, now: float) -> None:
@@ -546,6 +574,17 @@ class Twin:
                 if ok != w.healthy:
                     w.healthy = ok
                     self.log("info" if ok else "warn", f"gateway: {w.id} marked {'healthy' if ok else 'unhealthy'}", w.id, "health")
+
+    def hidden_canary(self) -> dict:
+        """Held-out tool-call probes the agent never sees: 2 cases per in-rotation worker."""
+        cases = []
+        for w in self.state.workers.values():
+            if not self.in_rotation(w):
+                continue
+            rack = self.rack_of(w)
+            ok = w.state == "ready" and w.healthy and w.tool_ok and rack.tor_latency_s < 0.5 and rack.tor_loss < 0.02
+            cases += [{"worker": w.id, "case": f"hidden-{w.id}-{i}", "passed": ok} for i in range(2)]
+        return {"passed": sum(c["passed"] for c in cases), "total": len(cases), "cases": cases}
 
     def _canary_loop(self):
         while True:
@@ -730,7 +769,9 @@ class Twin:
                 ttfts.append(ttft)
                 silent += status == "silent"
         tokens = sum(tok for t, tok in w.tokens if t >= cutoff)
+        recent = sum(tok for t, tok in w.tokens if t >= self.env.now - 3.0)
         return {
+            "tps_now": recent / 3.0,
             "rps": n / WINDOW_S,
             "ttft_p95": percentile(ttfts, 95),
             "error_rate": err / n if n else 0.0,

@@ -6,7 +6,7 @@ cannot be undone and are marked ``reversible: False``.
 
 from __future__ import annotations
 
-from .model import Twin, Worker
+from .model import SERVING_PROFILES, Twin, Worker
 
 KINDS = (
     "restart_worker",
@@ -72,9 +72,16 @@ def apply_action(twin: Twin, kind: str, args: dict | None = None, quiet: bool = 
         workers = [_worker(twin, wid) for wid in args.get("workers") or list(s.workers)]
         reversible = False
         step = twin.profile["inference"]["startup_s"] + 3 if args.get("rolling") else 0
+        wave = max(1, int(args.get("parallel", 1)))  # replicas restarted together per rolling step
         readmit = bool(args.get("rolling"))
+        if args.get("profile", "qwen25-coder-tools-v1") not in SERVING_PROFILES and not args.get("tool_parser"):
+            raise ValueError(f"unapproved serving profile: {args.get('profile')}")
+        before = {"config": {w.id: dict(w.config) for w in workers}}
         for i, w in enumerate(workers):
-            twin.schedule(i * step, "restart", {"worker": w.id, "tool_ok": True, "readmit": readmit})
+            config = dict(SERVING_PROFILES.get(args.get("profile", "qwen25-coder-tools-v1"), w.config))
+            if args.get("tool_parser"):  # single-sided change, kept for comparison only
+                config = {**w.config, "tool_parser": args["tool_parser"]}
+            twin.schedule((i // wave) * step, "restart", {"worker": w.id, "config": config, "readmit": readmit})
     elif kind == "set_power_limit":
         nodes = _scope_nodes(twin, args["scope"])
         watts = float(args["watts"]) if args.get("watts") else twin.profile["gpu"]["tdp_w"]

@@ -36,13 +36,17 @@ def _workers_on(twin: Twin, rack_or_row: str) -> list[str]:
     ]
 
 
-def candidate_set(twin: Twin) -> list[dict]:
-    """Runbook candidates for the active incidents, always led by a do-nothing baseline."""
+def candidate_set(twin: Twin, incidents: list[dict] | None = None) -> list[dict]:
+    """Runbook candidates for diagnosed incidents, always led by a do-nothing baseline.
+
+    ``incidents`` are ``{"kind", "target", "targets"}`` dicts from a diagnosis. Without
+    them the open injected faults are used (manual what-if from the UI).
+    """
     s = twin.state
     out = [{"id": "noop", "label": "Do nothing", "actions": []}]
-    for f in s.faults.values():
-        if f.get("resolved_at") is not None:
-            continue
+    if incidents is None:
+        incidents = [f for f in s.faults.values() if f.get("resolved_at") is None]
+    for f in incidents:
         kind, targets = f["kind"], f.get("targets", [])
         if kind in ("worker_hang", "worker_crash"):
             w = targets[0]
@@ -53,15 +57,24 @@ def candidate_set(twin: Twin) -> list[dict]:
             ]
         elif kind == "tool_parser":
             restart_all = [{"kind": "restart_worker", "args": {"worker": w}} for w in targets]
+            drain = [{"kind": "drain_worker", "args": {"worker": w}} for w in targets]
             out += [
                 {"id": "restart-wave", "label": "Restart wave (no config change)", "actions": restart_all},
-                {"id": "patch-all", "label": "Patch parser, restart all", "actions": [{"kind": "patch_config", "args": {"workers": targets}}]},
-                {"id": "patch-rolling", "label": "Patch parser, rolling", "actions": [{"kind": "patch_config", "args": {"workers": targets, "rolling": True}}]},
+                {
+                    "id": "parser-only",
+                    "label": "Swap parser only (single-sided)",
+                    "actions": drain + [{"kind": "patch_config", "args": {"workers": targets, "tool_parser": "qwen25_coder", "rolling": True}}],
+                },
+                {"id": "patch-all", "label": "Matched pair, restart all at once", "actions": [{"kind": "patch_config", "args": {"workers": targets, "profile": "qwen25-coder-tools-v1"}}]},
                 {
                     "id": "drain-patch-rolling",
-                    "label": "Drain wave, rolling patch + re-admit",
-                    "actions": [{"kind": "drain_worker", "args": {"worker": w}} for w in targets]
-                    + [{"kind": "patch_config", "args": {"workers": targets, "rolling": True}}],
+                    "label": "Matched pair, rolling + re-admit",
+                    "actions": drain + [{"kind": "patch_config", "args": {"workers": targets, "profile": "qwen25-coder-tools-v1", "rolling": True}}],
+                },
+                {
+                    "id": "drain-patch-pairs",
+                    "label": "Matched pair, 2 at a time + re-admit",
+                    "actions": drain + [{"kind": "patch_config", "args": {"workers": targets, "profile": "qwen25-coder-tools-v1", "rolling": True, "parallel": 2}}],
                 },
             ]
         elif kind == "traffic_burst":
@@ -106,7 +119,7 @@ def candidate_set(twin: Twin) -> list[dict]:
         if c["id"] not in seen:
             seen.add(c["id"])
             unique.append(c)
-    return unique[:6]
+    return unique[:7]
 
 
 def _band(runs: list[list[dict]], metric: str) -> dict:
@@ -129,11 +142,16 @@ def summarize(candidate: dict, runs: list[list[dict]], t0: float) -> dict:
     ttfts = [s["ttft_p95"] for r in runs for s in r if s["ttft_p95"] is not None]
     tail = [r[-10:] for r in runs]
     final_capacity = sum(r[-1]["capacity"] for r in runs) / len(runs)
+    recovered = next(
+        (runs[0][i]["t"] - t0 for i in range(length) if all(r[j]["slo_ok"] and r[j]["capacity"] >= 0.999 for r in runs for j in range(i, length))),
+        None,
+    )
     return {
         **candidate,
         "slo_fraction": round(slo_fraction, 3),
         "final_slo_ok": all(all(s["slo_ok"] for s in t) for t in tail),
         "final_capacity": round(final_capacity, 3),
+        "recovered_s": None if recovered is None else round(recovered, 1),
         "peak_ttft_p95": round(max(ttfts), 3) if ttfts else None,
         "mean_error": round(sum(s["error_rate"] for r in runs for s in r) / max(length * len(runs), 1), 4),
         "peak_gpu_c": round(max(s["max_gpu_c"] for r in runs for s in r), 1),
@@ -166,7 +184,15 @@ def preview(
         summaries.append(summarize(c, runs, now))
     ranked = sorted(
         summaries,
-        key=lambda c: (-round(c["slo_fraction"], 1), not c["final_slo_ok"], -c["final_capacity"], c["mean_error"], c["peak_gpu_c"], c["peak_ttft_p95"] or 1e9),
+        key=lambda c: (
+            -round(c["slo_fraction"], 1),
+            not c["final_slo_ok"],
+            -c["final_capacity"],
+            c["recovered_s"] if c["recovered_s"] is not None else 1e9,
+            c["mean_error"],
+            c["peak_gpu_c"],
+            c["peak_ttft_p95"] or 1e9,
+        ),
     )
     return {
         "t0": round(now, 1),
@@ -184,6 +210,7 @@ def preview_twin(
     horizon: float = 180.0,
     seeds: tuple[int, ...] = (101, 202, 303),
     executor: Executor | None = None,
+    incidents: list[dict] | None = None,
 ) -> dict:
     blob = pickle.dumps(twin.state)
-    return preview(twin.profile, blob, twin.now, candidates or candidate_set(twin), horizon, seeds, executor)
+    return preview(twin.profile, blob, twin.now, candidates or candidate_set(twin, incidents), horizon, seeds, executor)

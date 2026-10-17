@@ -28,6 +28,8 @@ def topology(twin: Twin) -> dict:
         "workers": [{"id": w.id, "node": w.node} for w in s.workers.values()],
         "crahs": [{"id": c.id, "row": c.row, "capacity_kw": c.capacity_kw} for c in s.crahs],
         "ups": list(s.ups),
+        "clock_base_s": 1 * 3600 + 47 * 60,  # matches nexus.doctors.CLOCK_BASE_S
+        "base_rps": p["traffic"]["base_rps"],
     }
 
 
@@ -66,6 +68,7 @@ def frame(twin: Twin, since_seq: int) -> dict:
                 "ready_in": _r(max(0.0, w.ready_at - twin.now), 1) if w.state == "restarting" else None,
                 "draining": w.drain_deadline is not None,
                 "clock": _r(twin.clock_of(w)),
+                "config": w.config,
             }
         )
         flows[w.id] = dict(w.flow)
@@ -118,6 +121,7 @@ def frame(twin: Twin, since_seq: int) -> dict:
         },
         "faults": list(s.faults.values()),
         "changes": list(s.changes.values())[-12:],
+        "config_log": s.config_log[-12:],
         "events": events,
     }
 

@@ -19,13 +19,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from nexus.certificate import morning_summary, notification_preview
+from nexus.doctors import DoctorManager
 from nexus.simulator import Twin, actions, faults, telemetry, whatif
 
 STATIC = Path(__file__).parent / "static"
+CERT_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "certificates"
 TICK_S = 0.05
 FRAME_S = 0.1
 WARMUP_S = 90.0
@@ -33,9 +36,13 @@ WARMUP_S = 90.0
 
 class Runtime:
     def __init__(self) -> None:
+        self.doctors = DoctorManager(CERT_DIR)
         self.reset()
 
     def reset(self, seed: int | None = None) -> None:
+        self.doctors.reset()
+        self.doctor_rev = ""
+        self.preview_task: asyncio.Task | None = None
         self.twin = Twin(seed=seed)
         self.twin.advance(WARMUP_S)
         self.speed = 1.0
@@ -60,6 +67,22 @@ async def _broadcast(message: str) -> None:
         clients.discard(ws)
 
 
+async def _doctor_preview(run) -> None:
+    """Fulfil a doctor's PRECHECK request on the process pool, off the event loop."""
+    twin = rt.twin
+    blob, now = pickle.dumps(twin.state), twin.now
+    candidates = whatif.candidate_set(twin, run.preview_request)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, lambda: whatif.preview(twin.profile, blob, now, candidates, 180.0, executor=pool))
+    if twin is rt.twin:
+        run.preview_result = result
+
+
+def _doctor_snapshot() -> dict | None:
+    run = rt.doctors.active or (rt.doctors.runs[-1] if rt.doctors.runs else None)
+    return run.snapshot() if run else None
+
+
 async def _run() -> None:
     last_tick = last_frame = time.monotonic()
     while True:
@@ -67,11 +90,21 @@ async def _run() -> None:
         now = time.monotonic()
         if not rt.paused:
             rt.twin.advance(min(now - last_tick, 0.25) * rt.speed)
+            rt.doctors.tick(rt.twin)
+            run = rt.doctors.active
+            if run and run.preview_request is not None and run.preview_result is None and (rt.preview_task is None or rt.preview_task.done()):
+                rt.preview_task = asyncio.create_task(_doctor_preview(run))
         last_tick = now
         if now - last_frame >= FRAME_S:
             last_frame = now
             frame = telemetry.frame(rt.twin, rt.last_seq)
             rt.last_seq = frame["seq"]
+            snap = _doctor_snapshot()
+            rev = f"{snap['id']}:{len(snap['events'])}:{snap['awaiting_approval']}:{snap['usage']}" if snap else ""
+            if rev != rt.doctor_rev:
+                rt.doctor_rev = rev
+                frame["doctor"] = snap
+            frame["doctors"] = {"enabled": rt.doctors.enabled, "autopilot": rt.doctors.autopilot, "active": rt.doctors.active.id if rt.doctors.active else None}
             if clients:
                 frame["speed"], frame["paused"] = rt.speed, rt.paused
                 await _broadcast(json.dumps(frame, separators=(",", ":")))
@@ -196,6 +229,78 @@ def post_control(req: ControlRequest) -> dict:
     if req.paused is not None:
         rt.paused = req.paused
     return {"speed": rt.speed, "paused": rt.paused, "t": rt.twin.now}
+
+
+class DoctorConfig(BaseModel):
+    autopilot: bool | None = None
+    enabled: bool | None = None
+
+
+class ApprovalRequest(BaseModel):
+    choice: str  # a candidate id, "recommended", or "reject"
+
+
+@app.get("/api/doctors")
+def get_doctors() -> dict:
+    d = rt.doctors
+    return {
+        "enabled": d.enabled,
+        "autopilot": d.autopilot,
+        "active": _doctor_snapshot(),
+        "runs": [{"id": r.id, "doctor": r.doctor, "state": r.state, "incident": r.incident.get("title"), "certificate_id": r.certificate and r.certificate["certificate_id"]} for r in d.runs],
+    }
+
+
+@app.post("/api/doctors/config")
+def post_doctor_config(req: DoctorConfig) -> dict:
+    if req.autopilot is not None:
+        rt.doctors.autopilot = req.autopilot
+        if rt.doctors.active:
+            rt.doctors.active.autopilot = req.autopilot
+    if req.enabled is not None:
+        rt.doctors.enabled = req.enabled
+    rt.doctor_rev = ""
+    return {"enabled": rt.doctors.enabled, "autopilot": rt.doctors.autopilot}
+
+
+@app.get("/api/doctors/runs/{run_id}")
+def get_run(run_id: str) -> dict:
+    for r in rt.doctors.runs:
+        if r.id == run_id:
+            return r.snapshot()
+    raise HTTPException(404, f"unknown run: {run_id}")
+
+
+@app.post("/api/doctors/runs/{run_id}/approve")
+def approve_run(run_id: str, req: ApprovalRequest) -> dict:
+    run = next((r for r in rt.doctors.runs if r.id == run_id), None)
+    if run is None or not run.awaiting_approval:
+        raise HTTPException(400, "run is not awaiting approval")
+    run.approval_choice = run.precheck["recommended"] if req.choice == "recommended" else req.choice
+    rt.doctor_rev = ""
+    return {"run": run_id, "choice": run.approval_choice}
+
+
+@app.get("/api/certificates")
+def list_certificates() -> list[dict]:
+    return rt.doctors.store.list()
+
+
+@app.get("/api/certificates/{cert_id}")
+def get_certificate(cert_id: str, download: bool = False):
+    cert = rt.doctors.store.get(cert_id)
+    if cert is None:
+        raise HTTPException(404, f"unknown certificate: {cert_id}")
+    headers = {"Content-Disposition": f'attachment; filename="{cert_id}.json"'} if download else None
+    return JSONResponse(cert, headers=headers)
+
+
+@app.get("/api/certificates/{cert_id}/summary")
+def certificate_summary(cert_id: str) -> dict:
+    cert = rt.doctors.store.get(cert_id)
+    if cert is None:
+        raise HTTPException(404, f"unknown certificate: {cert_id}")
+    return {"certificate": cert, "notification": notification_preview(cert), "morning": morning_summary(cert)}
 
 
 @app.get("/metrics")

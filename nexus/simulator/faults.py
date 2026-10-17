@@ -2,7 +2,7 @@
 
 Every fault injected here is simulated. ``live_episode`` says whether the same
 failure also exists as a real, reproducible episode on the live target, taken
-from ``data/failure-category-candidates.csv``.
+from ``data/infra_candidate_csv.csv`` (the infrastructure taxonomy).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .model import Twin
 
-CANDIDATES_CSV = Path(__file__).resolve().parents[2] / "data" / "failure-category-candidates.csv"
+CANDIDATES_CSV = Path(__file__).resolve().parents[2] / "data" / "infra_candidate_csv.csv"
 
 CATALOG = [
     {
@@ -38,8 +38,8 @@ CATALOG = [
         "kind": "tool_parser",
         "title": "Silent tool-call failure",
         "category": "Inference & Tool-Calling Failures",
-        "candidate_id": "VLLM-54808",
-        "summary": "A bad parser config reaches a rollout wave: 200 OK, tool calls dropped.",
+        "candidate_id": "VLLM-32926",
+        "summary": "A vLLM upgrade mismatches parser and chat template: 200 OK, tool calls dropped.",
         "target_type": "workers",
         "default_target": "vllm-0,vllm-1,vllm-2,vllm-3",
     },
@@ -117,7 +117,8 @@ def catalog() -> list[dict]:
         item = dict(entry)
         row = rows.get(entry["candidate_id"] or "")
         if row:
-            item["upstream_url"] = row["upstream_url"]
+            if row["upstream_url"].startswith("http"):
+                item["upstream_url"] = row["upstream_url"]
             item["reproduction_class"] = row["reproduction_class"]
             item["live_episode"] = row["execution_mode"]  # real | simulated | hybrid
             item["decision"] = row["decision"]
@@ -162,8 +163,10 @@ def inject(twin: Twin, kind: str, target: str | None = None) -> dict:
         for t in targets:
             twin.crash(s.workers[t], "EngineCore died unexpectedly")
     elif kind == "tool_parser":
+        # A vLLM upgrade rolls out with the tokenizer's default chat template, which no
+        # longer asks the model for the Hermes envelope the configured parser expects.
         for t in targets:
-            s.workers[t].tool_ok = False
+            twin.set_config(s.workers[t], {"image": "vllm 0.28.0", "tool_parser": "hermes", "chat_template": "tokenizer-default"}, "rollout: vLLM 0.27.1 → 0.28.0 (wave 1)")
     elif kind == "traffic_burst":
         s.burst = 3.0
         twin.schedule(120, "burst_end", {})

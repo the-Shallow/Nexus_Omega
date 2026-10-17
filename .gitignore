@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 .pytest_cache/
 artifacts/checkpoint-0/
+artifacts/certificates/

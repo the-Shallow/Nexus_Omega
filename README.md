@@ -177,7 +177,7 @@ The detailed plan, cut order and checklist are in [`docs/hackathon-plan.md`](doc
 
 ## Known limitations
 
-- The SimPy shadow model covers request flow, queueing and memory pressure only. It does not model hardware, thermal or network-packet behavior.
+- The SimPy shadow model covers request flow, queueing, KV-cache pressure, and lumped GPU power, thermal and room-cooling behavior. It does not model network packets, and its parameters are uncalibrated until measured on the live target.
 - Source patches are limited to small, allowlisted changes against a pinned revision in an isolated checkout.
 - Some upstream incidents are adapted to the available GPU and a smaller model; each adaptation is labelled.
 - Single-host deployment. Kubernetes and multi-node serving (llm-d, multi-node Dynamo) are out of scope for the hackathon.
