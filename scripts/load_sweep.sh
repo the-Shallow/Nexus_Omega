@@ -3,7 +3,7 @@
 # latency-vs-load curve used for the overload fault thresholds and for
 # calibrating the twin. Output: artifacts/load/<name>.{json,csv}
 # Usage: scripts/load_sweep.sh [name] [streams] [seconds-per-step]
-# TARGET overrides the endpoint (default: the gateway), e.g. TARGET=http://nexus-a:8000
+# TARGET overrides the endpoint (default: HAProxy, the fleet entry point), e.g. TARGET=http://nexus-a:8000
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f .env ] && set -a && . ./.env && set +a
@@ -12,7 +12,7 @@ NAME="${1:-sweep-$(date +%Y%m%dT%H%M%S)}"
 STREAMS="${2:-1,8,32,64,128,256}"
 SECONDS_PER_STEP="${3:-30}"
 MODEL="${MODEL:-qwen25-coder}"
-TARGET="${TARGET:-http://gateway:8100}"
+TARGET="${TARGET:-http://haproxy:8100}"
 TOKENIZER="${TOKENIZER:-Qwen/Qwen2.5-Coder-7B-Instruct}"
 OUT="$PWD/artifacts/load"
 mkdir -p "$OUT"
