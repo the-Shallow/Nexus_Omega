@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexus-omega"
+version = "0.1.0"
+description = "Bounded self-healing inference-service agent"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["nexus*"]
+
+[tool.unittest]
+start-directory = "tests"
