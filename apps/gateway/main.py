@@ -18,12 +18,19 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response, Streami
 from pydantic import BaseModel, Field
 
 
+# Upper bounds (seconds) of the per-worker latency histogram. Latency is
+# measured at the gateway, so it includes the network path that the workers'
+# own vLLM metrics cannot see.
+LATENCY_BUCKETS = [0.1, 0.25, 0.5, 1, 2, 5, 10, 30]
+
+
 def parse_workers(spec: str) -> dict[str, dict]:
     workers = {}
     for item in filter(None, (s.strip() for s in spec.split(","))):
         worker_id, url = item.split("=", 1)
         workers[worker_id] = {"url": url.rstrip("/"), "weight": 1.0, "drained": False,
-                              "requests": 0, "errors": 0, "last_error": None}
+                              "requests": 0, "errors": 0, "last_error": None,
+                              "latency": {"buckets": [0] * len(LATENCY_BUCKETS), "sum": 0.0, "count": 0}}
     return workers
 
 
@@ -39,6 +46,15 @@ def pick_worker() -> str:
     return random.choices(list(eligible), weights=list(eligible.values()))[0]
 
 
+def record_latency(worker_id: str, seconds: float) -> None:
+    hist = WORKERS[worker_id]["latency"]
+    for i, bound in enumerate(LATENCY_BUCKETS):
+        if seconds <= bound:
+            hist["buckets"][i] += 1
+    hist["sum"] += seconds
+    hist["count"] += 1
+
+
 def record_error(worker_id: str, message: str) -> None:
     WORKERS[worker_id]["errors"] += 1
     WORKERS[worker_id]["last_error"] = {"at": time.time(), "message": message[:300]}
@@ -50,6 +66,7 @@ async def proxy(path: str, request: Request):
     worker = WORKERS[worker_id]
     worker["requests"] += 1
     url = f"{worker['url']}/v1/{path}"
+    started = time.monotonic()
     body = await request.body()
     headers = {"content-type": request.headers.get("content-type", "application/json")}
     wants_stream = False
@@ -65,7 +82,10 @@ async def proxy(path: str, request: Request):
             resp = await client.send(upstream, stream=True)
         except httpx.HTTPError as exc:
             record_error(worker_id, repr(exc))
-            raise HTTPException(502, f"worker {worker_id} unreachable") from exc
+            record_latency(worker_id, time.monotonic() - started)
+            raise HTTPException(502, f"worker {worker_id} unreachable",
+                                headers={"x-nexus-worker": worker_id}) from exc
+        record_latency(worker_id, time.monotonic() - started)  # time to response headers
         if resp.status_code >= 500:
             record_error(worker_id, f"HTTP {resp.status_code}")
 
@@ -84,7 +104,10 @@ async def proxy(path: str, request: Request):
         resp = await client.request(request.method, url, content=body, headers=headers)
     except httpx.HTTPError as exc:
         record_error(worker_id, repr(exc))
-        raise HTTPException(502, f"worker {worker_id} unreachable") from exc
+        record_latency(worker_id, time.monotonic() - started)
+        raise HTTPException(502, f"worker {worker_id} unreachable",
+                            headers={"x-nexus-worker": worker_id}) from exc
+    record_latency(worker_id, time.monotonic() - started)
     if resp.status_code >= 500:
         record_error(worker_id, f"HTTP {resp.status_code}: {resp.text}")
     return Response(resp.content, status_code=resp.status_code,
@@ -145,6 +168,7 @@ async def metrics():
         "# TYPE nexus_gateway_errors_total counter",
         "# TYPE nexus_gateway_route_weight gauge",
         "# TYPE nexus_gateway_drained gauge",
+        "# TYPE nexus_gateway_request_seconds histogram",
     ]
     for w, s in WORKERS.items():
         lines += [
@@ -152,5 +176,13 @@ async def metrics():
             f'nexus_gateway_errors_total{{worker="{w}"}} {s["errors"]}',
             f'nexus_gateway_route_weight{{worker="{w}"}} {s["weight"]}',
             f'nexus_gateway_drained{{worker="{w}"}} {int(s["drained"])}',
+        ]
+        hist = s["latency"]
+        lines += [f'nexus_gateway_request_seconds_bucket{{worker="{w}",le="{b}"}} {n}'
+                  for b, n in zip(LATENCY_BUCKETS, hist["buckets"])]
+        lines += [
+            f'nexus_gateway_request_seconds_bucket{{worker="{w}",le="+Inf"}} {hist["count"]}',
+            f'nexus_gateway_request_seconds_sum{{worker="{w}"}} {hist["sum"]:.6f}',
+            f'nexus_gateway_request_seconds_count{{worker="{w}"}} {hist["count"]}',
         ]
     return PlainTextResponse("\n".join(lines) + "\n")
