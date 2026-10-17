@@ -25,7 +25,8 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parents[2]
-STATE_PATH = ROOT / "runtime" / "state" / "network-faults.json"
+# Kept out of runtime/state/*.json, which the manager reads as worker state.
+STATE_PATH = ROOT / "runtime" / "state" / "faults" / "network.json"
 API = os.environ.get("NEXUS_TOXIPROXY_API", "http://localhost:8474")
 
 PRESETS = {

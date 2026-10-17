@@ -19,7 +19,8 @@ from pathlib import Path
 from nexus.target import manager
 
 ROOT = Path(__file__).resolve().parents[2]
-STATE_PATH = ROOT / "runtime" / "state" / "process-faults.json"
+# Kept out of runtime/state/*.json, which the manager reads as worker state.
+STATE_PATH = ROOT / "runtime" / "state" / "faults" / "process.json"
 
 PRESETS = {
     "kill": ["kill", "--signal", "KILL"],
