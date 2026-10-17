@@ -16,6 +16,8 @@ services:
       - ../../apps/gateway:/app:ro
     environment:
       NEXUS_WORKERS: ${NEXUS_WORKERS:-a=http://nexus-a:8000,b=http://toxiproxy:8666}
+      NEXUS_MAX_INFLIGHT: ${NEXUS_MAX_INFLIGHT:-0}
+      NEXUS_ADMIN_TOKEN: ${NEXUS_ADMIN_TOKEN:-}
     ports:
       - "8100:8100"
     networks: [nexus]

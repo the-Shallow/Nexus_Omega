@@ -4,6 +4,9 @@ Forwards OpenAI-compatible requests to one worker chosen by route weight, and
 exposes admin endpoints the agent's action tools use to drain or reweight a
 worker. Workers are configured with NEXUS_WORKERS, e.g.
     NEXUS_WORKERS="a=http://nexus-a:8000,b=http://nexus-b:8000"
+NEXUS_MAX_INFLIGHT caps concurrent proxied requests (0 = no cap); requests over
+the cap get 429 at once instead of waiting unseen inside the gateway.
+NEXUS_ADMIN_TOKEN, when set, is required as a bearer token on /admin/*.
 """
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ import random
 import time
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -35,8 +38,19 @@ def parse_workers(spec: str) -> dict[str, dict]:
 
 
 WORKERS = parse_workers(os.environ.get("NEXUS_WORKERS", "a=http://nexus-a:8000"))
-client = httpx.AsyncClient(timeout=httpx.Timeout(300, connect=5))
+MAX_INFLIGHT = int(os.environ.get("NEXUS_MAX_INFLIGHT", "0"))
+ADMIN_TOKEN = os.environ.get("NEXUS_ADMIN_TOKEN", "")
+# httpx defaults to 100 pooled connections, which silently queued requests
+# inside the gateway above ~100 concurrent streams.
+client = httpx.AsyncClient(timeout=httpx.Timeout(300, connect=5),
+                           limits=httpx.Limits(max_connections=1024, max_keepalive_connections=256))
 app = FastAPI(title="Nexus Ω gateway")
+ADMISSION = {"inflight": 0, "rejected": 0}
+
+
+def require_admin(request: Request) -> None:
+    if ADMIN_TOKEN and request.headers.get("authorization") != f"Bearer {ADMIN_TOKEN}":
+        raise HTTPException(401, "admin token required")
 
 
 def pick_worker() -> str:
@@ -62,6 +76,28 @@ def record_error(worker_id: str, message: str) -> None:
 
 @app.api_route("/v1/{path:path}", methods=["GET", "POST"])
 async def proxy(path: str, request: Request):
+    if MAX_INFLIGHT and ADMISSION["inflight"] >= MAX_INFLIGHT:
+        ADMISSION["rejected"] += 1
+        raise HTTPException(429, "gateway at capacity", headers={"retry-after": "1"})
+    ADMISSION["inflight"] += 1
+    slot = {"held": True}
+
+    def release() -> None:
+        if slot["held"]:
+            slot["held"] = False
+            ADMISSION["inflight"] -= 1
+
+    try:
+        response = await forward(path, request, release)
+    except BaseException:
+        release()
+        raise
+    if not isinstance(response, StreamingResponse):
+        release()
+    return response
+
+
+async def forward(path: str, request: Request, release):
     worker_id = pick_worker()
     worker = WORKERS[worker_id]
     worker["requests"] += 1
@@ -95,6 +131,7 @@ async def proxy(path: str, request: Request):
                     yield chunk
             finally:
                 await resp.aclose()
+                release()  # a streamed request holds its admission slot until it ends
 
         return StreamingResponse(relay(), status_code=resp.status_code,
                                  media_type=resp.headers.get("content-type"),
@@ -125,12 +162,12 @@ def get_worker(worker_id: str) -> dict:
     return WORKERS[worker_id]
 
 
-@app.get("/admin/workers")
+@app.get("/admin/workers", dependencies=[Depends(require_admin)])
 async def list_workers():
     return {w: {k: v for k, v in s.items()} for w, s in WORKERS.items()}
 
 
-@app.post("/admin/workers/{worker_id}/weight")
+@app.post("/admin/workers/{worker_id}/weight", dependencies=[Depends(require_admin)])
 async def set_weight(worker_id: str, body: WeightBody):
     worker = get_worker(worker_id)
     before = worker["weight"]
@@ -138,7 +175,7 @@ async def set_weight(worker_id: str, body: WeightBody):
     return {"worker": worker_id, "before": before, "after": body.weight}
 
 
-@app.post("/admin/workers/{worker_id}/drain")
+@app.post("/admin/workers/{worker_id}/drain", dependencies=[Depends(require_admin)])
 async def drain(worker_id: str):
     worker = get_worker(worker_id)
     before = worker["drained"]
@@ -146,7 +183,7 @@ async def drain(worker_id: str):
     return {"worker": worker_id, "drained_before": before, "drained": True}
 
 
-@app.post("/admin/workers/{worker_id}/undrain")
+@app.post("/admin/workers/{worker_id}/undrain", dependencies=[Depends(require_admin)])
 async def undrain(worker_id: str):
     worker = get_worker(worker_id)
     before = worker["drained"]
@@ -169,6 +206,10 @@ async def metrics():
         "# TYPE nexus_gateway_route_weight gauge",
         "# TYPE nexus_gateway_drained gauge",
         "# TYPE nexus_gateway_request_seconds histogram",
+        "# TYPE nexus_gateway_inflight gauge",
+        "# TYPE nexus_gateway_rejected_total counter",
+        f"nexus_gateway_inflight {ADMISSION['inflight']}",
+        f"nexus_gateway_rejected_total {ADMISSION['rejected']}",
     ]
     for w, s in WORKERS.items():
         lines += [
