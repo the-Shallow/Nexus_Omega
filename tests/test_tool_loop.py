@@ -7,8 +7,8 @@ from nexus.agent.budgets import BudgetExceeded, RunBudget
 from nexus.agent.client import ScriptedNemotronClient
 from nexus.agent.contracts import ModelTurn, ToolCall
 from nexus.agent.events import JsonlEventLog
-from nexus.agent.runtime import CheckpointZeroController
-from nexus.agent.tools import build_checkpoint_zero_registry
+from nexus.agent.tool_loop import ToolLoopController
+from nexus.agent.topology_tools import build_topology_registry
 
 
 def successful_client() -> ScriptedNemotronClient:
@@ -33,17 +33,17 @@ def successful_client() -> ScriptedNemotronClient:
     )
 
 
-class RuntimeTests(unittest.TestCase):
+class ToolLoopTests(unittest.TestCase):
     def test_three_clean_contract_runs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for index in range(3):
                 run_id = f"run-{index}"
                 path = root / run_id / "events.jsonl"
-                controller = CheckpointZeroController(
+                controller = ToolLoopController(
                     run_id=run_id,
                     client=successful_client(),
-                    tools=build_checkpoint_zero_registry(),
+                    tools=build_topology_registry(),
                     event_log=JsonlEventLog(path, run_id),
                 )
                 result = controller.run("Inspect topology.")
@@ -77,15 +77,26 @@ class RuntimeTests(unittest.TestCase):
                     )
                 ]
             )
-            controller = CheckpointZeroController(
+            controller = ToolLoopController(
                 run_id="budget-run",
                 client=client,
-                tools=build_checkpoint_zero_registry(),
+                tools=build_topology_registry(),
                 event_log=JsonlEventLog(Path(directory) / "events.jsonl", "budget-run"),
                 budget=RunBudget(max_steps=2, max_tool_calls=1),
             )
             with self.assertRaises(BudgetExceeded):
                 controller.run("Inspect topology.")
+
+    def test_combined_operation_budget_is_enforced(self) -> None:
+        budget = RunBudget(
+            max_steps=10,
+            max_tool_calls=10,
+            max_total_operations=2,
+        )
+        budget.consume_step()
+        budget.consume_tool_call()
+        with self.assertRaisesRegex(BudgetExceeded, "total operation budget"):
+            budget.consume_step()
 
 
 if __name__ == "__main__":

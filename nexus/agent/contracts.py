@@ -136,6 +136,127 @@ class Hypothesis:
 
 
 @dataclass(frozen=True)
+class RepairAction:
+    """One model-proposed action that remains subject to controller policy."""
+
+    tool: str
+    arguments: dict[str, Any]
+
+    @classmethod
+    def from_dict(cls, payload: Any) -> "RepairAction":
+        item = _require_object(payload, "repair action")
+        allowed_keys = {"tool", "arguments"}
+        extra = set(item) - allowed_keys
+        if extra:
+            raise ContractError(
+                f"repair action has unsupported fields: {sorted(extra)}"
+            )
+        missing = allowed_keys - set(item)
+        if missing:
+            raise ContractError(
+                f"repair action is missing required fields: {sorted(missing)}"
+            )
+        return cls(
+            tool=_require_string(item.get("tool"), "repair action tool"),
+            arguments=_require_object(
+                item.get("arguments"), "repair action arguments"
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"tool": self.tool, "arguments": dict(self.arguments)}
+
+
+@dataclass(frozen=True)
+class RepairPlan:
+    """Evidence-backed repair proposed by the model before policy evaluation."""
+
+    hypothesis_id: str
+    confidence: float
+    evidence: tuple[str, ...]
+    action: RepairAction
+    expected_effect: str
+    risk: str
+    verification_plan: tuple[str, ...]
+    rollback_plan: str
+
+    @classmethod
+    def from_dict(cls, payload: Any) -> "RepairPlan":
+        item = _require_object(payload, "repair plan")
+        allowed_keys = {
+            "hypothesis_id",
+            "confidence",
+            "evidence",
+            "action",
+            "expected_effect",
+            "risk",
+            "verification_plan",
+            "rollback_plan",
+        }
+        extra = set(item) - allowed_keys
+        if extra:
+            raise ContractError(f"repair plan has unsupported fields: {sorted(extra)}")
+        missing = allowed_keys - set(item)
+        if missing:
+            raise ContractError(
+                f"repair plan is missing required fields: {sorted(missing)}"
+            )
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise ContractError("repair plan confidence must be numeric")
+        if not 0 <= float(confidence) <= 1:
+            raise ContractError("repair plan confidence must be between 0 and 1")
+        evidence = item.get("evidence")
+        if (
+            not isinstance(evidence, list)
+            or not evidence
+            or not all(isinstance(value, str) and value.strip() for value in evidence)
+        ):
+            raise ContractError(
+                "repair plan evidence must be a non-empty array of strings"
+            )
+        verification = item.get("verification_plan")
+        if (
+            not isinstance(verification, list)
+            or not verification
+            or not all(
+                isinstance(value, str) and value.strip() for value in verification
+            )
+        ):
+            raise ContractError(
+                "repair plan verification_plan must be a non-empty array of strings"
+            )
+        return cls(
+            hypothesis_id=_require_string(
+                item.get("hypothesis_id"), "repair plan hypothesis_id"
+            ),
+            confidence=float(confidence),
+            evidence=tuple(evidence),
+            action=RepairAction.from_dict(item.get("action")),
+            expected_effect=_require_string(
+                item.get("expected_effect"), "repair plan expected_effect"
+            ),
+            risk=_require_string(item.get("risk"), "repair plan risk"),
+            verification_plan=tuple(verification),
+            rollback_plan=_require_string(
+                item.get("rollback_plan"), "repair plan rollback_plan"
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "hypothesis_id": self.hypothesis_id,
+            "confidence": self.confidence,
+            "evidence": list(self.evidence),
+            "action": self.action.to_dict(),
+            "expected_effect": self.expected_effect,
+            "risk": self.risk,
+            "verification_plan": list(self.verification_plan),
+            "rollback_plan": self.rollback_plan,
+        }
+
+
+@dataclass(frozen=True)
 class AgentDecision:
     """Structured decision returned after the model has consumed tool results."""
 
@@ -143,6 +264,7 @@ class AgentDecision:
     summary: str
     hypotheses: tuple[Hypothesis, ...]
     stop_reason: str | None
+    repair_plan: RepairPlan | None = None
 
     @classmethod
     def from_json(cls, raw: str) -> "AgentDecision":
@@ -151,11 +273,18 @@ class AgentDecision:
         except json.JSONDecodeError as exc:
             raise ContractError("assistant content is not valid decision JSON") from exc
         item = _require_object(payload, "agent decision")
-        allowed_keys = {"state", "summary", "hypotheses", "stop_reason"}
+        allowed_keys = {
+            "state",
+            "summary",
+            "hypotheses",
+            "stop_reason",
+            "repair_plan",
+        }
+        required_keys = {"state", "summary", "hypotheses", "stop_reason"}
         extra = set(item) - allowed_keys
         if extra:
             raise ContractError(f"agent decision has unsupported fields: {sorted(extra)}")
-        missing = allowed_keys - set(item)
+        missing = required_keys - set(item)
         if missing:
             raise ContractError(
                 f"agent decision is missing required fields: {sorted(missing)}"
@@ -174,10 +303,15 @@ class AgentDecision:
             summary=_require_string(item.get("summary"), "decision summary"),
             hypotheses=tuple(Hypothesis.from_dict(x) for x in raw_hypotheses),
             stop_reason=stop_reason,
+            repair_plan=(
+                RepairPlan.from_dict(item["repair_plan"])
+                if item.get("repair_plan") is not None
+                else None
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "state": self.state,
             "summary": self.summary,
             "hypotheses": [
@@ -191,3 +325,6 @@ class AgentDecision:
             ],
             "stop_reason": self.stop_reason,
         }
+        if self.repair_plan is not None:
+            payload["repair_plan"] = self.repair_plan.to_dict()
+        return payload

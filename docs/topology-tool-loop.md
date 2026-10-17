@@ -1,6 +1,9 @@
-# Checkpoint 0 — runtime contract
+# Topology tool loop
 
-Checkpoint 0 proves that the deterministic controller can expose a typed tool to Nemotron, validate the model's native tool call, return the tool result, validate the model's next structured decision, enforce hard budgets, and record an append-only audit trail.
+This smoke workflow proves that the deterministic controller can expose a typed
+tool to Nemotron, validate the model's native tool call, return the tool result,
+validate the model's next structured decision, enforce hard budgets, and record
+an append-only audit trail.
 
 ## Included
 
@@ -20,7 +23,7 @@ From the repository root:
 
 ```powershell
 python -m unittest discover -s tests -v
-python -m scripts.checkpoint0 --mode scripted --runs 3
+python -m scripts.topology_smoke_test --mode scripted --runs 3
 ```
 
 The smoke run must report three runs, each with:
@@ -29,7 +32,7 @@ The smoke run must report three runs, each with:
 - `steps: 2`
 - `tool_calls: 1`
 
-Event logs are written under `artifacts/checkpoint-0/` and intentionally ignored by Git.
+Event logs are written under `artifacts/topology-smoke-test/` and intentionally ignored by Git.
 
 ## Verify with Nemotron
 
@@ -39,13 +42,16 @@ Point the adapter at the vLLM endpoint without committing credentials:
 $env:NEMOTRON_BASE_URL = "http://<host>:<port>/v1"
 $env:NEMOTRON_MODEL = "<served-model-name>"
 $env:NEMOTRON_API_KEY = "<key-if-required>"
-python -m scripts.checkpoint0 --mode live --runs 3
+python -m scripts.topology_smoke_test --mode live --runs 3
 ```
 
 For a local endpoint without authentication, omit `NEMOTRON_API_KEY`.
 
-Checkpoint 0 is fully passed only when live mode completes three consecutive runs. Scripted mode verifies the controller and tools but does not prove Nemotron or vLLM tool parsing.
+The live contract is passed when live mode completes three consecutive runs.
+Scripted mode verifies the controller and tools but does not prove Nemotron or
+vLLM tool parsing.
 
-## Review boundary
+## Scope
 
-This checkpoint cannot inspect logs, files, metrics, containers, or repositories. It cannot mutate anything. Those capabilities belong to later checkpoints and should not be added until this contract is reviewed.
+This smoke workflow exercises only topology inspection. The diagnostic runtime
+adds bounded evidence collection separately; neither workflow permits mutation.

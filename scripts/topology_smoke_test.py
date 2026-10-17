@@ -1,4 +1,4 @@
-"""Run the Checkpoint 0 contract in scripted or live Nemotron mode."""
+"""Exercise the topology tool loop in scripted or live Nemotron mode."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from nexus.agent.client import (
 )
 from nexus.agent.contracts import ModelTurn, ToolCall
 from nexus.agent.events import JsonlEventLog
-from nexus.agent.runtime import CheckpointZeroController
-from nexus.agent.tools import build_checkpoint_zero_registry
+from nexus.agent.tool_loop import ToolLoopController
+from nexus.agent.topology_tools import build_topology_registry
 
 
 def scripted_client() -> ScriptedNemotronClient:
@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=("scripted", "live"), default="scripted")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument(
-        "--event-dir", type=Path, default=Path("artifacts/checkpoint-0")
+        "--event-dir", type=Path, default=Path("artifacts/topology-smoke-test")
     )
     return parser.parse_args()
 
@@ -57,23 +57,23 @@ def main() -> int:
         raise SystemExit("--runs must be at least 1")
     summaries = []
     for index in range(1, args.runs + 1):
-        run_id = f"checkpoint-0-{args.mode}-{index:02d}"
+        run_id = f"topology-{args.mode}-{index:02d}"
         client = (
             scripted_client()
             if args.mode == "scripted"
             else VLLMNemotronClient(VLLMClientConfig.from_env())
         )
-        controller = CheckpointZeroController(
+        controller = ToolLoopController(
             run_id=run_id,
             client=client,
-            tools=build_checkpoint_zero_registry(),
+            tools=build_topology_registry(),
             event_log=JsonlEventLog(args.event_dir / run_id / "events.jsonl", run_id),
         )
         result = controller.run(
             "Inspect the declared service topology before deciding the next diagnostic state."
         )
         if result.tool_calls != 1 or result.decision.state != "DIAGNOSE":
-            raise RuntimeError(f"checkpoint contract failed for {run_id}")
+            raise RuntimeError(f"topology tool-loop contract failed for {run_id}")
         summaries.append(
             {
                 "run_id": run_id,
