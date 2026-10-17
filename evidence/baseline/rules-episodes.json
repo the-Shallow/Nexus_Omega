@@ -1,0 +1,395 @@
+[
+  {
+    "fault": "vllm-32926",
+    "solver": "rules",
+    "at": "2026-10-17T22:44:14+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 74.4,
+    "rule": "parser_mismatch",
+    "action": {
+      "tool": "patch_serving_config",
+      "service": "target-a",
+      "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.036,
+          "median_s": 0.036,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.038,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  },
+  {
+    "fault": "net-latency-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:44:34+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 17.8,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.039,
+          "median_s": 0.038,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "net-blackhole-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:45:23+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 46.7,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.038,
+          "median_s": 0.038,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "kill-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:46:43+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 75.5,
+    "rule": "worker_down",
+    "action": {
+      "tool": "restart_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.036,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  },
+  {
+    "fault": "vllm-32926",
+    "solver": "rules",
+    "at": "2026-10-17T22:49:14+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 74.0,
+    "rule": "parser_mismatch",
+    "action": {
+      "tool": "patch_serving_config",
+      "service": "target-a",
+      "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  },
+  {
+    "fault": "net-latency-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:49:35+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 18.4,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.038,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "net-blackhole-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:50:24+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 46.6,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.038,
+          "median_s": 0.038,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "kill-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:51:43+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 75.4,
+    "rule": "worker_down",
+    "action": {
+      "tool": "restart_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.036,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.038,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  },
+  {
+    "fault": "vllm-32926",
+    "solver": "rules",
+    "at": "2026-10-17T22:54:18+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 77.1,
+    "rule": "parser_mismatch",
+    "action": {
+      "tool": "patch_serving_config",
+      "service": "target-a",
+      "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  },
+  {
+    "fault": "net-latency-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:54:38+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 18.0,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.039,
+          "median_s": 0.038,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "net-blackhole-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:55:27+00:00",
+    "terminal_state": "REQUIRES_APPROVAL",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 46.5,
+    "rule": "link_fault",
+    "action": {
+      "tool": "drain_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 30,
+          "p95_s": 0.039,
+          "median_s": 0.038,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": false,
+      "faulty_worker_drained": true
+    }
+  },
+  {
+    "fault": "kill-b",
+    "solver": "rules",
+    "at": "2026-10-17T22:56:46+00:00",
+    "terminal_state": "VERIFIED",
+    "success": true,
+    "false_verified": false,
+    "solve_seconds": 75.4,
+    "rule": "worker_down",
+    "action": {
+      "tool": "restart_worker",
+      "service": "target-b"
+    },
+    "verification": {
+      "users_ok": true,
+      "route": {
+        "a": {
+          "requests": 15,
+          "p95_s": 0.037,
+          "median_s": 0.036,
+          "error_rate": 0.0,
+          "ok": true
+        },
+        "b": {
+          "requests": 15,
+          "p95_s": 0.042,
+          "median_s": 0.037,
+          "error_rate": 0.0,
+          "ok": true
+        }
+      },
+      "hidden_passed": true,
+      "root_fixed": true,
+      "faulty_worker_drained": false
+    }
+  }
+]
