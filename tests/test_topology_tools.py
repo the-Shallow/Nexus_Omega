@@ -1,12 +1,12 @@
 import unittest
 
 from nexus.agent.contracts import ContractError
-from nexus.agent.tools import build_checkpoint_zero_registry
+from nexus.agent.topology_tools import build_topology_registry
 
 
-class ToolRegistryTests(unittest.TestCase):
+class TopologyToolsTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.registry = build_checkpoint_zero_registry()
+        self.registry = build_topology_registry()
 
     def test_get_topology_is_read_only_and_deterministic(self) -> None:
         result = self.registry.invoke("get_topology", {})

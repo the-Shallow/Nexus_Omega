@@ -1,1 +1,1 @@
-"""Executable project checkpoints."""
+"""Executable project workflows and smoke tests."""

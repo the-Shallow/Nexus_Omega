@@ -3,6 +3,4 @@ __pycache__/
 *.py[cod]
 .venv/
 runtime/state/
-artifacts/runs/
-artifacts/env/
-artifacts/checkpoint-0/
+artifacts/
