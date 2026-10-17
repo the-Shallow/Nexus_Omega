@@ -173,7 +173,7 @@ Exact commands and pinned image digests will be filled in at bring-up.
 5. **Gate 4:** one source-patch episode.
 6. **Gate 5:** NeMo Gym evaluation, UI polish, rehearsal.
 
-The detailed plan, cut order and checklist are in [`docs/hackathon-plan.md`](docs/hackathon-plan.md).
+The detailed plan, cut order and checklist are in [`docs/hackathon-plan.md`](docs/hackathon-plan.md). The runtime contract and checkpoint acceptance criteria are in [`docs/agentic-requirements.md`](docs/agentic-requirements.md).
 
 ## Known limitations
 

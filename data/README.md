@@ -1,9 +1,8 @@
 # Issue-derived dataset
 
-`issue-candidates.csv` is the original researched candidate list. The category-oriented revision is available as:
+`issue-candidates.csv` is the single canonical machine-readable candidate list. Every row includes an explicit `failure_category` value from the project's failure taxonomy.
 
-- `failure-category-candidates.csv`: machine-readable selection matrix.
-- `failure-category-candidates.md`: environment gates, scenario mapping, and the recommended eight-episode release set.
+`failure-category-candidates.md` provides the accompanying environment gates, scenario mapping, and recommended eight-episode release set.
 
 These are candidate lists, not yet a validated benchmark. An entry becomes a benchmark episode only after the team pins a vulnerable revision and demonstrates three clean reproductions.
 
