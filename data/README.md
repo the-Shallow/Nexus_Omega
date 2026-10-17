@@ -1,6 +1,6 @@
 # Issue-derived dataset
 
-`issue-candidates.csv` is the single canonical machine-readable candidate list. Every row includes an explicit `failure_category` value from the project's failure taxonomy.
+`issue-candidates.csv` is the single canonical machine-readable candidate list. Every row includes exactly one `incident_class`: `Tool-call correctness`, `Process health`, `Capacity`, `Network`, `Serving-code defects`, or `Abstain`.
 
 `failure-category-candidates.md` provides the accompanying environment gates, scenario mapping, and recommended eight-episode release set.
 
