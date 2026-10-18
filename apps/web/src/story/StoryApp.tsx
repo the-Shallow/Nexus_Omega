@@ -26,7 +26,8 @@ const RAIL = 216;   // progress spine plus margin, px
 const LIVE_COL = 396;   // live console plus margin, px
 const params = new URLSearchParams(location.search);
 /** The recorded run the landing page plays behind the brief. */
-const LANDING_RUN = 'run-96915174';
+// Held-out v1, after the redesign: a fault nobody wrote rules for, repaired and VERIFIED.
+const LANDING_RUN = 'run-ce0c86a3';
 /** No deep link means the landing page. ?intro=N (review screenshots) opens it at beat N. */
 const LANDING = params.has('intro') || !['run', 'story', 'hop', 'shot'].some((k) => params.has(k));
 const FIRST_BEAT = Math.min(2, Math.max(0, Number(params.get('intro') || 1) - 1));

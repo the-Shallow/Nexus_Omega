@@ -12,6 +12,7 @@ import './site.css';
 import type { ScoreBatch } from '../lib/types';
 import { FloorPlan, Loop } from './diagrams';
 import { Chapter, Footer, Nav, REFERENCE_RUN, fmt, storyUrl, useBfcl, useEpisodes, useScoreboard } from './shell';
+import { Dumbbell, SET_NAME, type DumbbellRow } from './charts';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -21,10 +22,10 @@ function Hero() {
       <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease }}>
         <div className="label">Self-healing for AI inference fleets</div>
         <h1 className="mt-5 text-[clamp(36px,5.2vw,64px)] font-semibold leading-[1.02] tracking-[-0.025em]" style={{ textWrap: 'balance' }}>
-          AI services can fail silently. Nexus finds it, fixes it, and proves it.
+          A small model you can trust to fix production AI.
         </h1>
         <p className="mt-6 max-w-[52ch] text-[18px] leading-relaxed text-ink-2">
-          When a model server keeps answering but stops doing the work, dashboards stay green. Nexus checks the work itself, sends an agent to find the cause, applies one approved fix, and lets an independent referee decide whether it worked.
+          When a model server keeps answering but stops doing the work, dashboards stay green. Nexus checks the work itself, sends a 3B-active Nemotron agent to find the cause, applies one approved fix, and lets an independent referee decide whether it worked. It never gets to grade itself.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href={storyUrl(`run=${REFERENCE_RUN}`)} className="rounded-xl bg-accent px-5 py-3 text-[15px] font-semibold text-bg">Watch a real incident</a>
@@ -120,8 +121,8 @@ function Watch() {
         <a href={storyUrl(`run=${REFERENCE_RUN}`)} className="group flex flex-col justify-between gap-8 rounded-2xl border border-info/30 bg-raised p-7 transition-colors hover:border-info/60">
           <div>
             <span className="rounded-md border border-info/30 bg-info/10 px-2 py-0.5 font-mono text-[10.5px] tracking-wider text-info">RECORDED RUN · {REFERENCE_RUN}</span>
-            <h3 className="mt-4 text-[26px] font-semibold leading-tight tracking-tight">Nemotron fixes a silent parser fault</h3>
-            <p className="mt-3 max-w-[48ch] text-[15px] text-ink-2">One worker stops returning tool calls. The canary catches it, the Tool-Calling Doctor finds the misconfigured parser, and the referee confirms the fix.</p>
+            <h3 className="mt-4 text-[26px] font-semibold leading-tight tracking-tight">Nemotron repairs a fault nobody wrote rules for</h3>
+            <p className="mt-3 max-w-[48ch] text-[15px] text-ink-2">Worker a’s chat template quietly drops the tools, so the model answers in prose and no tool call ever comes back. Hand-written rules miss it every time. Nemotron finds the template, applies the reviewed serving profile, and the referee confirms the fix.</p>
           </div>
           <div className="flex items-center justify-between">
             <span className="font-mono text-[12px] text-ink-3">{ref ? `${ref.terminal_state} · solved in ${fmt.sec(ref.solve_seconds)}` : ' '}</span>
@@ -147,22 +148,32 @@ function Watch() {
 
 const find = (b: ScoreBatch[] | undefined, id: string) => b?.find((x) => x.id === id)?.total;
 
+const SETS = [
+  { set: 'known', rules: 'rules-known', before: 'agent-batch1', after: 'agent-known-after' },
+  { set: 'v1', rules: 'rules-heldout', before: 'agent-v1-before', after: 'agent-v1-after', reference: 'agent-super-v1' },
+  { set: 'v2', rules: 'rules-v2', before: 'agent-v2-before', after: 'agent-v2-after' },
+] as const;
+
 function Evidence() {
   const sb = useScoreboard();
   const b = sb?.batches;
-  const known = find(b, 'rules-known'), held = find(b, 'rules-heldout'), final = find(b, 'agent-final-32926'), batch1 = find(b, 'agent-batch1');
-  const frac = (c?: { success: number; total: number }) => (c ? `${c.success}/${c.total}` : '–');
+  const fv = (phase: 'before' | 'after') => SETS.reduce((n, s) => n + (find(b, s[phase])?.false_verified ?? 0), 0);
+  const runs = (phase: 'before' | 'after') => SETS.reduce((n, s) => n + (find(b, s[phase])?.total ?? 0), 0);
+  const rows: DumbbellRow[] = SETS.map((s) => ({
+    key: s.set, label: SET_NAME[s.set], rules: find(b, s.rules), before: find(b, s.before), after: find(b, s.after),
+    reference: 'reference' in s ? find(b, s.reference) : undefined,
+  }));
   return (
-    <Chapter id="evidence" n="04" eyebrow="Evidence" title="What it got right, and what it got wrong, on the same faults."
-      lede="Every episode is scored by an independent referee. When the agent claims a fix that the referee rejects, we count it as a false VERIFIED and show it.">
-      <div className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-bg p-6"><Stat label="rules · known faults" value={frac(known)} sub={held ? `but ${frac(held)} on the Batch 2 held-out faults` : undefined} /></div>
-        <div className="bg-bg p-6"><Stat label="Nemotron · final setup" value={frac(final)} tone="text-ok" sub={final?.median_s ? `VLLM-32926, median ${fmt.sec(final.median_s)}` : 'VLLM-32926'} /></div>
-        <div className="bg-bg p-6"><Stat label="Nemotron · batch 1" value={frac(batch1)} sub={batch1 ? `with ${batch1.false_verified} false VERIFIED, counted` : undefined} /></div>
+    <Chapter id="evidence" n="04" eyebrow="Evidence" title="Same model, better harness, misses included."
+      lede="Every episode is scored by an independent referee. We measured the same Nemotron weights before and after redesigning the harness around them, against hand-written rules, on faults the rules were written for and on two sets nobody wrote rules for.">
+      <div className="rounded-2xl border border-line bg-raised p-6 md:p-8">{sb ? <Dumbbell rows={rows} referenceLabel="Nemotron Super, 4× bigger, same harness" /> : <span className="text-ink-3">–</span>}</div>
+      <div className="mt-4 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
+        <div className="bg-bg p-6"><Stat label="false “fixed” claims, before" value={sb ? String(fv('before')) : '–'} tone="text-bad" sub={sb ? `in ${runs('before')} runs` : undefined} /></div>
+        <div className="bg-bg p-6"><Stat label="false “fixed” claims, after" value={sb ? String(fv('after')) : '–'} tone="text-ok" sub={sb ? `in ${runs('after')} runs` : undefined} /></div>
         <div className="bg-bg p-6"><Stat label="errors during one repair" value="0" sub="out of 1,550 requests, measured once" /></div>
       </div>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <p className="max-w-[62ch] text-[15px] text-ink-2">Rules handle the faults they were written for. Held-out faults are where an agent has to earn its place, and that’s the result we’re working toward.</p>
+        <p className="max-w-[62ch] text-[15px] text-ink-2">Rules handle the faults they were written for. On faults nobody wrote rules for, the agent solves three times as many, and it never claims a fix it didn’t make.</p>
         <a href="results.html" className="rounded-xl border border-line-2 px-4 py-2.5 text-[14px] font-medium hover:bg-white/[0.04]">See all results</a>
       </div>
     </Chapter>
@@ -170,19 +181,20 @@ function Evidence() {
 }
 
 function Next() {
-  const held = find(useScoreboard()?.batches, 'rules-heldout');
+  const b = useScoreboard()?.batches;
+  const held = find(b, 'rules-heldout'), after = find(b, 'agent-v1-after');
   const items = [
-    { tag: 'Next', t: 'Break it live', d: 'Start a real fault on the fleet from the page and follow the agent as it works, streamed step by step.' },
+    { tag: 'Done', t: 'Beat the rules on held-out faults', d: held && after ? `On faults nobody wrote rules for, the agent solves ${after.success} of ${after.total} and the rules ${held.success} of ${held.total}, with no false “fixed” claims.` : 'Faults nobody wrote a rule for are where an agent has to earn its place.' },
+    { tag: 'Built', t: 'Break it live', d: 'Start a real fault on the fleet from the story page, watch the agent work in a live column, then replay the run it produced.' },
+    { tag: 'Next', t: 'Capacity faults', d: 'The agent’s weakest fault: a worker choked under load. Its misses came from a relabel step overriding a correct first draft, which is the next thing to fix.' },
     { tag: 'Next', t: 'Test before acting', d: 'Give the agent the shadow twin: race candidate fixes in simulation before touching a real worker.' },
-    { tag: 'Next', t: 'Beat the rules on held-out faults', d: held ? `On the Batch 2 held-out faults the rule baseline solved ${held.success} of ${held.total}. Faults nobody wrote a rule for are where an agent has to earn its place.` : 'Faults nobody wrote a rule for are where an agent has to earn its place.' },
-    { tag: 'Concept', t: 'Beyond inference fleets', d: 'The same loop for logistics carrier contracts, or healthcare as decision support with a person approving.' },
   ];
   return (
-    <Chapter id="next" n="05" eyebrow="What’s next" title="The simulation is where the story starts.">
+    <Chapter id="next" n="05" eyebrow="What’s next" title="What we set out to prove, and what comes next.">
       <div className="grid gap-4 md:grid-cols-2">
         {items.map((x) => (
           <div key={x.t} className="rounded-2xl border border-line p-6">
-            <span className={`font-mono text-[10.5px] tracking-wider ${x.tag === 'Next' ? 'text-accent' : 'text-ink-3'}`}>{x.tag.toUpperCase()}</span>
+            <span className={`font-mono text-[10.5px] tracking-wider ${x.tag === 'Next' ? 'text-accent' : x.tag === 'Concept' ? 'text-ink-3' : 'text-ok'}`}>{x.tag === 'Next' ? 'NEXT' : `✓ ${x.tag.toUpperCase()}`}</span>
             <h3 className="mt-2 text-[19px] font-semibold tracking-tight">{x.t}</h3>
             <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{x.d}</p>
           </div>

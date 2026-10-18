@@ -4,13 +4,14 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import type { BfclProfile, EpisodeSummary, Scoreboard } from '../lib/types';
 
-export const REFERENCE_RUN = 'run-96915174';
+// Held-out v1, after the redesign: tools silently ignored (rules 0/3, Lightning 3/3), VERIFIED.
+export const REFERENCE_RUN = 'run-ce0c86a3';
 export const storyUrl = (q: string) => `story.html?${q}`;
 
 export function Nav({ page }: { page: 'home' | 'results' }) {
   const links = page === 'home'
     ? [['#problem', 'Problem'], ['#how', 'How it works'], ['#evidence', 'Evidence'], ['#next', 'What’s next']]
-    : [['#scoreboard', 'Scoreboard'], ['#profiles', 'Tool calling'], ['#runs', 'Runs']];
+    : [['#before-after', 'Before and after'], ['#matrix', 'Fault by fault'], ['#bigger-model', 'Bigger model?'], ['#tool-calling', 'Tool calling'], ['#runs', 'Runs']];
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-6 px-5">

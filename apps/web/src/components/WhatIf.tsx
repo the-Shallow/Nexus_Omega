@@ -1,5 +1,5 @@
 // The engineers' ending: the simulated datacenter behind a short "what if". The numbers
-// are the real agent's (evidence/heldout, evidence/agent/known-after.json); the hall is not.
+// are the real agent's (evidence/heldout, evidence/agent/known-after.json, big-model.json); the hall is not.
 // Sits under the header, unfolds downward on load, and collapses to its title.
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -7,8 +7,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 const ease = [0.16, 1, 0.3, 1] as const;
 
 const STATS = [
-  { v: '0', l: 'false “fixed” claims in 36 runs after the harness change' },
-  { v: '9/12', l: 'on unseen faults; hand-written rules get 3/12' },
+  { v: '0', l: 'false “fixed” claims in 36 runs after the harness redesign' },
+  { v: '9/12', l: 'on unseen faults; rules get 3/12 (12/12 and 11/12 on the other sets)' },
   { v: '3B', l: 'active parameters, on the H100 it repairs' },
 ];
 
@@ -46,7 +46,7 @@ export function WhatIf() {
             exit={{ height: 0, opacity: 0, transition: { height: { duration: 0.45, ease }, opacity: { duration: 0.2 } } }}>
             <div className="space-y-2.5 px-4 text-[13.5px] leading-relaxed text-ink-2">
               <p><span className="text-ink">It won’t be easy.</span> Out of the box, our small model said a fix had worked when it hadn’t, 3 times in 12.</p>
-              <p>We didn’t reach for a bigger model. We built a stricter harness around the same one, and let an independent referee decide what counts as fixed.</p>
+              <p>We didn’t reach for a bigger model. We built a stricter harness around the same one, and let an independent referee decide what counts as fixed. A model with 4× the active parameters on that same harness gets 11/11, at twice the time and off the box.</p>
               <p>Scale that harness to power, cooling and GPU faults, and you get this hall: a 512-GPU pod where every repair is checked before it counts.</p>
             </div>
             <dl className="mx-4 mt-4 grid grid-cols-3 gap-1.5">

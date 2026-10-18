@@ -1,9 +1,10 @@
 // The landing intro: a short brief on the left while the live 3D world plays behind it.
 // Three beats, one per scroll; each beat moves the backdrop to the room it talks about.
 // Scrolling past the last beat (or "Watch the demo") hands over to the story.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../../lib/api';
+import { HBars } from '../../site/charts';
 import { snapshotAt, type Story } from '../script/types';
 import type { World } from '../world/world';
 
@@ -52,10 +53,12 @@ export function stageBeat(world: World, story: Story, beat: number, instant = fa
   if (beat === 0) fly.then(() => world.stage.orbit([-2.5, -0.5], 27, 15, 0.02));
 }
 
-interface Stat { value: string; label: string; tone: 'ok' | 'bad' | 'ink' }
+type Total = { success: number; total: number; false_verified: number };
 
+/** The brief's numbers, read from the results API: BFCL per serving profile and the scoreboard batches. */
 function useStats() {
-  const [s, setS] = useState<{ healthy?: number; broken?: number; final?: string; fv?: number }>({});
+  const [s, setS] = useState<{ healthy?: number; broken?: number; fvBefore?: number; fvAfter?: number; nBefore?: number; nAfter?: number;
+    rules?: Total; after?: Total; bigger?: Total }>({});
   useEffect(() => {
     api.bfcl().then((p) => setS((x) => ({
       ...x,
@@ -63,35 +66,87 @@ function useStats() {
       broken: p.find((q) => q.label.endsWith('vllm-32926'))?.tool_calling_score,
     }))).catch(() => {});
     api.scoreboard().then((b) => {
-      const f = b.batches.find((x) => x.id === 'agent-final-32926')?.total;
-      const b1 = b.batches.find((x) => x.id === 'agent-batch1')?.total;
-      setS((x) => ({ ...x, final: f ? `${f.success}/${f.total}` : undefined, fv: b1?.false_verified }));
+      const t = (id: string) => b.batches.find((x) => x.id === id)?.total;
+      const sum = (ids: string[], k: 'false_verified' | 'total') => ids.reduce((n, id) => n + (t(id)?.[k] ?? 0), 0);
+      const before = ['agent-batch1', 'agent-v1-before', 'agent-v2-before'], after = ['agent-known-after', 'agent-v1-after', 'agent-v2-after'];
+      setS((x) => ({
+        ...x, fvBefore: sum(before, 'false_verified'), nBefore: sum(before, 'total'), fvAfter: sum(after, 'false_verified'), nAfter: sum(after, 'total'),
+        rules: t('rules-heldout'), after: t('agent-v1-after'), bigger: t('agent-super-v1'),
+      }));
     }).catch(() => {});
   }, []);
   return s;
 }
 
+const Chip = ({ children }: { children: ReactNode }) => (
+  <span className="rounded-md border border-line-2 bg-white/[0.03] px-2 py-1 font-mono text-[11px] text-ink-2"><span className="mr-1 text-ok">✓</span>{children}</span>
+);
+
+const FLOW = [
+  ['Look around', 'typed tools: probes, config, metrics, logs'],
+  ['Propose one fix', 'from a menu of moves that code builds'],
+  ['Policy check', 'blocked unless allowed and safe'],
+  ['Apply it', 'drain, change, test, and undo on failure'],
+  ['Referee decides', 'independent of the model'],
+] as const;
+
 export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i: number) => void; onStart: () => void }) {
   const st = useStats();
-  const beats: { title: string; body: string; stats?: Stat[]; caption?: string }[] = [
+  const frac = (t?: Total) => (t ? `${t.success}/${t.total}` : '–');
+  const beats: { title: string; body: string; visual?: ReactNode; caption?: string }[] = [
     {
-      title: 'Nexus keeps AI services honest.',
-      body: 'AI agents rely on model servers that can fail silently: still answering, still fast, but no longer doing the work. Nexus checks the work itself, finds the cause, applies one approved fix, and lets an independent referee decide whether it worked.',
-      caption: 'Behind this panel: a real 2-worker vLLM fleet on one H100, replayed from a recorded run.',
+      title: 'Dashboards say fine. The AI stopped working.',
+      body: 'Teams run their own models on vLLM to power AI agents. One wrong setting and the server keeps answering, fast, with every health check green, but the tool calls the agent depends on are gone. No alert fires.',
+      visual: (
+        <div>
+          <div className="flex flex-wrap gap-1.5"><Chip>HTTP 200</Chip><Chip>/health OK</Chip><Chip>latency normal</Chip></div>
+          <div className="mt-5">
+            <HBars compact bars={[
+              { key: 'h', label: 'Tool calling, healthy server', value: st.healthy ?? 0, max: 1, display: st.healthy !== undefined ? st.healthy.toFixed(2) : '–', tone: 'ok' },
+              { key: 'b', label: 'Same model, one setting wrong', value: st.broken ?? 0, max: 1, display: st.broken !== undefined ? st.broken.toFixed(2) : '–', tone: 'bad', sub: 'BFCL tool-calling score, 200 cases' },
+            ]} />
+          </div>
+        </div>
+      ),
+      caption: 'Behind this panel: a real 2-worker vLLM fleet on one H100, replaying a recorded run.',
     },
     {
-      title: 'It catches what dashboards miss.',
-      body: 'On the GPU floor, target-a still answers with HTTP 200 at normal speed, but the tool calls inside its answers are gone. Dashboards stay green. A canary that checks the work turns red.',
-      stats: st.healthy !== undefined && st.broken !== undefined
-        ? [{ value: st.healthy.toFixed(2), label: 'tool-calling score, healthy', tone: 'ok' }, { value: st.broken.toFixed(2), label: 'same model, with the fault', tone: 'bad' }]
-        : undefined,
+      title: 'A small model investigates. Code decides what counts.',
+      body: 'NVIDIA Nemotron 3.5 Lightning, with 3B active parameters, runs on the same GPU it repairs. It gathers evidence and proposes one fix. Everything after that is code it can’t talk its way past.',
+      visual: (
+        <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line">
+          {FLOW.map(([t, d], i) => (
+            <li key={t} className={`flex items-baseline gap-3 px-4 py-2.5 ${i === FLOW.length - 1 ? 'bg-accent/[0.08]' : 'bg-[rgb(9_11_13/0.9)]'}`}>
+              <span className="font-mono text-[11px] text-ink-4">{i + 1}</span>
+              <span className={`text-[14px] font-medium ${i === FLOW.length - 1 ? 'text-accent' : 'text-ink'}`}>{t}</span>
+              <span className="ml-auto text-right text-[11.5px] text-ink-3">{d}</span>
+            </li>
+          ))}
+        </ol>
+      ),
     },
     {
-      title: 'An agent investigates. A referee decides.',
-      body: 'NVIDIA Nemotron gathers evidence through declared tools and proposes one action. A policy gate checks it before anything changes, and an independent referee, not the agent, decides whether it worked.',
-      stats: st.final !== undefined
-        ? [{ value: st.final, label: 'verified, final setup', tone: 'ok' }, ...(st.fv !== undefined ? [{ value: String(st.fv), label: 'false VERIFIED in batch 1, counted', tone: 'bad' as const }] : [])]
-        : undefined,
+      title: 'Trustworthy enough to touch production.',
+      body: 'Out of the box it sometimes said “fixed” when nothing was. We redesigned the harness around it, not the model, and measured the same weights before and after.',
+      visual: (
+        <div className="grid gap-5">
+          <div>
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-3">False “fixed” claims</div>
+            <HBars compact bars={[
+              { key: 'fb', label: 'Before', value: st.fvBefore ?? 0, max: 6, display: st.fvBefore !== undefined ? `${st.fvBefore} in ${st.nBefore}` : '–', tone: 'bad' },
+              { key: 'fa', label: 'After', value: st.fvAfter ?? 0, max: 6, display: st.fvAfter !== undefined ? `${st.fvAfter} in ${st.nAfter}` : '–', tone: 'bad' },
+            ]} />
+          </div>
+          <div>
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-3">Faults nobody wrote rules for</div>
+            <HBars compact bars={[
+              { key: 'r', label: 'Hand-written rules', value: st.rules?.success ?? 0, max: st.rules?.total ?? 1, display: frac(st.rules), tone: 'muted' },
+              { key: 'n', label: 'Nexus with Lightning', value: st.after?.success ?? 0, max: st.after?.total ?? 1, display: frac(st.after), tone: 'accent' },
+            ]} />
+          </div>
+          {st.bigger && <p className="text-[12.5px] leading-relaxed text-ink-3">A model with 4× the active parameters, on the same harness, gets {frac(st.bigger)}, at about twice the time and off the box.</p>}
+        </div>
+      ),
     },
   ];
   const b = beats[beat];
@@ -153,29 +208,20 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
           </div>
         </div>
         <AnimatePresence mode="wait" custom={dir} initial={false}>
-          <motion.div key={beat} custom={dir} variants={slide} initial="enter" animate="center" exit="exit" className="mt-10">
+          <motion.div key={beat} custom={dir} variants={slide} initial="enter" animate="center" exit="exit" className="mt-8">
             <div className="font-mono text-[12px] text-accent">0{beat + 1}</div>
-            <h1 className="mt-3 text-[36px] font-semibold leading-[1.06] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>{b.title}</h1>
-            <p className="mt-5 text-[16px] leading-relaxed text-ink-2">{b.body}</p>
-            {b.stats && (
-              <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
-                {b.stats.map((s) => (
-                  <div key={s.label} className="bg-[rgb(9_11_13/0.9)] p-4">
-                    <div className={`text-[30px] font-semibold leading-none tracking-tight tnum ${s.tone === 'ok' ? 'text-ok' : s.tone === 'bad' ? 'text-bad' : 'text-ink'}`}>{s.value}</div>
-                    <div className="mt-2 text-[12px] leading-snug text-ink-3">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <h1 className="mt-3 text-[32px] font-semibold leading-[1.06] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>{b.title}</h1>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{b.body}</p>
+            {b.visual && <div className="mt-7">{b.visual}</div>}
             {b.caption && <p className="mt-6 font-mono text-[11.5px] leading-relaxed text-ink-3">{b.caption}</p>}
           </motion.div>
         </AnimatePresence>
       </div>
-      <div className="mt-10">
+      <div className="mt-8">
         <div className="flex flex-wrap gap-2">
           <button onClick={onStart} className="rounded-xl bg-accent px-5 py-3 text-[15px] font-semibold text-bg">Watch the demo ▸</button>
-          <a href="about.html" className="rounded-xl border border-line-2 px-4 py-3 text-[14px] font-medium text-ink hover:bg-white/[0.05]">The full story</a>
-          <a href="results.html" className="rounded-xl px-3 py-3 text-[14px] font-medium text-ink-2 hover:text-ink">Results</a>
+          <a href="results.html" className="rounded-xl border border-line-2 px-4 py-3 text-[14px] font-medium text-ink hover:bg-white/[0.05]">See the results</a>
+          <a href="about.html" className="rounded-xl px-3 py-3 text-[14px] font-medium text-ink-2 hover:text-ink">About</a>
         </div>
         <p className="mt-5 flex items-center gap-2 font-mono text-[11px] text-ink-4">
           <motion.span animate={{ y: [0, 3, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>↓</motion.span>
