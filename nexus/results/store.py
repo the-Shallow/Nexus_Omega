@@ -2,8 +2,8 @@
 
 Two layouts are read the same way:
   artifacts/ on the Brev box   agent-runs/<id>/, episodes/*.json, bfcl/, harness/audit.jsonl, load/
-  evidence/ in the repo        agent/runs/<id>/, agent/episodes/*.json, baseline/*.json, heldout/*.json,
-                               bfcl/, gates/summary.json, capacity/, batches.json
+  evidence/ in the repo        agent/runs/<id>/, agent/episodes/*.json, agent/*.json, baseline/*.json,
+                               heldout/*.json, bfcl/, gates/summary.json, capacity/, batches.json
 
 Roots are searched in order and the first copy of a run or episode wins, so put
 the live artifacts directory before evidence/. Nothing here writes or imports
@@ -19,7 +19,7 @@ from statistics import median
 
 RUN_DIRS = ("agent-runs", "agent/runs")
 EPISODE_DIRS = ("episodes", "agent/episodes")  # one record per file
-EPISODE_BUNDLES = ("baseline", "heldout")  # a list of records per file
+EPISODE_BUNDLES = ("baseline", "heldout", "agent")  # a list of records per file
 CAPACITY_DIRS = ("capacity", "load")
 TERMINAL_EVENTS = {"run_completed", "run_failed"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9._~+:/-]+$")
@@ -136,12 +136,13 @@ class ResultsStore:
             "false_verified": e.get("false_verified"), "solve_seconds": e.get("solve_seconds"),
             "run_id": e.get("run_id"), "action": action.get("action_id") or action.get("tool"),
             "target": action.get("target") or action.get("service"), "contaminated": e["contaminated"],
-            "source": e["source"],
+            "source": e["source"], "set": e.get("set"), "build": e.get("build"), "excluded": e.get("excluded"),
         }
 
     def list_episodes(self, solver: str | None = None, fault: str | None = None,
                       heldout: bool | None = None) -> list[dict]:
-        rows = [self._episode_row(e) for e in self._episodes().values()
+        excluded = self._excluded()
+        rows = [self._episode_row({**e, "excluded": excluded.get(e.get("run_id"))}) for e in self._episodes().values()
                 if (solver is None or e.get("solver") == solver) and (fault is None or e.get("fault") == fault)
                 and (heldout is None or e["heldout"] == heldout)]
         return sorted(rows, key=lambda r: r["at"] or "", reverse=True)
@@ -166,22 +167,39 @@ class ResultsStore:
                 return _json(path)
         return []
 
+    def _excluded(self) -> dict[str, str]:
+        """run_id -> reason, for runs a batch names in `exclude_runs` (harness faults, not solver results)."""
+        return {x["run_id"]: x["reason"] for b in self.batches() for x in b.get("exclude_runs") or []}
+
     def scoreboard(self) -> dict:
         """Successes per solver x fault, grouped by the named batches in batches.json.
 
-        Episodes outside every batch land in an "unbatched" group per solver, so a run
-        that is still going on the box shows up before anyone names its batch.
-        Contaminated records are left out of every group.
+        A batch claims episodes either from one record file (`source`) or by time window
+        (`from`/`to`), for its solver. Runs it lists in `exclude_runs` are claimed but not
+        scored, and come back under `excluded` with their reason. Episodes outside every
+        batch land in an "unbatched" group per solver, so a run that is still going on the
+        box shows up before anyone names its batch. Contaminated records are left out of
+        every group.
         """
         episodes = [e for e in self._episodes().values() if not e["contaminated"]]
         groups = []
         claimed = set()
         for batch in self.batches():
-            members = [e for e in episodes if e.get("solver") == batch["solver"]
-                       and batch["from"] <= (e.get("at") or "") <= batch["to"]
-                       and (batch.get("heldout") is None or e["heldout"] == batch["heldout"])]
+            if batch.get("source"):
+                members = [e for e in episodes if e["source"] == batch["source"] and e.get("solver") == batch["solver"]]
+            else:
+                members = [e for e in episodes if e.get("solver") == batch["solver"]
+                           and batch["from"] <= (e.get("at") or "") <= batch["to"]
+                           and (batch.get("heldout") is None or e["heldout"] == batch["heldout"])]
             claimed.update(e["id"] for e in members)
-            groups.append({**batch, **self._cells(members)})
+            reasons = {x["run_id"]: x["reason"] for x in batch.get("exclude_runs") or []}
+            scored = [e for e in members if e.get("run_id") not in reasons]
+            times = sorted(e.get("at") or "" for e in members)
+            groups.append({**{k: v for k, v in batch.items() if k != "exclude_runs"},
+                           "from": batch.get("from") or times[0], "to": batch.get("to") or times[-1],
+                           "excluded": [{"run_id": e.get("run_id"), "fault": e.get("fault"), "reason": reasons[e.get("run_id")]}
+                                        for e in members if e.get("run_id") in reasons],
+                           **self._cells(scored)})
         for solver in sorted({e.get("solver") for e in episodes if e["id"] not in claimed}):
             members = [e for e in episodes if e["id"] not in claimed and e.get("solver") == solver]
             groups.append({"id": f"unbatched-{solver}", "label": "Not in a named batch", "solver": solver,
@@ -195,7 +213,10 @@ class ResultsStore:
             times = [r["solve_seconds"] for r in rows if r.get("solve_seconds") is not None]
             return {"success": sum(bool(r.get("success")) for r in rows), "total": len(rows),
                     "false_verified": sum(bool(r.get("false_verified")) for r in rows),
-                    "median_s": round(median(times), 1) if times else None}
+                    "median_s": round(median(times), 1) if times else None,
+                    "runs": [{"run_id": r.get("run_id"), "terminal_state": r.get("terminal_state"),
+                              "success": bool(r.get("success")), "false_verified": bool(r.get("false_verified"))}
+                             for r in sorted(rows, key=lambda r: r.get("at") or "")]}
         faults = sorted({e.get("fault") for e in members})
         return {"faults": {f: cell([e for e in members if e.get("fault") == f]) for f in faults},
                 "total": cell(members)}

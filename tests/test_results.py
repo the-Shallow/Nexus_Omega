@@ -31,11 +31,34 @@ class ResultsStoreTests(unittest.TestCase):
         self.assertEqual(batches["agent-final-32926"]["total"]["median_s"], 89.3)
         self.assertEqual(batches["agent-batch1"]["faults"]["net-latency-b"]["false_verified"], 2)
 
+    def test_final_sets_each_have_their_own_batch(self):
+        # The final results: same Lightning before and after the design changes, rules, and the
+        # big-model reference on the same structured harness.
+        batches = {b["id"]: b for b in self.store.scoreboard()["batches"]}
+        total = {k: (b["total"]["success"], b["total"]["total"], b["total"]["false_verified"])
+                 for k, b in batches.items()}
+        self.assertEqual(total["agent-v1-before"], (2, 12, 1))
+        self.assertEqual(total["agent-v1-after"], (9, 12, 0))
+        self.assertEqual(total["rules-v2"], (12, 12, 0))
+        self.assertEqual(total["agent-v2-before"], (10, 12, 0))
+        self.assertEqual(total["agent-v2-after"], (12, 12, 0))
+        self.assertEqual(total["agent-known-after"], (11, 12, 0))
+        self.assertEqual(total["agent-temp06"], (9, 12, 0))
+        self.assertEqual(total["agent-super-v1"], (11, 11, 0))
+        self.assertEqual(len(batches["agent-super-v1"]["excluded"]), 4)
+        self.assertFalse([k for k in batches if k.startswith("unbatched")])
+        for b in batches.values():
+            for cell in [b["total"], *b["faults"].values()]:
+                self.assertEqual(len(cell["runs"]), cell["total"])
+
     def test_contaminated_round_is_listed_but_not_scored(self):
         contaminated = [e for e in self.store.list_episodes(solver="agent", heldout=True) if e["contaminated"]]
         self.assertEqual(len(contaminated), 4)
-        scored = sum(b["total"]["total"] for b in self.store.scoreboard()["batches"] if b["solver"] == "agent")
-        self.assertEqual(scored, len(self.store.list_episodes(solver="agent")) - 4)
+        board = self.store.scoreboard()["batches"]
+        scored = sum(b["total"]["total"] for b in board if b["solver"] == "agent")
+        excluded = sum(len(b["excluded"]) for b in board if b["solver"] == "agent")
+        self.assertEqual(scored, len(self.store.list_episodes(solver="agent")) - 4 - excluded)
+        self.assertEqual(sum(bool(e["excluded"]) for e in self.store.list_episodes(solver="agent")), excluded)
 
     def test_events_tail_by_sequence(self):
         events = self.store.read_events(RUN)

@@ -231,15 +231,25 @@ export type DataMode = 'live' | 'simulated' | 'replay';
 
 // ---- Real runs from the Brev box (apps/twin/results_api.py, nexus/results/) ----------------
 
-export interface ScoreCell { success: number; total: number; false_verified: number; median_s: number | null }
+export interface ScoreRun { run_id: string | null; terminal_state: Terminal; success: boolean; false_verified: boolean }
+export interface ScoreCell { success: number; total: number; false_verified: number; median_s: number | null; runs: ScoreRun[] }
 
 export interface ScoreBatch {
   id: string;
   label: string;
   solver: 'rules' | 'agent' | string;
   heldout?: boolean;
+  /** Which solver ran, e.g. "Nemotron 3.5 Lightning 30B-A3B" or "Rule baseline". */
+  model?: string;
+  /** known = faults the rules were written for; v1/v2 = held-out sets; dev = tuning; mixed = ablation subset. */
+  set?: 'known' | 'v1' | 'v2' | 'dev' | 'mixed' | string;
+  phase?: 'rules' | 'before' | 'after' | 'reference' | 'ablation' | 'dev' | string;
+  /** Record file the batch reads, when it isn't a time window. */
+  source?: string;
   from: string;
   to: string;
+  /** Runs in the batch that don't count (harness faults), with the reason. */
+  excluded?: { run_id: string; fault: string; reason: string }[];
   faults: Record<string, ScoreCell>;
   total: ScoreCell;
 }
@@ -261,6 +271,10 @@ export interface EpisodeSummary {
   target: string | null;
   contaminated: boolean;
   source: string;
+  set?: string | null;
+  build?: string | null;
+  /** Why this run doesn't count, when a batch excludes it. */
+  excluded?: string | null;
 }
 
 export interface RunSummary {
