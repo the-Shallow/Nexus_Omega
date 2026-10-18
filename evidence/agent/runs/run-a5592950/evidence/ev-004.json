@@ -1,0 +1,19 @@
+{
+  "content": {
+    "data": {
+      "artifact_id": "art-fd50fc60dc",
+      "http_status": 200,
+      "observation_id": "art-fd50fc60dc",
+      "probe_id": "tool-call-visible",
+      "resource_id": "target-a",
+      "structured_tool_call_count": 1,
+      "verdict": "valid structured tool call"
+    },
+    "observed_at": "2026-10-18T06:40:25+00:00",
+    "resource_id": "target-a"
+  },
+  "evidence_id": "ev-004",
+  "source": "probe:tool-call-visible:art-fd50fc60dc",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

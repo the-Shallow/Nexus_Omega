@@ -1,0 +1,16 @@
+{
+  "content": {
+    "limit": 20,
+    "lines": [],
+    "matched_lines": 0,
+    "note": "since limited to the start of the current incident (2026-10-18T06:24:36Z)",
+    "pattern": "error 400 tool call",
+    "resource_id": "target-a",
+    "since": "2026-10-18T06:24:36Z",
+    "truncated": false
+  },
+  "evidence_id": "ev-008",
+  "source": "resource:target-a:logs",
+  "source_type": "logs",
+  "trust": "untrusted"
+}

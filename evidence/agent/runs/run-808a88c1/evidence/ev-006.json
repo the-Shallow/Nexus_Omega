@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "route_error_rate",
+    "note": "window limited to the current incident (44s)",
+    "resource_id": "target-a",
+    "unit": "fraction",
+    "value": 0.2857,
+    "window": "10m",
+    "window_applied": "44s"
+  },
+  "evidence_id": "ev-006",
+  "source": "resource:target-a:metric:route_error_rate",
+  "source_type": "metric",
+  "trust": "trusted"
+}

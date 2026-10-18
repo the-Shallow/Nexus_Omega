@@ -1,0 +1,15 @@
+{
+  "content": {
+    "artifact_id": "art-63199dacb2",
+    "content": {
+      "content": null,
+      "http_status": 400,
+      "tool_calls": []
+    },
+    "section": "structured_response"
+  },
+  "evidence_id": "ev-009",
+  "source": "artifact:art-63199dacb2:structured_response",
+  "source_type": "artifact",
+  "trust": "untrusted"
+}

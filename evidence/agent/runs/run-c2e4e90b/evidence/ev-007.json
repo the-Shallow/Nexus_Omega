@@ -1,0 +1,19 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "container_state": "exited",
+      "enable_auto_tool_choice": true,
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct"
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

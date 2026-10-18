@@ -1,0 +1,19 @@
+{
+  "content": {
+    "data": {
+      "artifact_id": "art-63199dacb2",
+      "http_status": 400,
+      "observation_id": "art-63199dacb2",
+      "probe_id": "tool-call-visible",
+      "resource_id": "target-a",
+      "structured_tool_call_count": 0,
+      "verdict": "HTTP 400"
+    },
+    "observed_at": "2026-10-18T06:25:49+00:00",
+    "resource_id": "target-a"
+  },
+  "evidence_id": "ev-004",
+  "source": "probe:tool-call-visible:art-63199dacb2",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

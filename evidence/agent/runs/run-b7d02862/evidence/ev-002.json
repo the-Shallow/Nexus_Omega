@@ -1,0 +1,52 @@
+{
+  "content": {
+    "data": {
+      "between_workers": {
+        "chat_template": {
+          "target-a": "model default",
+          "target-b": "/templates/tool_chat_template_qwen2_5_coder.jinja"
+        },
+        "tool_call_parser": {
+          "target-a": "hermes",
+          "target-b": "qwen2_5_coder"
+        },
+        "tool_parser_plugin": {
+          "target-a": null,
+          "target-b": "/plugins/qwen2_5_coder_tool_parser.py"
+        }
+      },
+      "observation_id": "config-diff-a0448b51",
+      "probe_id": "config-diff",
+      "unavailable": {},
+      "versus_reviewed": {
+        "target-a": {
+          "differs_from_reviewed": {
+            "chat_template": {
+              "actual": "model default",
+              "reviewed": "/templates/tool_chat_template_qwen2_5_coder.jinja"
+            },
+            "tool_call_parser": {
+              "actual": "hermes",
+              "reviewed": "qwen2_5_coder"
+            },
+            "tool_parser_plugin": {
+              "actual": null,
+              "reviewed": "/plugins/qwen2_5_coder_tool_parser.py"
+            }
+          },
+          "matches_reviewed": false
+        },
+        "target-b": {
+          "differs_from_reviewed": {},
+          "matches_reviewed": true
+        }
+      }
+    },
+    "observed_at": "2026-10-18T06:33:25+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-002",
+  "source": "probe:config-diff:config-diff-a0448b51",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

@@ -1,0 +1,36 @@
+{
+  "content": {
+    "data": {
+      "entry_point_health": 200,
+      "flags": {},
+      "limits": {
+        "max_error_rate": 0.0,
+        "max_p95_s": 0.5
+      },
+      "observation_id": "route-36274cb2",
+      "probe_id": "route-probe",
+      "workers": {
+        "target-b": {
+          "error_rate": 0.0,
+          "median_s": 0.037,
+          "ok": true,
+          "p95_s": 0.037,
+          "requests": 8
+        },
+        "target-unknown": {
+          "error_rate": 1.0,
+          "median_s": 19.106,
+          "ok": false,
+          "p95_s": 19.918,
+          "requests": 2
+        }
+      }
+    },
+    "observed_at": "2026-10-18T07:23:18+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-001",
+  "source": "probe:route-probe:route-36274cb2",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

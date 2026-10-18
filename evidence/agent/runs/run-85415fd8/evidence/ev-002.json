@@ -1,0 +1,57 @@
+{
+  "content": {
+    "data": {
+      "between_workers": {
+        "chat_template": {
+          "target-a": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+          "target-b": "model default"
+        },
+        "tool_call_parser": {
+          "target-a": "qwen2_5_coder",
+          "target-b": "hermes"
+        },
+        "tool_parser_plugin": {
+          "target-a": "/plugins/qwen2_5_coder_tool_parser.py",
+          "target-b": null
+        }
+      },
+      "flags": {
+        "target-b": [
+          "configuration differs from the reviewed one on ['chat_template', 'tool_call_parser', 'tool_parser_plugin']"
+        ]
+      },
+      "observation_id": "config-diff-7365e9b8",
+      "probe_id": "config-diff",
+      "unavailable": {},
+      "versus_reviewed": {
+        "target-a": {
+          "differs_from_reviewed": {},
+          "matches_reviewed": true
+        },
+        "target-b": {
+          "differs_from_reviewed": {
+            "chat_template": {
+              "actual": "model default",
+              "reviewed": "/templates/tool_chat_template_qwen2_5_coder.jinja"
+            },
+            "tool_call_parser": {
+              "actual": "hermes",
+              "reviewed": "qwen2_5_coder"
+            },
+            "tool_parser_plugin": {
+              "actual": null,
+              "reviewed": "/plugins/qwen2_5_coder_tool_parser.py"
+            }
+          },
+          "matches_reviewed": false
+        }
+      }
+    },
+    "observed_at": "2026-10-18T07:09:16+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-002",
+  "source": "probe:config-diff:config-diff-7365e9b8",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

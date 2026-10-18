@@ -1,0 +1,3473 @@
+[
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T06:55:47+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 84.4,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-20b52af3",
+  "steps": 6,
+  "tool_calls": 2,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "The investigation examined all available evidence from the fleet health check. Key findings include a configuration discrepancy (enable_auto_tool_choice false on target-a vs true on target-b), a resulting tool-call canary failure on target-a (HTTP 400, 0 structured calls), and otherwise healthy latency/error metrics on both workers. No evidence of crashes, network path issues, or overloading was found. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a has a confirmed misconfigured flag (enable_auto_tool_choice false vs. reviewed true) that causes the tool-call canary to fail with HTTP 400. The only available repair move is to apply a reviewed serving profile, which will re-launch target-a with the correct configuration. target-b is healthy and requires no action. Applying the profile to target-a restores service for users by fixing the root cause.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-001",
+      "ev-002",
+      "ev-003",
+      "ev-004",
+      "ev-006"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-001",
+     "ev-002",
+     "ev-003",
+     "ev-004",
+     "ev-006"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a will be re-launched with enable_auto_tool_choice set to true (matching the reviewed configuration). The structured tool-call canary should then pass, returning target-a to full health. Users on target-a will no longer see HTTP 400 errors from tool calls.",
+    "risk": "The worker will be taken out of rotation during restart, causing a brief interruption. If the profile name or contents are incorrect for the current deployment, the worker may fail to start, but the profile name matches the pattern expected for this type of repair.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "aa2e6cac2d8e",
+   "started_at": "2026-10-18T06:54:31+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "96ced5ac4815",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T06:55:44+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-20b52af3",
+    "steps": 6,
+    "tool_calls": 2,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "The investigation examined all available evidence from the fleet health check. Key findings include a configuration discrepancy (enable_auto_tool_choice false on target-a vs true on target-b), a resulting tool-call canary failure on target-a (HTTP 400, 0 structured calls), and otherwise healthy latency/error metrics on both workers. No evidence of crashes, network path issues, or overloading was found. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a has a confirmed misconfigured flag (enable_auto_tool_choice false vs. reviewed true) that causes the tool-call canary to fail with HTTP 400. The only available repair move is to apply a reviewed serving profile, which will re-launch target-a with the correct configuration. target-b is healthy and requires no action. Applying the profile to target-a restores service for users by fixing the root cause.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-003",
+        "ev-004",
+        "ev-006"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-002",
+       "ev-003",
+       "ev-004",
+       "ev-006"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a will be re-launched with enable_auto_tool_choice set to true (matching the reviewed configuration). The structured tool-call canary should then pass, returning target-a to full health. Users on target-a will no longer see HTTP 400 errors from tool calls.",
+      "risk": "The worker will be taken out of rotation during restart, causing a brief interruption. If the profile name or contents are incorrect for the current deployment, the worker may fail to start, but the profile name matches the pattern expected for this type of repair.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "aa2e6cac2d8e",
+     "started_at": "2026-10-18T06:54:31+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "96ced5ac4815",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T06:55:44+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T06:58:36+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 91.8,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-b",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-19a71a39",
+  "steps": 8,
+  "tool_calls": 4,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: configuration matches reviewed baseline; tool-call canary valid; latency and error rates normal. target-b: configuration differs from reviewed baseline on chat_template, tool_call_parser, and tool_parser_plugin; tool-call canary failed (no structured tool calls); latency and error rates within normal limits; resource state running and serving. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b is misconfigured relative to the reviewed baseline on three keys that control structured tool-call handling (chat_template, tool_call_parser, tool_parser_plugin). This misconfiguration directly causes the tool-call canary failure (0 structured tool calls). The only available repair move is to apply the reviewed serving profile, which will relaunch target-b with the correct configuration. target-a is healthy and requires no action.",
+   "hypotheses": [
+    {
+     "id": "target-b:misconfigured",
+     "confidence": 0.6,
+     "supports": [
+      "ev-002",
+      "ev-005",
+      "ev-006",
+      "ev-007"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-b:misconfigured",
+    "confidence": 0.6,
+    "evidence": [
+     "ev-002",
+     "ev-005",
+     "ev-006",
+     "ev-007"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-b",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-b will be relaunched with the reviewed serving profile (matching target-a's configuration: qwen2_5_coder parser, the reviewed chat template, and the qwen2_5_coder tool parser plugin). The worker will be temporarily out of rotation during restart, then return to service with structured tool-c\u00e1",
+    "risk": "The worker is briefly taken out of rotation during restart; no data loss is expected as the new container starts fresh with the correct profile.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "ea6944b1156b",
+   "started_at": "2026-10-18T06:57:20+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "7f85d775305f",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T06:58:33+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-b",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-19a71a39",
+    "steps": 8,
+    "tool_calls": 4,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: configuration matches reviewed baseline; tool-call canary valid; latency and error rates normal. target-b: configuration differs from reviewed baseline on chat_template, tool_call_parser, and tool_parser_plugin; tool-call canary failed (no structured tool calls); latency and error rates within normal limits; resource state running and serving. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b is misconfigured relative to the reviewed baseline on three keys that control structured tool-call handling (chat_template, tool_call_parser, tool_parser_plugin). This misconfiguration directly causes the tool-call canary failure (0 structured tool calls). The only available repair move is to apply the reviewed serving profile, which will relaunch target-b with the correct configuration. target-a is healthy and requires no action.",
+     "hypotheses": [
+      {
+       "id": "target-b:misconfigured",
+       "confidence": 0.6,
+       "supports": [
+        "ev-002",
+        "ev-005",
+        "ev-006",
+        "ev-007"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:misconfigured",
+      "confidence": 0.6,
+      "evidence": [
+       "ev-002",
+       "ev-005",
+       "ev-006",
+       "ev-007"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-b",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-b will be relaunched with the reviewed serving profile (matching target-a's configuration: qwen2_5_coder parser, the reviewed chat template, and the qwen2_5_coder tool parser plugin). The worker will be temporarily out of rotation during restart, then return to service with structured tool-c\u00e1",
+      "risk": "The worker is briefly taken out of rotation during restart; no data loss is expected as the new container starts fresh with the correct profile.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "ea6944b1156b",
+     "started_at": "2026-10-18T06:57:20+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "7f85d775305f",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T06:58:33+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:01:07+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 147.2,
+  "action": {
+   "tool": "restart-worker",
+   "service": "target-a"
+  },
+  "rule": null,
+  "run_id": "run-c2e4e90b",
+  "steps": 12,
+  "tool_calls": 8,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "Investigation complete. All evidence examined. Chosen: restart-worker target-a. target-a is in container_state exited with error_rate 1.0 directly and HTTP 0 tool-call canary, meaning it has crashed and cannot serve. target-b is healthy with all metrics within limits. The restart-worker move relaunches target-a with its current profile, takes it out of rotation during restart, and restores service afterward. This is the only move that repairs the failed worker without changing its configuration, and it restores service for users.",
+   "hypotheses": [
+    {
+     "id": "target-a:crashed",
+     "confidence": 0.8,
+     "supports": [
+      "ev-003",
+      "ev-004",
+      "ev-007",
+      "ev-010"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:crashed",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-003",
+     "ev-004",
+     "ev-007",
+     "ev-010"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "restart-worker",
+      "target": "target-a",
+      "parameters": {}
+     }
+    },
+    "expected_effect": "target-a will be relaunched with its current profile, transition from exited to running, return to rotation, and resume serving with its existing configuration. Error rate and latency should improve once the new process is healthy.",
+    "risk": "The restart uses target-a's current (misconfigured) profile, so if the root cause is a configuration drift that prevents the worker from starting correctly, the restart may not fix the issue. However, the evidence shows container_state exited, which typically means the process is not running, so a\u6a19\u6e96",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.04,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "a51ded4c882c",
+   "started_at": "2026-10-18T06:59:52+00:00",
+   "ready_seconds": 69.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:01:04+00:00",
+   "seconds": 72.1
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart-worker",
+     "service": "target-a"
+    },
+    "rule": null,
+    "run_id": "run-c2e4e90b",
+    "steps": 12,
+    "tool_calls": 8,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Investigation complete. All evidence examined. Chosen: restart-worker target-a. target-a is in container_state exited with error_rate 1.0 directly and HTTP 0 tool-call canary, meaning it has crashed and cannot serve. target-b is healthy with all metrics within limits. The restart-worker move relaunches target-a with its current profile, takes it out of rotation during restart, and restores service afterward. This is the only move that repairs the failed worker without changing its configuration, and it restores service for users.",
+     "hypotheses": [
+      {
+       "id": "target-a:crashed",
+       "confidence": 0.8,
+       "supports": [
+        "ev-003",
+        "ev-004",
+        "ev-007",
+        "ev-010"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:crashed",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-003",
+       "ev-004",
+       "ev-007",
+       "ev-010"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "restart-worker",
+        "target": "target-a",
+        "parameters": {}
+       }
+      },
+      "expected_effect": "target-a will be relaunched with its current profile, transition from exited to running, return to rotation, and resume serving with its existing configuration. Error rate and latency should improve once the new process is healthy.",
+      "risk": "The restart uses target-a's current (misconfigured) profile, so if the root cause is a configuration drift that prevents the worker from starting correctly, the restart may not fix the issue. However, the evidence shows container_state exited, which typically means the process is not running, so a\u6a19\u6e96",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "a51ded4c882c",
+     "started_at": "2026-10-18T06:59:52+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:01:04+00:00",
+     "seconds": 72.1
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:05:22+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 179.1,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-0fd334ef",
+  "steps": 7,
+  "tool_calls": 3,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: configuration drift on chat_template, tool_call_parser, tool_parser_plugin; visible tool-call canary failed (0 structured tool calls); latency and errors healthy both directly and through HAProxy. target-b: configuration matches reviewed profile; visible tool-call canary passed (1 valid structured tool call); latency and errors healthy both directly and through HAProxy. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured (fault_class=misconfigured) and its visible tool-call canary fails because the serving profile does not match the reviewed configuration. Applying the reviewed serving profile will realign chat_template, tool_call_parser, and tool_parser_plugin with the expected values, restoring the ability to produce structured tool calls. target-b is already healthy, so no action is needed there. The apply-serving-profile move is the only repair that directly fixes the identified misconfiguration and restores service for users of target-a.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-001",
+      "ev-002",
+      "ev-004"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-001",
+     "ev-002",
+     "ev-004"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a will be relaunched with the reviewed profile (chat_template=/templates/tool_chat_template_qwen2_5_coder.jinja, tool_call_parser=qwen2_5_coder, tool_parser_plugin=/plugins/qwen2_5_coder_tool_parser.py). The worker is temporarily removed from rotation during restart, then returns healthy with",
+    "risk": "The worker is taken out of rotation for the duration of the restart, briefly reducing capacity for target-a. If the profile name is incorrect or the underlying image is unavailable the restart could fail, but the profile name matches the environment manifest and the configuration keys are exactly\u90a3\u4e9b\u5bfc",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "994b86a59dac",
+   "started_at": "2026-10-18T07:04:05+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "d73fab523b1e",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:05:18+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart-worker",
+     "service": "target-b"
+    },
+    "rule": null,
+    "run_id": "run-7ccd71e7",
+    "steps": 10,
+    "tool_calls": 5,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: finding=Per-worker latency and errors through the HAProxy entry point (ev-001); Configuration keys whose values differ between the workers (ev-002); Per-worker latency and errors directly and through HAProxy (ev-003); Visible tool-call canary on target-a (ev-004). No evidence of a problem; all metrics are within limits (max_error_rate=0.0, max_p95_s=0.5). Status=healthy, fault_class=none. Chosen: restart-worker target-b. target-b's container is exited (ev-009), which directly causes the error_rate=1.0 and p95=0.0\u202fs observed both directly and through HAProxy (ev-003). Restarting the worker will bring the container back into the running state and restore service. The configuration drift (ev-002) is a secondary issue that can be fixed after the worker is running with apply\u2011serving\u2011profile, but the immediate priority is to return the worker to service.",
+     "hypotheses": [
+      {
+       "id": "target-b:crashed",
+       "confidence": 0.8,
+       "supports": [
+        "ev-005",
+        "ev-003",
+        "ev-002",
+        "ev-009"
+       ],
+       "contradicts": []
+      },
+      {
+       "id": "target-a:unknown",
+       "confidence": 0.6,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-003",
+        "ev-004"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:crashed",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-005",
+       "ev-003",
+       "ev-002",
+       "ev-009"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "restart-worker",
+        "target": "target-b",
+        "parameters": {}
+       }
+      },
+      "expected_effect": "target-b container transitions from exited to running; error_rate drops to 0.0; p95 latency returns to normal (~34\u202fms); worker re\u2011enters rotation and users can route requests again.",
+      "risk": "Low. The restart does not alter the worker's configuration, so the existing config drift remains and will need a subsequent apply\u2011serving\u2011profile step if full reviewed\u2011profile compliance is required. No other workers are affected.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-b",
+     "change_id": "34e4076accc9",
+     "started_at": "2026-10-18T07:02:38+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.04,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:03:50+00:00",
+     "seconds": 72.1
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-0fd334ef",
+    "steps": 7,
+    "tool_calls": 3,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: configuration drift on chat_template, tool_call_parser, tool_parser_plugin; visible tool-call canary failed (0 structured tool calls); latency and errors healthy both directly and through HAProxy. target-b: configuration matches reviewed profile; visible tool-call canary passed (1 valid structured tool call); latency and errors healthy both directly and through HAProxy. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured (fault_class=misconfigured) and its visible tool-call canary fails because the serving profile does not match the reviewed configuration. Applying the reviewed serving profile will realign chat_template, tool_call_parser, and tool_parser_plugin with the expected values, restoring the ability to produce structured tool calls. target-b is already healthy, so no action is needed there. The apply-serving-profile move is the only repair that directly fixes the identified misconfiguration and restores service for users of target-a.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-004"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-002",
+       "ev-004"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a will be relaunched with the reviewed profile (chat_template=/templates/tool_chat_template_qwen2_5_coder.jinja, tool_call_parser=qwen2_5_coder, tool_parser_plugin=/plugins/qwen2_5_coder_tool_parser.py). The worker is temporarily removed from rotation during restart, then returns healthy with",
+      "risk": "The worker is taken out of rotation for the duration of the restart, briefly reducing capacity for target-a. If the profile name is incorrect or the underlying image is unavailable the restart could fail, but the profile name matches the environment manifest and the configuration keys are exactly\u90a3\u4e9b\u5bfc",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "994b86a59dac",
+     "started_at": "2026-10-18T07:04:05+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "d73fab523b1e",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:05:18+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:08:05+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 85.6,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-62101410",
+  "steps": 6,
+  "tool_calls": 2,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "Investigation complete. The only abnormality is the `enable_auto_tool_choice` configuration discrepancy on target\u2011a, which aligns with the failed tool-call canary. All other metrics (latency, error rates, entry\u2011point health) are within normal limits. target\u2011b is fully healthy. No other resources or probes show conflicting or failing signals. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured (`enable_auto_tool_choice: false` vs. reviewed `true`) and its tool-call canary fails. Applying the reviewed serving profile will set the configuration to match the reviewed state, which should restore the canary and bring the worker back to a healthy serving state. target-b is already healthy, so no move is needed there. The profile move is the only available action that directly addresses the identified misconfiguration.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-002",
+      "ev-004",
+      "ev-006"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-002",
+     "ev-004",
+     "ev-006"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a's `enable_auto_tool_choice` will be set to `true` (matching the reviewed configuration). The tool-call canary should then pass (structured tool calls will be allowed), returning target-a to full service capability. The worker will be briefly out of rotation during the restart.",
+    "risk": "Low. The move applies a known\u2011reviewed profile; if the profile is correct the worker recovers cleanly. The only risk is a transient outage during the restart, which is expected per the move's design.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "8751cce08867",
+   "started_at": "2026-10-18T07:06:48+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "bb352ecec9d8",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:08:01+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-62101410",
+    "steps": 6,
+    "tool_calls": 2,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Investigation complete. The only abnormality is the `enable_auto_tool_choice` configuration discrepancy on target\u2011a, which aligns with the failed tool-call canary. All other metrics (latency, error rates, entry\u2011point health) are within normal limits. target\u2011b is fully healthy. No other resources or probes show conflicting or failing signals. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured (`enable_auto_tool_choice: false` vs. reviewed `true`) and its tool-call canary fails. Applying the reviewed serving profile will set the configuration to match the reviewed state, which should restore the canary and bring the worker back to a healthy serving state. target-b is already healthy, so no move is needed there. The profile move is the only available action that directly addresses the identified misconfiguration.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-002",
+        "ev-004",
+        "ev-006"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-002",
+       "ev-004",
+       "ev-006"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a's `enable_auto_tool_choice` will be set to `true` (matching the reviewed configuration). The tool-call canary should then pass (structured tool calls will be allowed), returning target-a to full service capability. The worker will be briefly out of rotation during the restart.",
+      "risk": "Low. The move applies a known\u2011reviewed profile; if the profile is correct the worker recovers cleanly. The only risk is a transient outage during the restart, which is expected per the move's design.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "8751cce08867",
+     "started_at": "2026-10-18T07:06:48+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "bb352ecec9d8",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:08:01+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:10:50+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 91.2,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-b",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-85415fd8",
+  "steps": 12,
+  "tool_calls": 8,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "Investigation complete. All evidence examined. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b has a misconfigured serving configuration: chat_template='model default' (reviewed: '/templates/tool_chat_template_qwen2_5_coder.jinja'), tool_call_parser='hermes' (reviewed: 'qwen2_5_coder'), tool_parser_plugin=null (reviewed: '/plugins/qwen2_5_coder_tool_parser.py'). This configuration drift directly causes the visible tool-call canary failure (0 structured tool calls). The 'apply-serving-profile' move will relaunch target-b with the reviewed profile qwen25-coder-7b.tools-template, which should restore the correct chat_template, tool_call_parser, and tool_parser_plugin values, bringing the worker back into a healthy state.",
+   "hypotheses": [
+    {
+     "id": "target-b:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-002",
+      "ev-005"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-b:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-002",
+     "ev-005"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-b",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-b will be relaunched with the reviewed serving profile, aligning its chat_template, tool_call_parser, and tool_parser_plugin with the reviewed values. The worker will exit rotation during restart, but once healthy, the tool-call canary should pass and the worker will serve requests correctly.",
+    "risk": "The worker will be temporarily taken out of rotation during restart. If the profile name is incorrect or the profile doesn't exist, the relaunch may fail, but the evidence clearly identifies 'qwen25-coder-7b.tools-template' as the profile that matches the reviewed configuration.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "5dd5a5d8a7a6",
+   "started_at": "2026-10-18T07:09:34+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "9fba3e624e6c",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.043,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:10:47+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-b",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-85415fd8",
+    "steps": 12,
+    "tool_calls": 8,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Investigation complete. All evidence examined. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b has a misconfigured serving configuration: chat_template='model default' (reviewed: '/templates/tool_chat_template_qwen2_5_coder.jinja'), tool_call_parser='hermes' (reviewed: 'qwen2_5_coder'), tool_parser_plugin=null (reviewed: '/plugins/qwen2_5_coder_tool_parser.py'). This configuration drift directly causes the visible tool-call canary failure (0 structured tool calls). The 'apply-serving-profile' move will relaunch target-b with the reviewed profile qwen25-coder-7b.tools-template, which should restore the correct chat_template, tool_call_parser, and tool_parser_plugin values, bringing the worker back into a healthy state.",
+     "hypotheses": [
+      {
+       "id": "target-b:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-002",
+        "ev-005"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-002",
+       "ev-005"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-b",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-b will be relaunched with the reviewed serving profile, aligning its chat_template, tool_call_parser, and tool_parser_plugin with the reviewed values. The worker will exit rotation during restart, but once healthy, the tool-call canary should pass and the worker will serve requests correctly.",
+      "risk": "The worker will be temporarily taken out of rotation during restart. If the profile name is incorrect or the profile doesn't exist, the relaunch may fail, but the evidence clearly identifies 'qwen25-coder-7b.tools-template' as the profile that matches the reviewed configuration.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "5dd5a5d8a7a6",
+     "started_at": "2026-10-18T07:09:34+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "9fba3e624e6c",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.043,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:10:47+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:13:04+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 130.3,
+  "action": {
+   "tool": "restart-worker",
+   "service": "target-a"
+  },
+  "rule": null,
+  "run_id": "run-8f738878",
+  "steps": 11,
+  "tool_calls": 7,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: container exited, 100% direct error rate, tool-call canary failed, HAProxy draining it. target-b: running, healthy both paths, canary passed. Configuration identical between workers. Chosen: restart-worker target-a. target-a has a crashed container (fault_class: crashed). The only valid repair is to restart the worker, which will relaunch it with its current profile and take it out of rotation during restart. target-b is already healthy, so no action is needed there. Restarting target-a restores service capacity for users.",
+   "hypotheses": [
+    {
+     "id": "target-a:crashed",
+     "confidence": 0.8,
+     "supports": [
+      "ev-001",
+      "ev-003",
+      "ev-006",
+      "ev-009"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:crashed",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-001",
+     "ev-003",
+     "ev-006",
+     "ev-009"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "restart-worker",
+      "target": "target-a",
+      "parameters": {}
+     }
+    },
+    "expected_effect": "target-a container will be relaunched with its current profile; worker comes back online and is taken out of rotation during restart, then can be returned to rotation with undrain-worker. Error rate will drop from 1.0 to 0.0, tool-call canary will pass, and HAProxy will resume routing traffic to it.",
+    "risk": "Low. The worker's configuration is already correct (model, max_model_len, max_num_seqs all match the reviewed profile). The restart simply brings the process back up. There is brief capacity reduction during restart since the worker is taken out of rotation.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "37c1a34fb1c8",
+   "started_at": "2026-10-18T07:11:49+00:00",
+   "ready_seconds": 69.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:13:01+00:00",
+   "seconds": 72.1
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart-worker",
+     "service": "target-a"
+    },
+    "rule": null,
+    "run_id": "run-8f738878",
+    "steps": 11,
+    "tool_calls": 7,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: container exited, 100% direct error rate, tool-call canary failed, HAProxy draining it. target-b: running, healthy both paths, canary passed. Configuration identical between workers. Chosen: restart-worker target-a. target-a has a crashed container (fault_class: crashed). The only valid repair is to restart the worker, which will relaunch it with its current profile and take it out of rotation during restart. target-b is already healthy, so no action is needed there. Restarting target-a restores service capacity for users.",
+     "hypotheses": [
+      {
+       "id": "target-a:crashed",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-003",
+        "ev-006",
+        "ev-009"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:crashed",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-003",
+       "ev-006",
+       "ev-009"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "restart-worker",
+        "target": "target-a",
+        "parameters": {}
+       }
+      },
+      "expected_effect": "target-a container will be relaunched with its current profile; worker comes back online and is taken out of rotation during restart, then can be returned to rotation with undrain-worker. Error rate will drop from 1.0 to 0.0, tool-call canary will pass, and HAProxy will resume routing traffic to it.",
+      "risk": "Low. The worker's configuration is already correct (model, max_model_len, max_num_seqs all match the reviewed profile). The restart simply brings the process back up. There is brief capacity reduction during restart since the worker is taken out of rotation.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "37c1a34fb1c8",
+     "started_at": "2026-10-18T07:11:49+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:13:01+00:00",
+     "seconds": 72.1
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:17:21+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 178.6,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-144cb39a",
+  "steps": 6,
+  "tool_calls": 2,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: The worker's effective configuration differs from the reviewed baseline on chat_template, tool_call_parser, and tool_parser_plugin (ev-002, ev-006). This misconfiguration correlates with the failed tool-call canary (ev-004). Status: misconfigured. Fault class: misconfigured. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured and its tool-call canary fails because the effective configuration diverges from the reviewed baseline. Applying the reviewed serving profile will realign the worker's chat template, parser, and plugin with the expected values, restoring the canary and service for users. target-b is healthy and requires no action. The move is safe because it only touches target-a and follows the controller's repair path.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-002",
+      "ev-004",
+      "ev-006"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-002",
+     "ev-004",
+     "ev-006"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a's effective configuration will match the reviewed baseline (chat_template, tool_call_parser, tool_parser_plugin), the tool-call canary should pass, and the worker will be returned to rotation.",
+    "risk": "low \u2013 the profile is the reviewed, approved configuration; the only risk is a transient outage during the worker restart, which is expected per the move's design.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "1f4728b2e493",
+   "started_at": "2026-10-18T07:16:01+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "08f599c94cda",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:17:17+00:00",
+   "seconds": 75.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart-worker",
+     "service": "target-b"
+    },
+    "rule": null,
+    "run_id": "run-e3c4b6df",
+    "steps": 10,
+    "tool_calls": 5,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Investigation of the fleet health check trigger (health-check-run-e3c4b6df) completed with read\u2011only tools. Evidence collected includes per\u2011worker latency/errors, configuration diffs, container states, and tool\u2011call canary results for both target\u2011a and target\u2011b. Chosen: restart-worker target-b. target-b's container is exited, which is the root cause of its error rate 1.0, p95 0.0\u202fs, and tool\u2011call canary failure. Restarting the worker will bring it back into rotation and restore service for users. target-a is already healthy, so no action is needed there. The restart\u2011worker move is the only one that directly addresses the identified fault.",
+     "hypotheses": [
+      {
+       "id": "target-b:crashed",
+       "confidence": 0.8,
+       "supports": [
+        "ev-003",
+        "ev-005",
+        "ev-006",
+        "ev-007"
+       ],
+       "contradicts": []
+      },
+      {
+       "id": "target-a:unknown",
+       "confidence": 0.6,
+       "supports": [
+        "ev-001",
+        "ev-003",
+        "ev-007"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:crashed",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-003",
+       "ev-005",
+       "ev-006",
+       "ev-007"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "restart-worker",
+        "target": "target-b",
+        "parameters": {}
+       }
+      },
+      "expected_effect": "target-b's container will transition from exited to running, error rate should drop to 0.0, p95 latency will return to normal (~0.03\u202fs), and the tool\u2011call canary should succeed (HTTP\u202f200). Configuration differences will remain but are secondary; the worker will serve traffic again.",
+      "risk": "Low. The restart uses the worker's current profile, so its existing configuration (including the divergent chat_template, tool_call_parser, and tool_parser_plugin) will be preserved. After restart, a configuration\u2011alignment move could be applied if the differences need to be resolved, but that is a\u202f",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-b",
+     "change_id": "871c1dc4d415",
+     "started_at": "2026-10-18T07:14:38+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:15:50+00:00",
+     "seconds": 72.2
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-144cb39a",
+    "steps": 6,
+    "tool_calls": 2,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: The worker's effective configuration differs from the reviewed baseline on chat_template, tool_call_parser, and tool_parser_plugin (ev-002, ev-006). This misconfiguration correlates with the failed tool-call canary (ev-004). Status: misconfigured. Fault class: misconfigured. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured and its tool-call canary fails because the effective configuration diverges from the reviewed baseline. Applying the reviewed serving profile will realign the worker's chat template, parser, and plugin with the expected values, restoring the canary and service for users. target-b is healthy and requires no action. The move is safe because it only touches target-a and follows the controller's repair path.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-002",
+        "ev-004",
+        "ev-006"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-002",
+       "ev-004",
+       "ev-006"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a's effective configuration will match the reviewed baseline (chat_template, tool_call_parser, tool_parser_plugin), the tool-call canary should pass, and the worker will be returned to rotation.",
+      "risk": "low \u2013 the profile is the reviewed, approved configuration; the only risk is a transient outage during the worker restart, which is expected per the move's design.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "1f4728b2e493",
+     "started_at": "2026-10-18T07:16:01+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "08f599c94cda",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:17:17+00:00",
+     "seconds": 75.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:19:59+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 83.6,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-b707122e",
+  "steps": 6,
+  "tool_calls": 2,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "Configuration discrepancy: enable_auto_tool_choice is false on target-a and true on target-b. The visible tool-call canary on target-a returned HTTP 400 with 0 structured tool calls, while target-b returned a valid structured tool call. All other metrics (error rates, latency p95, path\u2011through\u2011HAProxy) are healthy and identical for both workers. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is the only resource with a misconfigured flag (enable_auto_tool_choice = false) and a failing tool-call canary. Applying the reviewed serving profile will restore its configuration to the reviewed state (enable_auto_tool_choice = true), which should resolve the HTTP 400 canary failure and return the worker to a healthy state. target-b is already healthy, so no move is needed there.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-001",
+      "ev-002",
+      "ev-004",
+      "ev-006"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-001",
+     "ev-002",
+     "ev-004",
+     "ev-006"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a's enable_auto_tool_choice will be set to true (matching the reviewed config), the visible tool-call canary should then succeed with a valid structured tool call, and the worker will be returned to the rotation pool.",
+    "risk": "Low \u2013 the profile is the reviewed, approved template; the worker is temporarily taken out of rotation during restart, but no data loss or configuration drift beyond the already\u2011identified mismatch is introduced.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.041,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "3167ee1f079f",
+   "started_at": "2026-10-18T07:18:43+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "9a73561e9e6f",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:19:56+00:00",
+   "seconds": 72.8
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-b707122e",
+    "steps": 6,
+    "tool_calls": 2,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Configuration discrepancy: enable_auto_tool_choice is false on target-a and true on target-b. The visible tool-call canary on target-a returned HTTP 400 with 0 structured tool calls, while target-b returned a valid structured tool call. All other metrics (error rates, latency p95, path\u2011through\u2011HAProxy) are healthy and identical for both workers. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is the only resource with a misconfigured flag (enable_auto_tool_choice = false) and a failing tool-call canary. Applying the reviewed serving profile will restore its configuration to the reviewed state (enable_auto_tool_choice = true), which should resolve the HTTP 400 canary failure and return the worker to a healthy state. target-b is already healthy, so no move is needed there.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-004",
+        "ev-006"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-002",
+       "ev-004",
+       "ev-006"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a's enable_auto_tool_choice will be set to true (matching the reviewed config), the visible tool-call canary should then succeed with a valid structured tool call, and the worker will be returned to the rotation pool.",
+      "risk": "Low \u2013 the profile is the reviewed, approved template; the worker is temporarily taken out of rotation during restart, but no data loss or configuration drift beyond the already\u2011identified mismatch is introduced.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "3167ee1f079f",
+     "started_at": "2026-10-18T07:18:43+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "9a73561e9e6f",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:19:56+00:00",
+     "seconds": 72.8
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:22:38+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 82.4,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-b",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-47351e95",
+  "steps": 4,
+  "tool_calls": 0,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: finding=Per-worker latency and errors through the HAProxy entry point. (ev-001); Configuration keys whose values differ between the workers. (ev-002); Per-worker latency and errors directly and through HAProxy. (ev-003); Visible tool-call canary on target-a. (ev-004).  status=healthy  fault_class=none  evidence IDs: ev-001, ev-002, ev-003, ev-004.  target-b: finding=Configuration keys whose values differ between the workers. (ev-002); Per-worker latency and errors directly and through HAProxy. (ev-003); Visible tool-call canary on target-b. (ev-005).  status=abnormal  fault_class=misconfigured  evidence IDs: ev-002, ev-003, ev-005. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b is abnormal because its serving configuration diverges from the reviewed baseline (chat_template, tool_call_parser, tool_parser_plugin) and the tool-call canary probe shows no structured tool calls. The only available repair move is apply-serving-profile, which explicitly relaunches a worker with a reviewed profile and fixes misconfigured workers. Applying this profile to target-b will restore its configuration to the reviewed state, bring the structured tool-call c",
+   "hypotheses": [
+    {
+     "id": "target-b:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-002",
+      "ev-003",
+      "ev-005"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-b:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-002",
+     "ev-003",
+     "ev-005"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-b",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-b's configuration will be replaced with the reviewed profile (correct chat_template, tool_call_parser, and tool_parser_plugin). The worker will be restarted out of rotation; once it reports a valid structured tool call and matching config diff, it will re\u2011enter the fleet as healthy. Latency (",
+    "risk": "The worker is taken out of rotation during restart, causing a brief period of reduced capacity. If the profile name is incorrect or the underlying container image is unavailable, the restart could fail and leave target-b unreachable until manually corrected. No other risks are indicated by theevid",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "41c468fedebb",
+   "started_at": "2026-10-18T07:21:22+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "6c6255075384",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:22:35+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-b",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-47351e95",
+    "steps": 4,
+    "tool_calls": 0,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: finding=Per-worker latency and errors through the HAProxy entry point. (ev-001); Configuration keys whose values differ between the workers. (ev-002); Per-worker latency and errors directly and through HAProxy. (ev-003); Visible tool-call canary on target-a. (ev-004).  status=healthy  fault_class=none  evidence IDs: ev-001, ev-002, ev-003, ev-004.  target-b: finding=Configuration keys whose values differ between the workers. (ev-002); Per-worker latency and errors directly and through HAProxy. (ev-003); Visible tool-call canary on target-b. (ev-005).  status=abnormal  fault_class=misconfigured  evidence IDs: ev-002, ev-003, ev-005. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b is abnormal because its serving configuration diverges from the reviewed baseline (chat_template, tool_call_parser, tool_parser_plugin) and the tool-call canary probe shows no structured tool calls. The only available repair move is apply-serving-profile, which explicitly relaunches a worker with a reviewed profile and fixes misconfigured workers. Applying this profile to target-b will restore its configuration to the reviewed state, bring the structured tool-call c",
+     "hypotheses": [
+      {
+       "id": "target-b:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-002",
+        "ev-003",
+        "ev-005"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-002",
+       "ev-003",
+       "ev-005"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-b",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-b's configuration will be replaced with the reviewed profile (correct chat_template, tool_call_parser, and tool_parser_plugin). The worker will be restarted out of rotation; once it reports a valid structured tool call and matching config diff, it will re\u2011enter the fleet as healthy. Latency (",
+      "risk": "The worker is taken out of rotation during restart, causing a brief period of reduced capacity. If the profile name is incorrect or the underlying container image is unavailable, the restart could fail and leave target-b unreachable until manually corrected. No other risks are indicated by theevid",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "41c468fedebb",
+     "started_at": "2026-10-18T07:21:22+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "6c6255075384",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:22:35+00:00",
+     "seconds": 72.9
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:24:49+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 127.1,
+  "action": {
+   "tool": "restart-worker",
+   "service": "target-a"
+  },
+  "rule": null,
+  "run_id": "run-84f2a3b5",
+  "steps": 9,
+  "tool_calls": 5,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "Investigation complete. All evidence examined. Chosen: restart-worker target-a. target-a is in the crashed fault class due to its container having exited. The only move that restores service for users is to restart the worker, which will relaunch the process with its current profile. target-b is healthy and requires no action. Restarting target-a takes it out of rotation temporarily but is the minimal intervention needed.",
+   "hypotheses": [
+    {
+     "id": "target-a:crashed",
+     "confidence": 0.8,
+     "supports": [
+      "ev-001",
+      "ev-003",
+      "ev-004",
+      "ev-006",
+      "ev-009"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:crashed",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-001",
+     "ev-003",
+     "ev-004",
+     "ev-006",
+     "ev-009"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "restart-worker",
+      "target": "target-a",
+      "parameters": {}
+     }
+    },
+    "expected_effect": "target-a's container will be relaunched, returning it to running state. Error rate will drop from 1.0 to 0.0, p95 latency will recover from 0.0s to normal (~0.037s), and the worker will re-enter HAProxy rotation. Tool-call canary will pass again.",
+    "risk": "Low. The restart uses target-a's current profile, so configuration remains unchanged. The worker is temporarily out of rotation during restart, but users will be rerouted to target-b until target-a recovers. No configuration changes are made.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "b0fd851f62b0",
+   "started_at": "2026-10-18T07:23:34+00:00",
+   "ready_seconds": 69.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:24:46+00:00",
+   "seconds": 72.1
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart-worker",
+     "service": "target-a"
+    },
+    "rule": null,
+    "run_id": "run-84f2a3b5",
+    "steps": 9,
+    "tool_calls": 5,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "Investigation complete. All evidence examined. Chosen: restart-worker target-a. target-a is in the crashed fault class due to its container having exited. The only move that restores service for users is to restart the worker, which will relaunch the process with its current profile. target-b is healthy and requires no action. Restarting target-a takes it out of rotation temporarily but is the minimal intervention needed.",
+     "hypotheses": [
+      {
+       "id": "target-a:crashed",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-003",
+        "ev-004",
+        "ev-006",
+        "ev-009"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:crashed",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-003",
+       "ev-004",
+       "ev-006",
+       "ev-009"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "restart-worker",
+        "target": "target-a",
+        "parameters": {}
+       }
+      },
+      "expected_effect": "target-a's container will be relaunched, returning it to running state. Error rate will drop from 1.0 to 0.0, p95 latency will recover from 0.0s to normal (~0.037s), and the worker will re-enter HAProxy rotation. Tool-call canary will pass again.",
+      "risk": "Low. The restart uses target-a's current profile, so configuration remains unchanged. The worker is temporarily out of rotation during restart, but users will be rerouted to target-b until target-a recovers. No configuration changes are made.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "b0fd851f62b0",
+     "started_at": "2026-10-18T07:23:34+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:24:46+00:00",
+     "seconds": 72.1
+    }
+   }
+  ],
+  "build": "b4"
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "agent",
+  "at": "2026-10-18T07:29:02+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 174.0,
+  "action": {
+   "tool": "apply-serving-profile",
+   "service": "target-a",
+   "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-7eb44c75",
+  "steps": 8,
+  "tool_calls": 4,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "target-a: configuration keys differ from reviewed profile (chat_template, tool_call_parser, tool_parser_plugin), tool-call canary fails with 0 structured tool calls, latency and error rates are healthy and symmetric direct-vs-through-HAProxy. target-b: configuration matches reviewed profile, tool-call canary passes with 1 valid structured call, latency and error rates healthy. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured with the wrong chat template, parser, and parser plugin, causing its tool-call canary to fail. The apply-serving-profile move will relaunch target-a with the reviewed profile (qwen25-coder-7b.tools-template), restoring its configuration to match the reviewed state and enabling structured tool calls again. target-b is already healthy, so no action is needed there. This move restores service for users on the affected worker.",
+   "hypotheses": [
+    {
+     "id": "target-a:misconfigured",
+     "confidence": 0.8,
+     "supports": [
+      "ev-002",
+      "ev-004",
+      "ev-006"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": null,
+   "repair_plan": {
+    "hypothesis_id": "target-a:misconfigured",
+    "confidence": 0.8,
+    "evidence": [
+     "ev-002",
+     "ev-004",
+     "ev-006"
+    ],
+    "action": {
+     "tool": "apply_action",
+     "arguments": {
+      "action_id": "apply-serving-profile",
+      "target": "target-a",
+      "parameters": {
+       "profile": "qwen25-coder-7b.tools-template"
+      }
+     }
+    },
+    "expected_effect": "target-a will be relaunched with the correct chat_template, tool_call_parser, and tool_parser_plugin from the reviewed profile. The worker is temporarily removed from rotation during restart, then returns healthy. Tool-call canary should pass after restart.",
+    "risk": "The worker is taken out of rotation during restart, briefly reducing capacity. If the profile match fails or the container has other issues, rollback may be required. No other workers are affected.",
+    "verification_plan": [
+     "tool-call-hidden",
+     "route-probe"
+    ],
+    "rollback_plan": "The executor restores the captured before-state if verification fails."
+   }
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.04,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "e45890738f77",
+   "started_at": "2026-10-18T07:27:45+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "87adebcac64b",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T07:28:58+00:00",
+   "seconds": 73.0
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-b",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-3db79218",
+    "steps": 5,
+    "tool_calls": 0,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: error rate 0.0, latency 0.034\u202fs, config matches reviewed baseline, canary succeeded (HTTP\u202f200). target-b: error rate 1.0 both directly and through HAProxy, config differs from reviewed on chat_template, tool_call_parser, and tool_parser_plugin, canary returned HTTP\u202f0 with no structured tool calls. Chosen: apply-serving-profile target-b qwen25-coder-7b.tools-template. target-b has a persistent 1.0 error rate and its configuration differs from the reviewed baseline on three keys (chat_template, tool_call_parser, tool_parser_plugin). The visible tool\u2011call canary also failed (HTTP\u202f0, no structured tool calls). The only move that directly addresses this mis\u2011configuration is apply\u2011serving\u2011profile with the reviewed profile qwen25\u2011coder\u20117b.tools\u2011template, which will relaunch target\u2011b with the correct settings. target\u2011a is already healthy, so no action is needed there.",
+     "hypotheses": [
+      {
+       "id": "target-b:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-003",
+        "ev-005"
+       ],
+       "contradicts": []
+      },
+      {
+       "id": "target-a:unknown",
+       "confidence": 0.8,
+       "supports": [
+        "ev-001",
+        "ev-002",
+        "ev-003",
+        "ev-004"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-b:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-001",
+       "ev-002",
+       "ev-003",
+       "ev-005"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-b",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target\u2011b will be relaunched with the reviewed serving profile; configuration keys (chat_template, tool_call_parser, tool_parser_plugin) will match the reviewed baseline; error rate should drop to 0.0 and latency stabilize; the worker is temporarily removed from rotation during restart.",
+      "risk": "The profile name provided (qwen25-coder-7b.tools-template) must exist in the system; if the profile is missing or mismatched the worker may fail to start. No other resources are affected.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "c011dd92952d",
+     "started_at": "2026-10-18T07:26:14+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "exited",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.tools-template",
+      "enable_auto_tool_choice": true,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "c1ec2bf3152a",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:27:26+00:00",
+     "seconds": 72.3
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "apply-serving-profile",
+     "service": "target-a",
+     "profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": null,
+    "run_id": "run-7eb44c75",
+    "steps": 8,
+    "tool_calls": 4,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "target-a: configuration keys differ from reviewed profile (chat_template, tool_call_parser, tool_parser_plugin), tool-call canary fails with 0 structured tool calls, latency and error rates are healthy and symmetric direct-vs-through-HAProxy. target-b: configuration matches reviewed profile, tool-call canary passes with 1 valid structured call, latency and error rates healthy. Chosen: apply-serving-profile target-a qwen25-coder-7b.tools-template. target-a is misconfigured with the wrong chat template, parser, and parser plugin, causing its tool-call canary to fail. The apply-serving-profile move will relaunch target-a with the reviewed profile (qwen25-coder-7b.tools-template), restoring its configuration to match the reviewed state and enabling structured tool calls again. target-b is already healthy, so no action is needed there. This move restores service for users on the affected worker.",
+     "hypotheses": [
+      {
+       "id": "target-a:misconfigured",
+       "confidence": 0.8,
+       "supports": [
+        "ev-002",
+        "ev-004",
+        "ev-006"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": null,
+     "repair_plan": {
+      "hypothesis_id": "target-a:misconfigured",
+      "confidence": 0.8,
+      "evidence": [
+       "ev-002",
+       "ev-004",
+       "ev-006"
+      ],
+      "action": {
+       "tool": "apply_action",
+       "arguments": {
+        "action_id": "apply-serving-profile",
+        "target": "target-a",
+        "parameters": {
+         "profile": "qwen25-coder-7b.tools-template"
+        }
+       }
+      },
+      "expected_effect": "target-a will be relaunched with the correct chat_template, tool_call_parser, and tool_parser_plugin from the reviewed profile. The worker is temporarily removed from rotation during restart, then returns healthy. Tool-call canary should pass after restart.",
+      "risk": "The worker is taken out of rotation during restart, briefly reducing capacity. If the profile match fails or the container has other issues, rollback may be required. No other workers are affected.",
+      "verification_plan": [
+       "tool-call-hidden",
+       "route-probe"
+      ],
+      "rollback_plan": "The executor restores the captured before-state if verification fails."
+     }
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "e45890738f77",
+     "started_at": "2026-10-18T07:27:45+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "87adebcac64b",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T07:28:58+00:00",
+     "seconds": 73.0
+    }
+   }
+  ],
+  "build": "b4"
+ }
+]

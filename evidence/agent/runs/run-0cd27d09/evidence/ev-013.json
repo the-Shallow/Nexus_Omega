@@ -1,0 +1,15 @@
+{
+  "content": {
+    "artifact_id": "art-f712d1fdc8",
+    "content": {
+      "content": "```xml\n<response>\n    {\"name\": \"get_weather\", \"arguments\": {\"city\": \"Raleigh\", \"unit\": \"celsius\"}}\n</response>\n```",
+      "http_status": 200,
+      "tool_calls": []
+    },
+    "section": "structured_response"
+  },
+  "evidence_id": "ev-013",
+  "source": "artifact:art-f712d1fdc8:structured_response",
+  "source_type": "artifact",
+  "trust": "untrusted"
+}

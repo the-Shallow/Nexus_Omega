@@ -39,7 +39,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 |---|---|---|---|---|---|---|---|
 | Rule baseline | 2026-10-18 05:06–05:39 UTC | 3/3 (77 s) | 3/3 (78 s) | 3/3 (113 s) | 3/3 (151 s) | **12/12** | 0 |
 | Nemotron | before design changes (old free-form agent) | 3/3 (88 s) | 3/3 (89 s) | 1/3 (56 s) | 3/3 (194 s) | **10/12** | 0 |
-| Nemotron | after design changes (structured) | running | | | | | |
+| Nemotron | **after design changes** (structured build 4, `db9836c`; 06:52–07:32 UTC) | 3/3 (84 s) | 3/3 (91 s) | 3/3 (130 s) | 3/3 (179 s) | **12/12** | 0 |
 
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
@@ -134,6 +134,19 @@ The rules fail safe (no false claims, no harmful action that the executor let th
 2. *Weak "fixed" check.* Now a worker counts as fixed only if it is back in rotation, within the SLO through HAProxy, and passing the hidden canary. Rescoring the rule baseline with it changes nothing (its only successes were noop).
 
 Neither fix changes the agent, its prompts, or the rules, so the faults remain held out. Rounds 2–3 were discarded unrun; the agent is rerun ×3 from the start.
+
+### Structured workflow: four builds, each fixing one observed failure
+
+After held-out v1, the end of the run was redesigned following `docs/research/agent-workflow-findings.md`: code runs the workflow and the model fills in judgments (`nexus/agent/structured.py`). Each build was tried live; the run was stopped as soon as a failure showed a flaw in the design, the flaw was fixed with a general rule, and the next build ran. Every episode is kept (`../heldout/structured-dev-builds.json`, trails in `runs/`).
+
+| Build | Commit | What it added | What it showed live | Episodes |
+|---|---|---|---|---|
+| 1 | `df016e6` + `757dff1` | Assess every resource → choose from a code-built menu of valid moves (with capacity-ordering notes) → code builds the decision; neutral manifest; `config-diff` and `path-compare` probes in the opening snapshot | noop ✅ in 8.5 s ("no fault found"). compound-v1 ❌: config-diff said a and b *differ*, not which is wrong; the agent blamed b, the correctly configured one | `run-2292fa31`; `run-838cf85b`, `run-88a6b87a` |
+| 2 | `78a9184` | config-diff compares each worker with the **reviewed** configuration | 3/6 on v2 before stopping. Findings correct but labels contradicted them: "HTTP 400 … diverging from the reviewed configuration … directly explains the canary failure", labelled **healthy / none** | `run-8e3c1459` … `run-a5592950` |
+| 3 | `a16a1b9` | Probes flag abnormal resources; code rejects a "healthy" label against flags, naming the evidence | The check fired as intended, but the retry labelled the worker **degraded / unknown** while its finding said "this misconfiguration is the identified cause" | `run-3742585b`, `run-47fb1cdd` |
+| 4 | `db9836c` | Each flagged or non-healthy resource is **labelled again from its own finding in a short, separate context** | **v2: 12/12, 0 false VERIFIED** | see matrix |
+
+The pattern behind builds 2–4: Lightning's written findings were consistently right; the labels it chose at the end of a long structured answer were not. Moving the labelling into a short, focused context fixed it. Held-out caveat: v2 was frozen before any of this (`60bdd15`), but builds 2–3 ran on half of it, so build 4's v2 score is not fully blind; each fix is a general rule (compare with the reviewed config, hold labels to flagged evidence, label in a short context), none mentions a specific fault.
 
 ## How it got there: every attempt
 

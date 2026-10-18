@@ -1,0 +1,17 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "chat_template": "model default",
+      "tool_call_parser": "hermes",
+      "tool_parser_plugin": null
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-006",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}
