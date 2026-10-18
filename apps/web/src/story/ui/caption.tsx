@@ -39,21 +39,21 @@ export function Caption({ h, act, engineer, waiting, onApprove, left }: {
   // Split into words so each one can arrive in turn, keeping highlight classes per word.
   let n = 0;
   const words = segments(h.plain).flatMap((s) => s.t.split(/(\s+)/).filter(Boolean).map((w) => ({ w, cls: s.cls, i: /\s/.test(w) ? -1 : n++ })));
-  const size = h.plain.length > 170 ? 'text-[22px]' : h.plain.length > 110 ? 'text-[25px]' : 'text-[29px]';
+  const size = h.plain.length > 170 ? 'text-[20px]' : h.plain.length > 110 ? 'text-[23px]' : 'text-[26px]';
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[48vh] bg-gradient-to-t from-bg/90 via-bg/45 to-transparent" />
-      <div className="pointer-events-none absolute bottom-[92px] right-4 z-10 flex justify-center" style={{ left }}>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[40vh] bg-gradient-to-t from-bg/90 via-bg/45 to-transparent" />
+      <div className="pointer-events-none absolute bottom-[74px] right-4 z-10 flex justify-center" style={{ left }}>
         <motion.div key={h.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="max-w-[860px] text-center">
           <div className="font-mono text-[11.5px] uppercase tracking-[0.2em] text-accent">Act {act} · {ACTS[act - 1].title} <span className="text-ink-3">· {h.title}</span></div>
-          <p className={`mt-3 font-medium leading-[1.3] tracking-[-0.01em] text-ink/95 ${size}`} style={{ textWrap: 'balance' }}>
+          <p className={`mt-2.5 font-medium leading-[1.3] tracking-[-0.01em] text-ink/95 ${size}`} style={{ textWrap: 'balance' }}>
             {words.map((x, k) => x.i < 0 ? <span key={k}>{x.w}</span> : (
               <motion.span key={k} className={`inline-block ${x.cls ?? ''}`} initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 0.5, ease, delay: 0.15 + x.i * 0.035 }}>{x.w}</motion.span>
             ))}
           </p>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 + n * 0.035 }}
-            className="mt-3 font-mono text-[12px] text-ink-3">{h.tech}</motion.p>
+            className="mt-2.5 font-mono text-[11.5px] text-ink-3">{h.tech}</motion.p>
           {engineer && h.engineer && (
             <ul className="mx-auto mt-2 max-w-[720px] space-y-0.5 text-left">
               {h.engineer.slice(0, 4).map((l) => <li key={l} className="truncate font-mono text-[11px] text-ink-3">{l}</li>)}

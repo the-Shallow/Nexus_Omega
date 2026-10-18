@@ -10,6 +10,16 @@ import type { World } from '../world/world';
 const ease = [0.16, 1, 0.3, 1] as const;
 export const INTRO_WIDTH = 460;
 
+/** Beat text slides the way you scrolled: in from below going forward, from above going back. */
+const slide = {
+  enter: (d: number) => ({ opacity: 0, y: 22 * d, filter: 'blur(6px)' }),
+  center: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.6, ease } },
+  exit: (d: number) => ({ opacity: 0, y: -14 * d, filter: 'blur(4px)', transition: { duration: 0.22, ease: [0.4, 0, 1, 1] as const } }),
+};
+/** A wheel gesture ends after this much quiet. Trackpad momentum keeps firing well past any fixed lock. */
+const GESTURE_GAP_MS = 200;
+const GESTURE_MIN_DELTA = 40;
+
 /** Which hop of the story each beat borrows its scene from, and where the camera goes. */
 function beatScene(story: Story, beat: number) {
   const hops = story.hops;
@@ -85,18 +95,29 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
     },
   ];
   const b = beats[beat];
+  const prev = useRef(beat);
+  const dir = beat >= prev.current ? 1 : -1;
+  useEffect(() => { prev.current = beat; }, [beat]);
 
-  // One beat per scroll gesture (wheel, swipe, keys); past the last beat, the demo starts.
+  // One beat per gesture (a whole swipe or wheel spin, momentum included; a key; a touch swipe).
+  // Past the last beat, the demo starts.
   const lock = useRef(0);
+  const wheel = useRef({ last: 0, sum: 0, fired: false });
   useEffect(() => {
     const step = (dir: 1 | -1) => {
       const now = performance.now();
       if (now < lock.current) return;
-      lock.current = now + 750;
+      lock.current = now + 450;
       if (dir > 0) { if (beat >= beats.length - 1) onStart(); else onBeat(beat + 1); }
       else if (beat > 0) onBeat(beat - 1);
     };
-    const onWheel = (e: WheelEvent) => { if (Math.abs(e.deltaY) > 24) step(e.deltaY > 0 ? 1 : -1); };
+    const onWheel = (e: WheelEvent) => {
+      const w = wheel.current, now = performance.now();
+      if (now - w.last > GESTURE_GAP_MS) { w.sum = 0; w.fired = false; }
+      w.last = now;
+      w.sum += e.deltaY;
+      if (!w.fired && Math.abs(w.sum) > GESTURE_MIN_DELTA) { w.fired = true; step(w.sum > 0 ? 1 : -1); }
+    };
     const onKey = (e: KeyboardEvent) => {
       if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); step(1); }
       else if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); step(-1); }
@@ -119,7 +140,7 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
 
   return (
     <motion.aside initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.9, ease }}
-      className="absolute bottom-4 left-4 top-[88px] z-20 flex flex-col justify-between overflow-y-auto rounded-2xl border border-white/[0.07] bg-[rgb(9_11_13/0.72)] p-8 backdrop-blur-xl"
+      className="absolute bottom-3 left-3 top-[72px] z-20 flex flex-col justify-between overflow-y-auto rounded-2xl border border-white/[0.07] bg-[rgb(9_11_13/0.72)] p-7 backdrop-blur-xl"
       style={{ width: INTRO_WIDTH }} aria-label="What is Nexus">
       <div>
         <div className="flex items-center justify-between">
@@ -131,8 +152,8 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
             ))}
           </div>
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div key={beat} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.55, ease }} className="mt-12">
+        <AnimatePresence mode="wait" custom={dir} initial={false}>
+          <motion.div key={beat} custom={dir} variants={slide} initial="enter" animate="center" exit="exit" className="mt-10">
             <div className="font-mono text-[12px] text-accent">0{beat + 1}</div>
             <h1 className="mt-3 text-[36px] font-semibold leading-[1.06] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>{b.title}</h1>
             <p className="mt-5 text-[16px] leading-relaxed text-ink-2">{b.body}</p>
@@ -169,7 +190,7 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
 export function LandingBar() {
   return (
     <motion.header initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.8, ease }}
-      className="absolute left-4 right-4 top-4 z-20 flex h-14 items-center gap-6 px-4">
+      className="absolute left-3 right-3 top-3 z-20 flex h-12 items-center gap-6 px-3">
       <a href="./" className="flex items-center gap-2.5">
         <span className="grid size-8 place-items-center rounded-lg bg-accent text-[17px] font-bold text-bg">Ω</span>
         <span className="text-[16px] font-semibold tracking-tight">Nexus</span>

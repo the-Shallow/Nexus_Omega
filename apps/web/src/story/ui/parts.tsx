@@ -18,35 +18,32 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
   const real = story.mode === 'real';
   return (
     <motion.header initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease }}
-      className="glass absolute left-4 right-4 top-4 z-20 flex h-14 items-center gap-4 rounded-2xl px-4">
+      className="glass absolute left-3 right-3 top-3 z-20 flex h-12 items-center gap-3 rounded-2xl px-3">
       <a href="./" className="flex items-center gap-2.5" title="Back to the product story">
-        <span className="grid size-8 place-items-center rounded-lg bg-accent text-[17px] font-bold text-bg">Ω</span>
-        <div className="leading-tight">
-          <div className="text-[14px] font-semibold">Nexus</div>
-          <div className="label !text-[9.5px]">simulation</div>
-        </div>
+        <span className="grid size-7 place-items-center rounded-lg bg-accent text-[15px] font-bold text-bg">Ω</span>
+        <span className="text-[14px] font-semibold">Nexus</span>
       </a>
-      <button onClick={onAbout} className="rounded-lg px-2.5 py-1.5 text-[13px] text-ink-3 hover:bg-white/[0.05] hover:text-ink">About Nexus</button>
+      <button onClick={onAbout} className="rounded-lg px-2 py-1 text-[12.5px] text-ink-3 hover:bg-white/[0.05] hover:text-ink">About</button>
       <div className="mx-auto flex gap-1 rounded-xl bg-white/[0.04] p-1">
         {stories.map((s) => (
           <button key={s.id} onClick={() => { setPicker(false); onStory(s); }}
-            className={`rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-colors ${s.id === story.id ? 'bg-white/[0.09] text-ink' : 'text-ink-3 hover:text-ink-2'}`}>
+            className={`rounded-lg px-3 py-1 text-[12.5px] font-medium transition-colors ${s.id === story.id ? 'bg-white/[0.09] text-ink' : 'text-ink-3 hover:text-ink-2'}`}>
             {s.name}
           </button>
         ))}
         <span className="mx-1 w-px self-stretch bg-line-2" />
         <button onClick={() => setPicker((p) => !p)}
-          className={`rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-colors ${real || picker ? 'bg-white/[0.09] text-ink' : 'text-ink-3 hover:text-ink-2'}`}>
+          className={`rounded-lg px-3 py-1 text-[12.5px] font-medium transition-colors ${real || picker ? 'bg-white/[0.09] text-ink' : 'text-ink-3 hover:text-ink-2'}`}>
           {loading ? `Loading ${loading}…` : real ? story.short : 'Real runs'} <span className="text-ink-4">▾</span>
         </button>
       </div>
       <AnimatePresence>{picker && <RunPicker current={real ? story.short : null} onPick={(id) => { setPicker(false); onRun(id); }} />}</AnimatePresence>
       {extra}
-      <div className="font-mono text-[15px] tnum text-ink-2">{clock}</div>
+      {clock && <div className="font-mono text-[13px] tnum text-ink-3">{clock}</div>}
       <div className="flex rounded-xl bg-white/[0.04] p-1 text-[12px]">
         {(['Story', 'Engineer'] as const).map((m) => (
           <button key={m} onClick={() => setEngineer(m === 'Engineer')}
-            className={`rounded-lg px-2.5 py-1 font-medium ${(m === 'Engineer') === engineer ? 'bg-white/[0.09] text-ink' : 'text-ink-3'}`}>{m}</button>
+            className={`rounded-lg px-2 py-0.5 font-medium ${(m === 'Engineer') === engineer ? 'bg-white/[0.09] text-ink' : 'text-ink-3'}`}>{m}</button>
         ))}
       </div>
       <span className={`rounded-lg border px-2.5 py-1 font-mono text-[10.5px] tracking-wider ${real ? 'border-info/30 bg-info/10 text-info' : 'border-replay/30 bg-replay/10 text-replay'}`}>{story.badge}</span>
@@ -63,8 +60,8 @@ export function StepRail({ story, hop, onGo }: { story: Story; hop: number; onGo
   const now = acts[hop];
   return (
     <motion.aside initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease, delay: 0.1 }}
-      className="glass absolute left-4 top-[88px] z-10 w-[236px] rounded-2xl px-4 py-4" aria-label="Progress">
-      <ol className="space-y-4">
+      className="glass absolute left-3 top-[72px] z-10 w-[200px] rounded-2xl px-3.5 py-3" aria-label="Progress">
+      <ol className="space-y-3">
         {ACTS.map((a) => {
           const idx = story.hops.map((_, i) => i).filter((i) => acts[i] === a.n);
           if (!idx.length) return null;
@@ -73,7 +70,7 @@ export function StepRail({ story, hop, onGo }: { story: Story; hop: number; onGo
             <li key={a.n}>
               <button onClick={() => onGo(idx[0])} className="flex w-full items-baseline gap-2 text-left">
                 <span className={`font-mono text-[10px] tracking-[0.18em] ${state === 'later' ? 'text-ink-4' : 'text-accent'}`}>ACT {a.n}</span>
-                <span className={`text-[13.5px] font-semibold ${state === 'open' ? 'text-ink' : state === 'done' ? 'text-ink-2' : 'text-ink-3'}`}>{a.title}</span>
+                <span className={`text-[12.5px] font-semibold ${state === 'open' ? 'text-ink' : state === 'done' ? 'text-ink-2' : 'text-ink-3'}`}>{a.title}</span>
                 {state === 'done' && <span className="ml-auto text-[11px] text-accent">✓</span>}
               </button>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -85,7 +82,7 @@ export function StepRail({ story, hop, onGo }: { story: Story; hop: number; onGo
               <AnimatePresence initial={false}>
                 {state === 'open' && (
                   <motion.div key={story.hops[hop].id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease }}
-                    className="mt-2 text-[12.5px] leading-snug text-ink-2">{story.hops[hop].title}</motion.div>
+                    className="mt-1.5 text-[12px] leading-snug text-ink-2">{story.hops[hop].title}</motion.div>
                 )}
               </AnimatePresence>
             </li>
@@ -100,12 +97,12 @@ export function RoomTitle({ h, room, subs = {} }: { h: Hop; room: RoomId | null;
   const r = room ? ROOM[room] : null;
   const key = r?.id ?? (h.finale ? 'finale' : 'floor');
   return (
-    <div className="pointer-events-none absolute right-8 top-[100px] z-10 text-right">
+    <div className="pointer-events-none absolute right-6 top-[80px] z-10 text-right">
       <AnimatePresence mode="wait">
         <motion.div key={key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.6, ease }}>
           <div className="font-mono text-[12px] tracking-[0.2em] text-accent">{r ? r.n : h.finale ? 'OVERVIEW' : 'THE FLOOR'}</div>
-          <div className="mt-1 text-[34px] font-semibold leading-none tracking-tight">{r ? r.name : h.finale ? 'The whole picture' : 'One floor, six rooms'}</div>
-          <div className="mt-2 text-[13px] text-ink-3">{r ? subs[r.id] ?? r.sub : h.finale ? 'the incident’s path through the system' : 'callers → door → GPUs → signals → Nexus'}</div>
+          <div className="mt-1 text-[28px] font-semibold leading-none tracking-tight">{r ? r.name : h.finale ? 'The whole picture' : 'One floor, six rooms'}</div>
+          <div className="mt-1.5 text-[12px] text-ink-3">{r ? subs[r.id] ?? r.sub : h.finale ? 'the incident’s path through the system' : 'callers → door → GPUs → signals → Nexus'}</div>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -116,7 +113,7 @@ export function RealityBar({ r }: { r: Reality }) {
   const realC = r.tone === 'ok' ? 'bg-ok' : r.tone === 'lie' ? 'bg-warn' : 'bg-bad';
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease }}
-      className="glass absolute right-4 top-[196px] z-10 w-[300px] rounded-2xl p-4">
+      className="glass absolute right-3 top-[164px] z-10 w-[280px] rounded-2xl p-3.5">
       <div className="label mb-3">{r.head ?? 'What the dashboards say vs what’s true'}</div>
       <Row dot={r.labels ? 'bg-info' : 'bg-ok'} k={r.labels?.[0] ?? 'Dashboards'} v={r.dash} />
       <div className="my-2 h-px bg-line" />
@@ -141,12 +138,12 @@ export function Transport({ story, hop, playing, setPlaying, speed, setSpeed, on
   story: Story; hop: number; playing: boolean; setPlaying: (p: boolean) => void; speed: number; setSpeed: (s: number) => void; onGo: (i: number) => void; waiting: boolean;
 }) {
   const h = story.hops[hop];
-  const btn = 'grid size-9 place-items-center rounded-xl text-ink-2 hover:bg-white/[0.06] hover:text-ink';
+  const btn = 'grid size-8 place-items-center rounded-xl text-ink-2 hover:bg-white/[0.06] hover:text-ink';
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.2 }}
-      className="glass absolute bottom-4 left-1/2 z-20 flex h-14 -translate-x-1/2 items-center gap-2 rounded-2xl px-3">
+      className="glass absolute bottom-3 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center gap-1.5 rounded-2xl px-2.5">
       <button className={btn} onClick={() => onGo(hop - 1)} aria-label="Previous">◀</button>
-      <button className="grid size-10 place-items-center rounded-xl bg-accent text-bg" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'}>
+      <button className="grid size-9 place-items-center rounded-xl bg-accent text-bg" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'}>
         {playing ? '❚❚' : '▶'}
       </button>
       <button className={btn} onClick={() => onGo(hop + 1)} aria-label="Next">▶</button>

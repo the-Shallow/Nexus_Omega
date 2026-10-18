@@ -32,21 +32,13 @@ export function Header({ onBreak }: { onBreak: () => void }) {
 
 const Divider = () => <span className="hidden h-6 w-px bg-line md:block" />;
 
+/** Same mark as the story pages, and the way back to the landing. */
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 pr-1">
-      <svg viewBox="0 0 32 32" className="size-7" aria-hidden>
-        <defs>
-          <linearGradient id="brand-g" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#9be22d" />
-            <stop offset="1" stopColor="#4d7c0f" />
-          </linearGradient>
-        </defs>
-        <rect x="1" y="1" width="30" height="30" rx="9" fill="#0d1113" stroke="rgb(255 255 255 / .08)" />
-        <path d="M10.2 22.6h3.6v-1.9a6.2 6.2 0 1 1 4.4 0v1.9h3.6" fill="none" stroke="url(#brand-g)" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="text-[15px] font-semibold tracking-[0.18em]">NEXUS<span className="ml-1.5 text-accent">Ω</span></span>
-    </div>
+    <a href="./" title="Back to the start" className="flex items-center gap-2.5 rounded-lg pr-1 hover:opacity-90">
+      <span className="grid size-7 place-items-center rounded-lg bg-accent text-[15px] font-bold text-bg">Ω</span>
+      <span className="text-[14px] font-semibold">Nexus</span>
+    </a>
   );
 }
 

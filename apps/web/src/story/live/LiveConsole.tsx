@@ -34,7 +34,7 @@ export function LiveConsole({ run, fleet, onFallback, onClose }: { run: LiveRun;
 
   return (
     <motion.aside initial={{ x: 24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 24, opacity: 0 }} transition={{ duration: 0.6, ease }}
-      className="glass-strong pointer-events-auto absolute bottom-6 right-4 top-[88px] z-20 flex w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl">
+      className="glass-strong pointer-events-auto absolute bottom-3 right-3 top-[72px] z-20 flex w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl">
       <header className="border-b border-line px-4 pb-3 pt-3.5">
         <div className="flex items-center gap-2 font-mono text-[11.5px] font-semibold tracking-wider">
           {run.phase === 'failed'

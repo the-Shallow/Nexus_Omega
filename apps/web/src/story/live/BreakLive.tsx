@@ -20,7 +20,7 @@ export function BreakLive({ busy, onPick }: { busy: boolean; onPick: (fault: str
   return (
     <>
       <button onClick={() => setOpen((o) => !o)} disabled={busy}
-        className="flex items-center gap-2 rounded-xl border border-bad/40 bg-bad/10 px-3 py-1.5 text-[13px] font-semibold text-bad transition-colors hover:bg-bad/20 disabled:cursor-not-allowed disabled:opacity-50">
+        className="flex items-center gap-2 rounded-xl border border-bad/40 bg-bad/10 px-2.5 py-1 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/20 disabled:cursor-not-allowed disabled:opacity-50">
         <span className="relative flex size-2">
           {!busy && <span className="absolute inset-0 animate-ping rounded-full bg-bad opacity-70" />}
           <span className="relative size-2 rounded-full bg-bad" />
@@ -44,7 +44,7 @@ function Chooser({ onPick, onClose }: { onPick: (fault: string) => void; onClose
   const rest = (all ?? []).filter((f) => !HERO.some((h) => h.fault === f.name));
   return (
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease }}
-      className="glass-strong absolute right-4 top-[76px] z-30 max-h-[70vh] w-[440px] overflow-y-auto rounded-2xl bg-bg/90 p-2">
+      className="glass-strong absolute right-3 top-[64px] z-30 max-h-[70vh] w-[440px] overflow-y-auto rounded-2xl bg-bg/90 p-2">
       <div className="px-3 pb-1 pt-2">
         <div className="label">Break the real fleet · Brev H100</div>
         <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Resets both workers, injects the fault, and lets Nemotron diagnose and repair it. A referee scores the result. Takes a few minutes.</p>

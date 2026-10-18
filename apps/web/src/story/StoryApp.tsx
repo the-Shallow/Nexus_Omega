@@ -22,7 +22,7 @@ import { RealityBar, RoomTitle, StepRail, TopBar, Transport } from './ui/parts';
 import { FLEET_REAL, FLEET_SCRIPTED } from './world/layout';
 import { World } from './world/world';
 
-const RAIL = 260;   // progress spine plus margin, px
+const RAIL = 216;   // progress spine plus margin, px
 const LIVE_COL = 396;   // live console plus margin, px
 const params = new URLSearchParams(location.search);
 /** The recorded run the landing page plays behind the brief. */
@@ -140,7 +140,7 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
   // One tree for both modes, so the 3D canvas (inside `host`) survives the switch.
   return (
     <div className="fixed inset-0">
-      <div ref={host} className="absolute inset-0" />
+      <div ref={host} className="absolute inset-0 isolate" />
       {intro ? (
         <>
           {/* A soft shade behind the brief so its text reads over any part of the scene. */}
@@ -168,7 +168,7 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
                 {finale && <FlowMapPanel key={`flow-${story.id}`} story={story} onReplay={d.restart} onOther={() => onStory(next)} otherLabel={story.mode === 'real' ? 'Illustrative scenario' : 'The other scenario'} />}
                 {replayed && (
                   <motion.div key="replayed" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                    className="glass absolute left-1/2 top-[84px] z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl px-4 py-2 text-[13px]">
+                    className="glass absolute left-1/2 top-[70px] z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl px-4 py-2 text-[13px]">
                     <span className="size-2 rounded-full bg-bad" />
                     <span className="text-ink">Instant replay of the run that just finished</span>
                     <span className="font-mono text-[11.5px] text-ink-3">{replayed}</span>
@@ -178,7 +178,7 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
               <Transport story={story} hop={d.hop} playing={d.playing} setPlaying={d.setPlaying} speed={d.speed} setSpeed={d.setSpeed} onGo={d.go} waiting={d.waiting} />
             </>
           )}
-          {error && <div className="glass absolute left-1/2 top-[84px] z-30 -translate-x-1/2 rounded-xl px-4 py-2 text-[13px] text-bad">{error}</div>}
+          {error && <div className="glass absolute left-1/2 top-[70px] z-30 -translate-x-1/2 rounded-xl px-4 py-2 text-[13px] text-bad">{error}</div>}
         </>
       )}
     </div>
