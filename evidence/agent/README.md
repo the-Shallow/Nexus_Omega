@@ -29,8 +29,8 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 
 | Solver | Setup | compound-latb-32926a | capacity-b | tools-stripped-a | noop | Total | False VERIFIED |
 |---|---|---|---|---|---|---|---|
-| Rule baseline | — | not run yet | | | | | |
-| Nemotron | — | not run yet | | | | | |
+| Rule baseline | Batch 2 (2026-10-18 03:29–04:01 UTC) | 0/3 (20 s) | 0/3 (56 s) | 0/3 (2 s) | 3/3 (2 s) | **3/12** | 0 |
+| Nemotron | Batch 2, fixed executor + controller (`69072a2`, `c805fab`) | running | | | | | |
 
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
@@ -86,6 +86,21 @@ What Nemotron did in each final run (all three were identical):
 - *kill-b failed twice on one malformed or rejected tool call each.* The diagnosis was trivial ("container has exited") when the run survived. One bad tool call ending the whole run is the same weakness as attempt #1 above.
 - VLLM-32926 stays at 3/3, which makes 6/6 across both sessions.
 
+
+### Batch 2: held-out faults ×3
+
+`python -m nexus.eval.episode heldout --solver rules --repeat 3`, then `--solver agent`, on the fixed executor (VERIFIED also needs the route through HAProxy). Each fault passed a live gate check first: tools-stripped through BFCL (0/150 call-shaped responses), capacity-b directly (b p95 4.5 s through HAProxy and 4.5 s direct, a 0.2 s; the healthy profile under the same load gives 0.06 s; `artifacts/gate-capacity.log` on Brev). Rule records: `../heldout/rules-episodes.json`.
+
+**Rule baseline: 3/12, 0 false VERIFIED.** Identical in all three rounds:
+
+| Fault | Result | What the rules did |
+|---|---|---|
+| compound-latb-32926a | ❌ REQUIRES_APPROVAL | Rule order checks links first: drained b, then in round 2 tried to patch a. The executor refused ("no other worker is serving; this action would cause an outage"), so a stayed broken and users were left with no healthy worker |
+| capacity-b | ❌ ABSTAIN | b slow through HAProxy *and* direct, so the link rule (route slow, direct fast) does not match; the canary eventually passes, so no other rule fires |
+| tools-stripped-a | ❌ ABSTAIN | HTTP 200, 0 tool calls, but prose instead of call-shaped JSON, so the parser rule does not match |
+| noop | ✅ ABSTAIN | Nothing matched, nothing done |
+
+The rules fail safe (no false claims, no harmful action that the executor let through), but they only fix what their author anticipated, and their fixed order is wrong when two faults interact.
 
 ## How it got there: every attempt
 
