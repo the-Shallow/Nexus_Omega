@@ -34,9 +34,13 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
-| Serving profile | simple | multiple | parallel | irrelevance | Tool-calling score |
-|---|---|---|---|---|---|
-| not run yet | | | | | |
+| Serving profile | simple | multiple | parallel | irrelevance | Tool-calling score | Call-shaped text in content |
+|---|---|---|---|---|---|---|
+| `tools-template` (healthy; the repair) | 46/50 | 45/50 | 33/50 | 40/50 | **0.83** | 0/150 |
+| `vllm-32926` (broken: hermes parser) | 0/50 | 0/50 | 0/50 | 50/50 | **0.00** | 118/150 |
+| `tools-stripped` (held-out broken: template drops tools) | 0/50 | 0/50 | 0/50 | 50/50 | **0.00** | 0/150 |
+
+Run 2026-10-18 03:18–03:25 UTC with `scripts/bfcl_arms.sh` (records in `../bfcl/`). Tool-calling score = simple + multiple + parallel. Both broken profiles still return HTTP 200 with `/health` 200, and 0 HTTP errors in 600 requests: users lose all tool calling and no alert fires. The one-step repair restores 0.83. This is our own pinned measurement of the effect the paper reports as 0.00 → 0.96 (arXiv 2609.03966); different model and case subset, so the numbers are not directly comparable. Irrelevance at 50/50 on the broken profiles is not a strength: a server that never produces a tool call trivially "declines" every irrelevant request. The last column is what the rule baseline's regex sees: 32926 leaks call-shaped text, the stripped template leaks none (the model answers in prose), which is why the rules can catch one and not the other.
 
 ## Results so far
 
@@ -116,6 +120,6 @@ Each change has a detailed commit message addressed to E1 for review:
 
 - Fixes from Batch 1, each rerun and logged as an "after fix" row: the executor also verifies the route through HAProxy (E2); the environment API accepts timestamps for log `since` (E2); a malformed tool call goes back to the model as an error instead of aborting the run (E1's controller, needs Khush).
 - Held-out faults (built in `0d6f318`): compound-latb-32926a, capacity-b, tools-stripped-a, noop, for both solvers.
-- BFCL per serving profile (`nexus.verifier.bfcl`, built in `c7f0caa`), then BFCL hidden canaries.
+- BFCL hidden canaries (add held-out BFCL cases to `runtime/canaries/hidden.jsonl` after Batch 2).
 - Large reference model on the same episodes (needs an endpoint).
 - Record `run_id` in each episode, so episodes and trails link directly rather than by time (added to `nexus.eval.episode` with this log).
