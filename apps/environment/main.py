@@ -25,7 +25,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from nexus.harness import executor, incident
-from nexus.harness.inspect import TARGET_WORKERS, HarnessError, bounded_logs, effective_launch_config
+from nexus.harness.inspect import (TARGET_WORKERS, HarnessError, bounded_logs, effective_launch_config,
+                                   parse_vllm_args)
 from nexus.target import manager
 from nexus.verifier import canary, route
 
@@ -103,8 +104,9 @@ def build_manifest() -> dict:
                         "properties": {"case": {"type": "string", "enum": ["visible_tool_call"]},
                                        "resource_id": {"type": "string", "enum": list(RESOURCES)}}}},
             {"id": "config-diff",
-             "description": ("Compare the effective launch configuration of all workers and return only "
-                             "the keys whose values differ, plus the list of keys that are identical."),
+             "description": ("Compare each worker's effective launch configuration with the reviewed "
+                             "configuration and return, per worker, only the keys that differ from it (actual "
+                             "vs reviewed). Also lists keys that differ between the workers."),
              "inputs": {"type": "object", "additionalProperties": False, "properties": {}}},
             {"id": "path-compare",
              "description": ("For each worker, measure latency and errors directly on the worker and through "
@@ -342,6 +344,12 @@ def run_probe(probe_id: str, body: ProbeBody):
                 "resource_id": resource_id, "http_status": result["http_status"],
                 "structured_tool_call_count": len(result["tool_calls"]), "verdict": result["reason"]}
     if probe_id == "config-diff":
+        # Compared with the reviewed profile, not only worker against worker: with two workers a
+        # difference alone does not say which one is wrong (held-out v1: the agent blamed the
+        # correctly configured worker). The reviewed values go through the same launch-argument
+        # builder and parser as the running containers, so the formats match exactly.
+        compared = [k for k in CONFIG_KEYS if k not in ("container_state", "image_digest")]
+        reviewed = parse_vllm_args(manager.vllm_args(manager.load_profile(healthy_profiles()[0])))
         configs = {}
         for resource_id in RESOURCES:
             try:
@@ -353,8 +361,13 @@ def run_probe(probe_id: str, body: ProbeBody):
         keys = sorted({k for c in configs.values() for k in c if k != "unavailable"})
         differing = {k: {r: c.get(k) for r, c in configs.items()} for k in keys
                      if len({json.dumps(c.get(k)) for c in configs.values()}) > 1}
+        versus_reviewed = {
+            r: {"matches_reviewed": not diff, "differs_from_reviewed": diff}
+            for r, c in configs.items() if "unavailable" not in c
+            for diff in [{k: {"actual": c.get(k), "reviewed": reviewed.get(k)} for k in compared
+                          if c.get(k) != reviewed.get(k)}]}
         return {"probe_id": probe_id, "observation_id": f"config-diff-{uuid.uuid4().hex[:8]}",
-                "differing": differing, "identical_keys": [k for k in keys if k not in differing],
+                "versus_reviewed": versus_reviewed, "between_workers": differing,
                 "unavailable": {r: c["unavailable"] for r, c in configs.items() if "unavailable" in c}}
     if probe_id == "path-compare":
         n = body.inputs.get("requests")
