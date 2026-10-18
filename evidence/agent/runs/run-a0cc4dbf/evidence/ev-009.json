@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "queue_waiting",
+    "note": "window limited to the current incident (216s)",
+    "resource_id": "target-b",
+    "unit": "requests",
+    "value": 4.0,
+    "window": "5m",
+    "window_applied": "216s"
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-b:metric:queue_waiting",
+  "source_type": "metric",
+  "trust": "trusted"
+}

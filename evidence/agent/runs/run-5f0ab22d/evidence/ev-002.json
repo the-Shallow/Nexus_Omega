@@ -1,0 +1,19 @@
+{
+  "content": {
+    "data": {
+      "artifact_id": "art-bc3b4d14e3",
+      "http_status": 200,
+      "observation_id": "art-bc3b4d14e3",
+      "probe_id": "tool-call-visible",
+      "resource_id": "target-a",
+      "structured_tool_call_count": 1,
+      "verdict": "valid structured tool call"
+    },
+    "observed_at": "2026-10-18T09:16:27+00:00",
+    "resource_id": "target-a"
+  },
+  "evidence_id": "ev-002",
+  "source": "probe:tool-call-visible:art-bc3b4d14e3",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

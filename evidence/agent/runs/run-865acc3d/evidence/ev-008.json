@@ -1,0 +1,15 @@
+{
+  "content": {
+    "artifact_id": "art-ea290ef2ed",
+    "content": {
+      "available": true,
+      "capture": "deterministic_replay",
+      "text": "I'm sorry, but I don't have real-time access to current weather information. You can check the latest weather conditions for Raleigh by visiting a reliable weather website or using a weather app on your device."
+    },
+    "section": "raw_generation"
+  },
+  "evidence_id": "ev-008",
+  "source": "artifact:art-ea290ef2ed:raw_generation",
+  "source_type": "artifact",
+  "trust": "untrusted"
+}

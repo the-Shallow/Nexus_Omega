@@ -1,0 +1,19 @@
+{
+  "content": {
+    "limit": 20,
+    "lines": [
+      "(APIServer pid=1) INFO 10-18 09:57:19 [api_utils.py:273] non-default args: {'model_tag': 'Qwen/Qwen2.5-Coder-7B-Instruct', 'enable_auto_tool_choice': True, 'tool_call_parser': 'hermes', 'model': 'Qwen/Qwen2.5-Coder-7B-Instruct', 'revision': 'c03e6d358207e414f1eca0bb1891e29f1db0e242', 'max_model_len': 8192, 'served_model_name': ['qwen25-coder'], 'gpu_memory_utilization': 0.25}",
+      "(APIServer pid=1) INFO 10-18 09:58:10 [parser_manager.py:37] \"auto\" tool choice has been enabled."
+    ],
+    "matched_lines": 2,
+    "note": "since limited to the start of the current incident (2026-10-18T09:57:02Z)",
+    "pattern": "tool",
+    "resource_id": "target-a",
+    "since": "2026-10-18T09:57:02Z",
+    "truncated": false
+  },
+  "evidence_id": "ev-010",
+  "source": "resource:target-a:logs",
+  "source_type": "logs",
+  "trust": "untrusted"
+}

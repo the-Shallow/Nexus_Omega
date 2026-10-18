@@ -1,0 +1,24 @@
+{
+  "content": {
+    "data": {
+      "artifact_id": "art-9c1685dc8b",
+      "flags": {
+        "target-a": [
+          "visible tool-call canary failed: HTTP 200, 0 structured tool calls (no structured tool_calls in response)"
+        ]
+      },
+      "http_status": 200,
+      "observation_id": "art-9c1685dc8b",
+      "probe_id": "tool-call-visible",
+      "resource_id": "target-a",
+      "structured_tool_call_count": 0,
+      "verdict": "no structured tool_calls in response"
+    },
+    "observed_at": "2026-10-18T09:39:58+00:00",
+    "resource_id": "target-a"
+  },
+  "evidence_id": "ev-004",
+  "source": "probe:tool-call-visible:art-9c1685dc8b",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

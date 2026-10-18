@@ -1,0 +1,15 @@
+{
+  "content": {
+    "artifact_id": "art-71e41465ed",
+    "content": {
+      "available": true,
+      "capture": "deterministic_replay",
+      "text": "<tools>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Raleigh\", \"unit\": \"celsius\"}}\n</tools>"
+    },
+    "section": "raw_generation"
+  },
+  "evidence_id": "ev-011",
+  "source": "artifact:art-71e41465ed:raw_generation",
+  "source_type": "artifact",
+  "trust": "untrusted"
+}

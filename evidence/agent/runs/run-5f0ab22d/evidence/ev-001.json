@@ -1,0 +1,40 @@
+{
+  "content": {
+    "data": {
+      "entry_point_health": 200,
+      "flags": {
+        "target-b": [
+          "through HAProxy: p95 1.709 s, error rate 0.0"
+        ]
+      },
+      "limits": {
+        "max_error_rate": 0.0,
+        "max_p95_s": 0.5
+      },
+      "observation_id": "route-136a2bb3",
+      "probe_id": "route-probe",
+      "workers": {
+        "target-a": {
+          "error_rate": 0.0,
+          "median_s": 0.035,
+          "ok": true,
+          "p95_s": 0.035,
+          "requests": 5
+        },
+        "target-b": {
+          "error_rate": 0.0,
+          "median_s": 1.497,
+          "ok": false,
+          "p95_s": 1.709,
+          "requests": 5
+        }
+      }
+    },
+    "observed_at": "2026-10-18T09:16:27+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-001",
+  "source": "probe:route-probe:route-136a2bb3",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

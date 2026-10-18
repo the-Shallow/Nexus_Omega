@@ -1,0 +1,18 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.v2.jinja",
+      "enable_auto_tool_choice": true,
+      "tool_call_parser": "qwen2_5_coder",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py"
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

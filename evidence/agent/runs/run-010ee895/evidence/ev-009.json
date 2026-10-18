@@ -1,0 +1,14 @@
+{
+  "content": {
+    "available_fields": null,
+    "resource_id": "target-a",
+    "state": {
+      "container_state": "running"
+    },
+    "unavailable_fields": []
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

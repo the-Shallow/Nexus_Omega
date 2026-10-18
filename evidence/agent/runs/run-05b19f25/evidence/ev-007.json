@@ -1,0 +1,20 @@
+{
+  "content": {
+    "resources": [
+      {
+        "container": "running",
+        "id": "target-a",
+        "kind": "inference-service"
+      },
+      {
+        "container": "running",
+        "id": "target-b",
+        "kind": "inference-service"
+      }
+    ]
+  },
+  "evidence_id": "ev-007",
+  "source": "environment:resources",
+  "source_type": "resource_inventory",
+  "trust": "trusted"
+}

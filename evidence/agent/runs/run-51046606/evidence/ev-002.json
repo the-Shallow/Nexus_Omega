@@ -1,0 +1,41 @@
+{
+  "content": {
+    "data": {
+      "between_workers": {
+        "chat_template": {
+          "target-a": "/templates/tool_chat_template_qwen2_5_coder.v2.jinja",
+          "target-b": "/templates/tool_chat_template_qwen2_5_coder.jinja"
+        }
+      },
+      "flags": {
+        "target-a": [
+          "configuration differs from the reviewed one on ['chat_template']"
+        ]
+      },
+      "observation_id": "config-diff-99df6eb6",
+      "probe_id": "config-diff",
+      "unavailable": {},
+      "versus_reviewed": {
+        "target-a": {
+          "differs_from_reviewed": {
+            "chat_template": {
+              "actual": "/templates/tool_chat_template_qwen2_5_coder.v2.jinja",
+              "reviewed": "/templates/tool_chat_template_qwen2_5_coder.jinja"
+            }
+          },
+          "matches_reviewed": false
+        },
+        "target-b": {
+          "differs_from_reviewed": {},
+          "matches_reviewed": true
+        }
+      }
+    },
+    "observed_at": "2026-10-18T09:34:14+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-002",
+  "source": "probe:config-diff:config-diff-99df6eb6",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

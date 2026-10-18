@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "queue_waiting",
+    "note": null,
+    "resource_id": "target-a",
+    "unit": "requests",
+    "value": 0.0,
+    "window": "1m",
+    "window_applied": "1m"
+  },
+  "evidence_id": "ev-012",
+  "source": "resource:target-a:metric:queue_waiting",
+  "source_type": "metric",
+  "trust": "trusted"
+}

@@ -1,0 +1,19 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-010",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

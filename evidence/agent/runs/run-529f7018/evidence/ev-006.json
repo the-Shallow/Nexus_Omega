@@ -1,0 +1,16 @@
+{
+  "content": {
+    "limit": 20,
+    "lines": [],
+    "matched_lines": 0,
+    "note": "since limited to the start of the current incident (2026-10-18T09:57:02Z)",
+    "pattern": "latency OR slow OR timeout OR connection",
+    "resource_id": "target-b",
+    "since": "2026-10-18T09:57:02Z",
+    "truncated": false
+  },
+  "evidence_id": "ev-006",
+  "source": "resource:target-b:logs",
+  "source_type": "logs",
+  "trust": "untrusted"
+}

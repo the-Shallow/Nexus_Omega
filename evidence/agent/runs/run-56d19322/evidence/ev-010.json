@@ -1,0 +1,16 @@
+{
+  "content": {
+    "limit": 20,
+    "lines": [],
+    "matched_lines": 0,
+    "note": "since limited to the start of the current incident (2026-10-18T10:16:09Z)",
+    "pattern": "error OR fail OR template OR parser",
+    "resource_id": "target-a",
+    "since": "2026-10-18T10:16:09Z",
+    "truncated": false
+  },
+  "evidence_id": "ev-010",
+  "source": "resource:target-a:logs",
+  "source_type": "logs",
+  "trust": "untrusted"
+}

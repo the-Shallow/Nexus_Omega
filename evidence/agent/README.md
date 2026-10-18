@@ -34,6 +34,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 | Nemotron | Batch 2 round 1 only, **contaminated** (stale metrics; see below) | 0/1 | 0/1 (scored 1/1 by the old referee) | 0/1 (crash) | 0/1 [1] | 0/4 | 1 |
 | Nemotron | Batch 2 rerun, before design changes (incident-scoped evidence, stricter referee; 04:21–05:08 UTC) | 0/3 (130 s) | 0/3 (112 s) | 1/3 (19 s) | 1/3 [1] (50 s) | **2/12** | 1 |
 | Nemotron | **after design changes** (structured build 4, `db9836c`; 07:32–08:03 UTC) | 2/3 (152 s) | 1/3 (105 s) | 3/3 (92 s) | 3/3 (7 s) | **9/12** | 0 |
+| Nemotron **3 Super 120B-A12B** (hosted reference, 4× active parameters) | structured, same code (`9de5d39`); valid episodes only, see below | 2/2 (438 s) | 3/3 (250 s) | 3/3 (202 s) | 3/3 (45 s) | **11/11** | 0 |
 
 **Held-out v2** (written before the design changes, `60bdd15`; two are label swaps of known faults)
 
@@ -174,6 +175,22 @@ Next fix (not run: it would mean rerunning v1 and v2 after the deadline for this
 | **Total** | **9/12** | **9/12** |
 
 Same total, different spread: 0.6 fixed capacity-b every time (its labels stayed "misconfigured") but did worse on compound and once abstained on 32926. With 3 runs per cell this is within noise; temperature 0 stays the default for repeatability. 0 false VERIFIED at either setting.
+
+### Big-model reference: Nemotron 3 Super 120B-A12B on held-out v1
+
+Same structured code, fleet and referee as Lightning's 9/12; only `NEMOTRON_BASE_URL`/`NEMOTRON_MODEL` change (NVIDIA hosted API, `integrate.api.nvidia.com`). The run cap was raised to 300 s for this model only (`NEXUS_RUN_TIMEOUT_SECONDS`, `9de5d39`): its first episode hit the 120 s cap from network latency alone. Records `big-model.json`.
+
+| v1 fault | Lightning 30B-A3B (local, structured) | Super 120B-A12B (hosted, structured) |
+|---|---|---|
+| compound-latb-32926a | 2/3 (152 s) | **3/3 valid** (438 s) |
+| capacity-b | 1/3 (105 s) | **3/3** (250 s) |
+| tools-stripped-a | 3/3 (92 s) | 3/3 (202 s) |
+| noop | 3/3 (7 s) | 3/3 (45 s) |
+| **Total** | **9/12** | **11/11 valid** |
+
+Two big-model compound episodes are excluded, both for harness reasons: `run-96febc82` began with target-b already drained (left over from a free-form run stopped seconds earlier, so it was not the compound scenario), and the replacement `run-56d19322` ended on a hosted-API read timeout after a correct draft assessment (a misconfigured, b network_path). One free-form episode also ran before the free-form block was dropped for time: compound ✅ (`run-3ca70c68`, `run-5f0ab22d`).
+
+**Reading.** With the same structure, the 4× larger model was right on every valid episode, including the two faults where Lightning slipped. Both of Lightning's misses there came from the build 4 relabel step overriding a correct draft (see above), which the larger model did not need. Cost of the larger model: 2–4× longer per decision (median 202 s vs 95 s) and a hosted dependency, against Lightning sharing the fleet's own GPU. The structure carried most of the gain: free-form Lightning 2/12 → structured 9/12, with a ceiling of about 11/11 from the bigger model.
 
 ## How it got there: every attempt
 

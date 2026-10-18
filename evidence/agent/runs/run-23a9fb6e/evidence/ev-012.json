@@ -1,0 +1,15 @@
+{
+  "content": {
+    "limit": 20,
+    "lines": [],
+    "matched_lines": 0,
+    "pattern": "error OR warn OR latency OR slow",
+    "resource_id": "target-b",
+    "since": "2026-10-18T09:38:58Z",
+    "truncated": false
+  },
+  "evidence_id": "ev-012",
+  "source": "resource:target-b:logs",
+  "source_type": "logs",
+  "trust": "untrusted"
+}
