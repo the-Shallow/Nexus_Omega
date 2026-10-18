@@ -41,6 +41,7 @@ FIELD_FLAGS = {
     "--reasoning-parser": "reasoning_parser",
     "--gpu-memory-utilization": "gpu_memory_utilization",
     "--max-model-len": "max_model_len",
+    "--max-num-seqs": "max_num_seqs",
 }
 
 
@@ -71,7 +72,7 @@ def docker_json(*args: str) -> dict:
 
 def parse_vllm_args(args: list[str]) -> dict:
     fields = {"enable_auto_tool_choice": "--enable-auto-tool-choice" in args,
-              "chat_template": "model default"}
+              "chat_template": "model default", "max_num_seqs": "vllm default"}
     for i, arg in enumerate(args):
         if arg in FIELD_FLAGS and i + 1 < len(args):
             fields[FIELD_FLAGS[arg]] = args[i + 1]
