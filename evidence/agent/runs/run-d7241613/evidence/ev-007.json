@@ -1,0 +1,14 @@
+{
+  "content": {
+    "metric": "route_error_rate",
+    "note": null,
+    "resource_id": "target-a",
+    "unit": "fraction",
+    "value": 0.0,
+    "window": "10m"
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:metric:route_error_rate",
+  "source_type": "metric",
+  "trust": "trusted"
+}

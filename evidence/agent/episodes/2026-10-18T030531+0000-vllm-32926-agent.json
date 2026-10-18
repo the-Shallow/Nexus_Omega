@@ -1,0 +1,135 @@
+{
+  "fault": "vllm-32926",
+  "solver": "agent",
+  "at": "2026-10-18T03:05:31+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 93.0,
+  "action": {
+    "tool": "apply-serving-profile",
+    "service": "target-a",
+    "profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": null,
+  "run_id": "run-96915174",
+  "steps": 9,
+  "tool_calls": 6,
+  "decision": {
+    "state": "VERIFIED",
+    "summary": "Diagnosed the trigger: target-a has misconfigured tool_call_parser ('hermes') and chat_template ('model default') that don't support structured tool calls, while target-b has correct configuration ('qwen2_5_coder' parser and '/templates/tool_chat_template_qwen2_5_coder.jinja' chat template). Both workers show healthy latency (p95 ~0.23-0.24s) and 0% error rate. The root cause is the configuration mismatch on target-a preventing structured tool call generation.",
+    "hypotheses": [
+      {
+        "id": "hyp-001",
+        "confidence": 0.95,
+        "supports": [
+          "ev-001",
+          "ev-002",
+          "ev-003",
+          "ev-005",
+          "ev-006"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Root cause identified and repair plan ready",
+    "repair_plan": {
+      "hypothesis_id": "hyp-001",
+      "confidence": 0.92,
+      "evidence": [
+        "ev-005",
+        "ev-006",
+        "ev-002",
+        "ev-003"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "apply-serving-profile",
+          "target": "target-a",
+          "parameters": {
+            "profile": "qwen25-coder-7b.tools-template"
+          }
+        }
+      },
+      "expected_effect": "target-a will use the qwen2_5_coder parser and tool chat template, enabling structured tool calls similar to target-b",
+      "risk": "Low - applying a reviewed serving profile with matching parser/chat template pair; both workers share same base configuration keys",
+      "verification_plan": [
+        "Run probe tool-call-visible on target-a after repair to confirm structured_tool_call_count >= 1 and verdict 'valid structured tool call'",
+        "Run route-probe on target-a to ensure latency/error metrics remain within limits"
+      ],
+      "rollback_plan": "If repair fails or introduces regressions, apply apply-action with id 'restart-worker' on target-a to relaunch with its current profile, then re-verify probe results"
+    }
+  },
+  "verification": {
+    "users_ok": true,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.038,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": true,
+    "faulty_worker_drained": false
+  },
+  "executor": {
+    "action": "patch_serving_config",
+    "service": "target-a",
+    "change_id": "374b470c968a",
+    "started_at": "2026-10-18T03:04:12+00:00",
+    "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+        "serve",
+        "--model",
+        "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "--served-model-name",
+        "qwen25-coder",
+        "--gpu-memory-utilization",
+        "0.25",
+        "--max-model-len",
+        "8192",
+        "--enable-auto-tool-choice",
+        "--tool-call-parser",
+        "hermes",
+        "--revision",
+        "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+    },
+    "manager_change_id": "33f10c1fb298",
+    "profile": "qwen25-coder-7b.tools-template",
+    "status": "VERIFIED",
+    "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+    },
+    "ended_at": "2026-10-18T03:05:27+00:00",
+    "seconds": 75.1
+  }
+}

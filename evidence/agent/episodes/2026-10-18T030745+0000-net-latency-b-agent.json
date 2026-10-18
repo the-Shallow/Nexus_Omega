@@ -1,0 +1,121 @@
+{
+  "fault": "net-latency-b",
+  "solver": "agent",
+  "at": "2026-10-18T03:07:45+00:00",
+  "terminal_state": "VERIFIED",
+  "success": false,
+  "false_verified": true,
+  "solve_seconds": 104.7,
+  "action": {
+    "tool": "restart-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-1f9ed99f",
+  "steps": 11,
+  "tool_calls": 8,
+  "decision": {
+    "state": "VERIFIED",
+    "summary": "target-b has high route_error_rate (0.9681) and high p95_s (1.635s) despite container_state=running and ready=true. target-a is healthy with error_rate=0.0 and p95_s=0.04s. Config and state are identical between targets. The error rate suggests the tool-call parser or chat template is malfunctioning on target-b, causing most requests to fail.",
+    "hypotheses": [
+      {
+        "id": "hyp1-config-diff",
+        "confidence": 0.9,
+        "supports": [
+          "ev-005",
+          "ev-006"
+        ],
+        "contradicts": []
+      },
+      {
+        "id": "hyp1-state-diff",
+        "confidence": 0.85,
+        "supports": [
+          "ev-007",
+          "ev-008"
+        ],
+        "contradicts": []
+      },
+      {
+        "id": "hyp1-metrics-a",
+        "confidence": 0.95,
+        "supports": [
+          "ev-009"
+        ],
+        "contradicts": []
+      },
+      {
+        "id": "hyp1-metrics-b",
+        "confidence": 0.95,
+        "supports": [
+          "ev-010",
+          "ev-011"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Evidence collected; root cause identified.",
+    "repair_plan": {
+      "hypothesis_id": "hyp1-metrics-b",
+      "confidence": 0.95,
+      "evidence": [
+        "ev-011",
+        "ev-010"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "restart-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "Restart target-b with its current profile, which should resolve the tool-call parsing failure causing the 96.8% error rate.",
+      "risk": "Low - restarting a single worker; other worker (target-a) continues serving. Requires rollback via undrain-worker if issue persists.",
+      "verification_plan": [
+        "Run tool-call-visible probe on target-b to confirm structured tool call succeeds.",
+        "Run route-probe on target-b to confirm error_rate drops below max_error_rate threshold and p95_s below max_p95_s threshold.",
+        "Confirm target-b ok flag returns to true."
+      ],
+      "rollback_plan": "If error_rate remains high after restart, use undrain-worker (action_id: undrain-worker) to return target-b to rotation, then investigate further."
+    }
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.036,
+        "median_s": 0.035,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 1.702,
+        "median_s": 1.542,
+        "error_rate": 0.0,
+        "ok": false
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": {
+    "action": "restart_worker",
+    "service": "target-b",
+    "change_id": "851c22c465aa",
+    "started_at": "2026-10-18T03:06:00+00:00",
+    "ready_seconds": 72.4,
+    "profile": "qwen25-coder-7b.tools-template",
+    "status": "VERIFIED",
+    "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+    },
+    "ended_at": "2026-10-18T03:07:15+00:00",
+    "seconds": 75.0
+  }
+}

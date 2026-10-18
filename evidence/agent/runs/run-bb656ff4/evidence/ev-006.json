@@ -1,0 +1,25 @@
+{
+  "content": {
+    "available_fields": [
+      "container",
+      "ready",
+      "drained",
+      "weight",
+      "active_requests",
+      "queued_requests",
+      "port",
+      "container_state"
+    ],
+    "resource_id": "target-b",
+    "state": {
+      "container_state": "exited"
+    },
+    "unavailable_fields": [
+      "tool_call_parser"
+    ]
+  },
+  "evidence_id": "ev-006",
+  "source": "resource:target-b:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

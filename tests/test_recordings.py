@@ -11,8 +11,10 @@ from nexus import recordings
 SUMMARY_KEYS = {
     "id", "fault", "title", "target", "solver", "controller", "environment", "serving_image", "started_at",
     "agent_ended_at", "ended_at", "agent_outcome", "failure", "terminal_state", "success", "false_verified",
-    "solve_seconds", "tool_calls", "evidence_count", "summary", "action",
+    "solve_seconds", "tool_calls", "evidence_count", "summary", "action", "remedy",
 }
+# E2 keeps adding runs; tests count what is on disk instead of a fixed number.
+RUN_DIRS = sorted(p.name for p in (recordings.DEFAULT_ROOT / "runs").iterdir() if p.is_dir() and recordings.RUN_ID.fullmatch(p.name))
 
 
 @pytest.fixture(autouse=True)
@@ -38,9 +40,9 @@ def copy_run(root, run_id="run-8bf1324b"):
 # ------------------------------------------------------------------ loader
 
 
-def test_finds_all_ten_runs_newest_first():
+def test_finds_every_run_newest_first():
     rows = recordings.list_recordings()
-    assert len(rows) == 10
+    assert len(rows) == len(RUN_DIRS) >= 10
     assert [r["started_at"] for r in rows] == sorted((r["started_at"] for r in rows), reverse=True)
 
 
@@ -67,7 +69,7 @@ def test_runs_pair_with_their_referee_episode(run_id, episode_at, state):
 def test_each_episode_pairs_with_exactly_one_run():
     ended = [s["ended_at"] for s in recordings.list_recordings()]
     assert None not in ended
-    assert len(set(ended)) == 10
+    assert len(set(ended)) == len(ended) == len(RUN_DIRS)
 
 
 def test_verified_run_summary():
@@ -135,7 +137,7 @@ def test_an_episode_naming_its_run_links_directly(tmp_path):
     (tmp_path / "episodes" / "late.json").write_text(json.dumps(episode))
     (row,) = recordings.list_recordings(tmp_path)
     assert row["ended_at"] == "2030-01-01T00:00:00+00:00"  # far outside the time window, but linked by id
-    assert row["fault"] == "kill-b" and row["title"] == "kill-b"
+    assert row["fault"] == "kill-b" and row["title"] == "Worker b killed"
 
 
 def test_new_files_are_seen_without_a_restart(tmp_path):
@@ -160,7 +162,7 @@ def test_api_lists_recordings(client):
     r = client.get("/api/recordings")
     assert r.status_code == 200
     rows = r.json()
-    assert len(rows) == 10 and set(rows[0]) == SUMMARY_KEYS
+    assert len(rows) == len(RUN_DIRS) and set(rows[0]) == SUMMARY_KEYS
 
 
 def test_api_recording_detail_and_404(client):
@@ -199,3 +201,34 @@ def test_api_twin_certificate_pdf(client):
     # The JSON routes beside it are unchanged.
     assert client.get("/api/certificates/fixture-vllm-32926-prior").json()["certificate_id"] == "fixture-vllm-32926-prior"
     assert client.get("/api/certificates/fixture-vllm-32926-prior/summary").status_code == 200
+
+
+# ------------------------------------------------------------------ how the referee scores each fault
+
+
+def test_remedy_comes_from_the_referees_fault_table():
+    s = summaries()
+    assert s["run-8bf1324b"]["remedy"] == {"fix": ["target-a"], "drain": [], "heldout": False, "expect_action": True}
+    drain_runs = [r for r in s.values() if r["fault"] == "net-blackhole-b"]
+    if not drain_runs:
+        pytest.skip("no net-blackhole-b recordings in this checkout")
+    assert all(r["remedy"]["drain"] == ["target-b"] and r["remedy"]["fix"] == [] for r in drain_runs)
+    assert all(r["title"] == "Link blackhole on worker b" for r in drain_runs)
+
+
+def test_drain_fault_pdf_scores_the_drain_not_a_fix():
+    from nexus.certificate.pdf import render_recording_pdf
+
+    ok = [r for r in recordings.list_recordings() if r["fault"] == "net-blackhole-b" and r["success"] and r["terminal_state"] == "REQUIRES_APPROVAL"]
+    if not ok:
+        pytest.skip("no successful drain recording in this checkout")
+    pdf = render_recording_pdf(recordings.get_recording(ok[0]["id"]))
+    assert b"drained for a human" in pdf and b"Escalated to a human" in pdf
+    assert b"Repaired worker back in rotation" not in pdf
+
+
+def test_false_verified_runs_keep_the_referees_verdict():
+    rows = [r for r in recordings.list_recordings() if r["false_verified"]]
+    if not rows:
+        pytest.skip("no false VERIFIED recordings in this checkout")
+    assert all(r["terminal_state"] == "VERIFIED" and r["success"] is False for r in rows)

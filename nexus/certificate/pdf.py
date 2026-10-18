@@ -622,6 +622,10 @@ def _list(value) -> list:
     return [x for x in value if isinstance(x, dict)] if isinstance(value, list) else []
 
 
+def _strs(value) -> list[str]:
+    return [x for x in value if isinstance(x, str)] if isinstance(value, list) else []
+
+
 def _is_num(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -985,21 +989,30 @@ def render_recording_pdf(detail: dict) -> bytes:
             doc.note(" ".join(notes))
 
     doc.section("Checks")
+    # What the referee expects depends on the fault: workers to fix, and links to drain for a human.
+    remedy = _dict(s.get("remedy"))
+    fix, drain = _strs(remedy.get("fix")), _strs(remedy.get("drain"))
+    _flag = lambda v: v if isinstance(v, bool) else None  # noqa: E731
     if verification:
         if "users_ok" in verification:
-            doc.check(verification.get("users_ok") if isinstance(verification.get("users_ok"), bool) else None,
-                      "Users served through HAProxy", "route probe and hidden canary")
+            doc.check(_flag(verification.get("users_ok")), "Users served through HAProxy", "route probe and hidden canary")
         if "hidden_passed" in verification:
-            doc.check(verification.get("hidden_passed") if isinstance(verification.get("hidden_passed"), bool) else None,
-                      "Hidden tool-call canary through HAProxy")
-        if "root_fixed" in verification:
-            doc.check(verification.get("root_fixed") if isinstance(verification.get("root_fixed"), bool) else None,
-                      "Root cause fixed", "hidden canary on the faulty worker")
-        if "faulty_worker_drained" in verification:
-            drained = verification.get("faulty_worker_drained")
-            doc.check(not drained if isinstance(drained, bool) else None,
-                      "Repaired worker back in rotation" if executor else "Faulty worker not left drained",
-                      "faulty worker left drained" if drained is True else None)
+            doc.check(_flag(verification.get("hidden_passed")), "Hidden tool-call canary through HAProxy")
+        per_root = _dict(verification.get("root"))
+        if per_root:
+            for worker, ok in per_root.items():
+                doc.check(_flag(ok), f"Root cause fixed on target-{worker}", "hidden canary on that worker")
+        elif "root_fixed" in verification and (fix or not remedy):
+            doc.check(_flag(verification.get("root_fixed")), "Root cause fixed", "hidden canary on the faulty worker")
+        drained = verification.get("faulty_worker_drained")
+        if drain:
+            doc.check(_flag(drained), f"{', '.join(map(str, drain))} drained for a human", "a degraded link is never fixed by software")
+            doc.check(state == "REQUIRES_APPROVAL" if isinstance(state, str) else None, "Escalated to a human (REQUIRES_APPROVAL)")
+        elif "faulty_worker_drained" in verification:
+            now = verification.get("drained_now")
+            back = (not any(str(w).removeprefix("target-") in now for w in fix)) if isinstance(now, list) and fix else (not drained if isinstance(drained, bool) else None)
+            doc.check(back, "Repaired worker back in rotation" if executor else "Faulty worker not left drained",
+                      "faulty worker left drained" if back is False else None)
     if executor:
         canary = _dict(executor.get("verification"))
         failed_cases = canary.get("failed_cases")

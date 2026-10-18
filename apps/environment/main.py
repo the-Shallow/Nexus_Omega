@@ -36,7 +36,8 @@ RESOURCES = tuple(f"target-{w}" for w in TARGET_WORKERS)
 # names the injected fault, so exposing it would hand the agent the answer.
 # It must diagnose from the effective parser, template and outputs instead.
 CONFIG_KEYS = ("tool_call_parser", "chat_template", "enable_auto_tool_choice", "tool_parser_plugin",
-               "reasoning_parser", "model", "model_revision", "image_digest", "container_state")
+               "reasoning_parser", "model", "model_revision", "image_digest", "container_state",
+               "max_num_seqs", "gpu_memory_utilization", "max_model_len")
 STATE_FIELDS = ("container", "ready", "drained", "weight", "active_requests", "queued_requests", "port",
                 "container_state")
 WINDOW_RE = re.compile(r"^([1-9][0-9]?)([sm])$")

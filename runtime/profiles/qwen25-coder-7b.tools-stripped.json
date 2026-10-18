@@ -1,0 +1,20 @@
+{
+  "kind": "broken",
+  "incident": "HELDOUT-TOOLS-STRIPPED",
+  "label": "heldout_fault",
+  "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "served_model_name": "qwen25-coder",
+  "gpu_memory_utilization": 0.25,
+  "max_model_len": 8192,
+  "enable_auto_tool_choice": true,
+  "tool_parser_plugin": "qwen2_5_coder_tool_parser.py",
+  "tool_call_parser": "qwen2_5_coder",
+  "chat_template": "tool_chat_template_qwen2_5_coder.v2.jinja",
+  "extra_args": [
+    "--revision",
+    "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+  ],
+  "expected_symptom": "HTTP 200; the template never renders the tools, so the model answers in prose: 0 tool_calls and no call-shaped JSON for the rule regex to catch",
+  "repair": "qwen25-coder-7b.tools-template",
+  "notes": "Held-out variant of the VLLM-32926 family: same parser plugin as the repair, but a template revision that drops the tools section (a common template-drift failure). The file name is neutral so the agent cannot read the fault from it."
+}

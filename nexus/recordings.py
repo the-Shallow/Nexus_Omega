@@ -28,7 +28,16 @@ AGENT_PROFILE = REPO / "runtime" / "profiles" / "lightning-nvfp4.agent.json"  # 
 RUN_ID = re.compile(r"^run-[0-9a-f]{6,}$")
 EVIDENCE_FILE = re.compile(r"^ev-(\d+)$")
 PAIR_WINDOW = timedelta(minutes=15)
-TITLES = {"vllm-32926": "Silent tool-call failure"}
+TITLES = {
+    "vllm-32926": "Silent tool-call failure",
+    "net-latency-b": "Link latency on worker b",
+    "net-blackhole-b": "Link blackhole on worker b",
+    "kill-b": "Worker b killed",
+    "compound-latb-32926a": "Link latency on b + silent tool-call failure on a",
+    "capacity-b": "Concurrency cap on worker b",
+    "tools-stripped-a": "Tools template stripped on worker a",
+    "noop": "No fault (control episode)",
+}
 NO_MODEL = "Nemotron (model not recorded)"
 
 # root -> (file signature, {run_id: detail}); rebuilt whenever a file changes.
@@ -219,6 +228,27 @@ def _summary(run: dict, episode: dict | None, controller: str) -> dict:
         "evidence_count": sum(e.get("event_type") == "evidence_recorded" for e in events),
         "summary": _str(decision.get("summary")) or _str(validated.get("summary")),
         "action": action if isinstance(action, dict) and action else None,
+        "remedy": _remedy(fault),
+    }
+
+
+def _remedy(fault: str | None) -> dict | None:
+    """How the referee scores this fault: which workers it expects fixed, and which drained
+    for a human (a drained link is never "fixed"). From nexus.eval.episode.FAULTS."""
+    if not fault:
+        return None
+    try:
+        from nexus.eval.episode import FAULTS
+    except Exception:  # noqa: BLE001 - the referee's table is context; a run loads without it
+        return None
+    spec = FAULTS.get(fault)
+    if not isinstance(spec, dict):
+        return None
+    return {
+        "fix": [f"target-{w}" for w in spec.get("fix", [])],
+        "drain": [f"target-{w}" for w in spec.get("drain", [])],
+        "heldout": bool(spec.get("heldout")),
+        "expect_action": bool(spec.get("expect_action", True)),
     }
 
 

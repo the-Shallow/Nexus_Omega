@@ -8,6 +8,7 @@ from typing import Any
 
 from ..infrastructure.events import JsonlEventLog
 from ..infrastructure.nemotron import NemotronClient
+from ..infrastructure.target import EnvironmentClientError
 from ..tools.environment import EnvironmentTools, ToolObservation
 from .budgets import ContextBudget, RunBudget
 from .contracts import AgentDecision, ContractError, DiagnosticInput, ModelTurn
@@ -255,10 +256,18 @@ class AgentController:
             }
         )
         for call in turn.tool_calls:
-            request_key = self.tools.request_key(call.name, call.arguments)
-            self.context_budget.consume_request(request_key)
-            self.run_budget.consume_tool_call()
-            observation = self.tools.invoke(call.name, call.arguments)
+            charged = False
+            try:
+                request_key = self.tools.request_key(call.name, call.arguments)
+                self.context_budget.consume_request(request_key)
+                self.run_budget.consume_tool_call()
+                charged = True
+                observation = self.tools.invoke(call.name, call.arguments)
+            except (ContractError, EnvironmentClientError) as exc:
+                if not charged:
+                    self.run_budget.consume_tool_call()
+                self._reject_tool_call(messages, call, exc)
+                continue
             self._consume_source_budget(call.name, observation)
             self.event_log.append(
                 "context_requested",
@@ -314,6 +323,22 @@ class AgentController:
             "state_transition",
             {"from": "EXPAND_CONTEXT", "to": "DIAGNOSE"},
         )
+
+    def _reject_tool_call(self, messages: list[dict[str, Any]], call: Any, exc: Exception) -> None:
+        """Return a rejected or failed tool call to the model as an error it can correct.
+
+        Live, one malformed call (missing probe_id) or one argument the
+        environment refused (a log 'since' timestamp) ended the whole run, though
+        the model could have fixed the call. The error records no evidence and
+        still costs a tool call, so repeated mistakes run into the budget.
+        """
+        error = f"{type(exc).__name__}: {exc}"[:500]
+        self.event_log.append("tool_call_rejected", {"call_id": call.call_id, "tool": call.name, "error": error})
+        messages.append({
+            "role": "tool", "tool_call_id": call.call_id, "name": call.name,
+            "content": json.dumps({"error": error, "note": "Not executed. Fix the arguments to match the "
+                                   "tool schema and call it again, or use another tool."}, sort_keys=True),
+        })
 
     def _consume_source_budget(
         self,
