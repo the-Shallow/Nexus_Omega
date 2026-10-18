@@ -27,6 +27,8 @@ class EnvironmentApiTests(unittest.TestCase):
         self.assertIn("qwen25-coder-7b.tools-template", profiles)
         self.assertNotIn("qwen25-coder-7b.vllm-32926", profiles)
         self.assertFalse(manifest.action_map["undrain-worker"].automatic)
+        # A worker's current profile name would reveal the injected fault.
+        self.assertNotIn("profile_label", manifest.resource_map["target-a"].configuration_keys)
 
     def test_read_routes_need_the_read_key(self):
         self.assertEqual(self.client.get("/environment").status_code, 401)

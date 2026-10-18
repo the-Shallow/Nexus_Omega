@@ -32,11 +32,13 @@ API_KEY = os.environ.get("NEXUS_ENVIRONMENT_API_KEY", "")
 EXECUTOR_TOKEN = os.environ.get("NEXUS_EXECUTOR_TOKEN", "")
 PROMETHEUS = os.environ.get("NEXUS_PROMETHEUS_URL", "http://localhost:9090")
 RESOURCES = tuple(f"target-{w}" for w in TARGET_WORKERS)
+# No profile names: a worker's profile label (e.g. "qwen25-coder-7b.vllm-32926")
+# names the injected fault, so exposing it would hand the agent the answer.
+# It must diagnose from the effective parser, template and outputs instead.
 CONFIG_KEYS = ("tool_call_parser", "chat_template", "enable_auto_tool_choice", "tool_parser_plugin",
-               "reasoning_parser", "model", "model_revision", "image_digest", "profile_label",
-               "container_state")
+               "reasoning_parser", "model", "model_revision", "image_digest", "container_state")
 STATE_FIELDS = ("container", "ready", "drained", "weight", "active_requests", "queued_requests", "port",
-                "container_state", "profile_label")
+                "container_state")
 WINDOW_RE = re.compile(r"^([1-9][0-9]?)([sm])$")
 # metric -> (PromQL with {window} and {label}, label name, label value pattern, unit)
 METRICS = {
@@ -70,7 +72,7 @@ def healthy_profiles() -> list[str]:
 
 def build_manifest() -> dict:
     empty = {"type": "object", "properties": {}, "additionalProperties": False}
-    before = ["tool_call_parser", "chat_template", "enable_auto_tool_choice", "profile_label"]
+    before = ["tool_call_parser", "chat_template", "enable_auto_tool_choice", "tool_parser_plugin"]
     return {
         "id": "nexus-brev-fleet",
         "description": ("Two vLLM workers serving Qwen2.5-Coder-7B behind HAProxy on one H100. "
@@ -103,15 +105,15 @@ def build_manifest() -> dict:
             {"id": "drain-worker",
              "description": "Stop routing new traffic to a worker. Refused if no other worker is serving.",
              "allowed_targets": list(RESOURCES), "parameters": empty,
-             "before_state_keys": ["profile_label", "container_state"], "automatic": True, "requires_rollback": True},
+             "before_state_keys": ["container_state", "tool_call_parser"], "automatic": True, "requires_rollback": True},
             {"id": "restart-worker",
              "description": "Relaunch a worker with its current profile (for a crashed or hung worker).",
              "allowed_targets": list(RESOURCES), "parameters": empty,
-             "before_state_keys": ["profile_label", "container_state"], "automatic": True, "requires_rollback": True},
+             "before_state_keys": ["container_state", "tool_call_parser"], "automatic": True, "requires_rollback": True},
             {"id": "undrain-worker",
              "description": "Return a drained worker to rotation.",
              "allowed_targets": list(RESOURCES), "parameters": empty,
-             "before_state_keys": ["profile_label"], "automatic": False, "requires_rollback": True},
+             "before_state_keys": ["container_state"], "automatic": False, "requires_rollback": True},
         ],
         "artifact_sections": list(ARTIFACT_SECTIONS),
         "verifiers": ["tool-call-hidden", "route-probe"],
@@ -190,7 +192,7 @@ def get_resource_state(resource_id: str, body: FieldsBody):
     full = {"container": row.get("container", "missing"), "ready": ready, "drained": routes.get("drained"),
             "weight": routes.get("weight"), "active_requests": routes.get("active"),
             "queued_requests": routes.get("queued"), "port": row.get("port"),
-            "container_state": row.get("container", "missing"), "profile_label": row.get("profile")}
+            "container_state": row.get("container", "missing")}
     unknown = [f for f in body.fields if f not in full]
     return {"resource_id": resource_id, "state": {k: full[k] for k in body.fields if k in full},
             "unavailable_fields": unknown, "available_fields": list(STATE_FIELDS) if unknown else None}
