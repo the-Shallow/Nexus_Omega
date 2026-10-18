@@ -156,7 +156,7 @@ function Evidence() {
     <Chapter id="evidence" n="04" eyebrow="Evidence" title="What it got right, and what it got wrong, on the same faults."
       lede="Every episode is scored by an independent referee. When the agent claims a fix that the referee rejects, we count it as a false VERIFIED and show it.">
       <div className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-bg p-6"><Stat label="rules · known faults" value={frac(known)} sub={held ? `but ${frac(held)} on held-out faults` : undefined} /></div>
+        <div className="bg-bg p-6"><Stat label="rules · known faults" value={frac(known)} sub={held ? `but ${frac(held)} on the Batch 2 held-out faults` : undefined} /></div>
         <div className="bg-bg p-6"><Stat label="Nemotron · final setup" value={frac(final)} tone="text-ok" sub={final?.median_s ? `VLLM-32926, median ${fmt.sec(final.median_s)}` : 'VLLM-32926'} /></div>
         <div className="bg-bg p-6"><Stat label="Nemotron · batch 1" value={frac(batch1)} sub={batch1 ? `with ${batch1.false_verified} false VERIFIED, counted` : undefined} /></div>
         <div className="bg-bg p-6"><Stat label="errors during one repair" value="0" sub="out of 1,550 requests, measured once" /></div>
@@ -170,10 +170,11 @@ function Evidence() {
 }
 
 function Next() {
+  const held = find(useScoreboard()?.batches, 'rules-heldout');
   const items = [
     { tag: 'Next', t: 'Break it live', d: 'Start a real fault on the fleet from the page and follow the agent as it works, streamed step by step.' },
     { tag: 'Next', t: 'Test before acting', d: 'Give the agent the shadow twin: race candidate fixes in simulation before touching a real worker.' },
-    { tag: 'Next', t: 'Beat the rules on held-out faults', d: 'The rule baseline solves 3 of 12 faults it wasn’t written for. That is the bar.' },
+    { tag: 'Next', t: 'Beat the rules on held-out faults', d: held ? `On the Batch 2 held-out faults the rule baseline solved ${held.success} of ${held.total}. Faults nobody wrote a rule for are where an agent has to earn its place.` : 'Faults nobody wrote a rule for are where an agent has to earn its place.' },
     { tag: 'Concept', t: 'Beyond inference fleets', d: 'The same loop for logistics carrier contracts, or healthcare as decision support with a person approving.' },
   ];
   return (
