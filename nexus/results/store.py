@@ -167,6 +167,15 @@ class ResultsStore:
                 return _json(path)
         return []
 
+    def _bundle_keys(self, source: str) -> set[tuple]:
+        for root in self.roots:
+            path = root / source
+            if path.is_file() and _safe(source) == source:
+                data = _json(path)
+                return {(r.get("at"), r.get("fault"), r.get("solver")) for r in data if isinstance(r, dict)} \
+                    if isinstance(data, list) else set()
+        return set()
+
     def _excluded(self) -> dict[str, str]:
         """run_id -> reason, for runs a batch names in `exclude_runs` (harness faults, not solver results)."""
         return {x["run_id"]: x["reason"] for b in self.batches() for x in b.get("exclude_runs") or []}
@@ -186,7 +195,11 @@ class ResultsStore:
         claimed = set()
         for batch in self.batches():
             if batch.get("source"):
-                members = [e for e in episodes if e["source"] == batch["source"] and e.get("solver") == batch["solver"]]
+                # By record key, not by path: on the box the same episode also exists as its own
+                # file under artifacts/episodes/, and that copy wins de-duplication.
+                keys = self._bundle_keys(batch["source"])
+                members = [e for e in episodes if (e.get("at"), e.get("fault"), e.get("solver")) in keys
+                           and e.get("solver") == batch["solver"]]
             else:
                 members = [e for e in episodes if e.get("solver") == batch["solver"]
                            and batch["from"] <= (e.get("at") or "") <= batch["to"]

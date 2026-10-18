@@ -51,6 +51,20 @@ class ResultsStoreTests(unittest.TestCase):
             for cell in [b["total"], *b["faults"].values()]:
                 self.assertEqual(len(cell["runs"]), cell["total"])
 
+    def test_source_batches_survive_artifact_copies(self):
+        # On the box every episode also exists as its own file under artifacts/episodes/, read
+        # first. A batch that names a record file must still claim those copies.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            episodes = Path(tmp) / "episodes"
+            episodes.mkdir()
+            for i, record in enumerate(json.loads((EVIDENCE / "agent" / "big-model.json").read_text())):
+                (episodes / f"copy-{i}.json").write_text(json.dumps(record))
+            batches = {b["id"]: b for b in ResultsStore([Path(tmp), EVIDENCE]).scoreboard()["batches"]}
+        total = batches["agent-super-v1"]["total"]
+        self.assertEqual((total["success"], total["total"]), (11, 11))
+        self.assertEqual(len(batches["agent-super-v1"]["excluded"]), 4)
+
     def test_contaminated_round_is_listed_but_not_scored(self):
         contaminated = [e for e in self.store.list_episodes(solver="agent", heldout=True) if e["contaminated"]]
         self.assertEqual(len(contaminated), 4)

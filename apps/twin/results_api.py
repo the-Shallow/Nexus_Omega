@@ -85,6 +85,12 @@ def source(client: httpx.AsyncClient):
 
 # ---- /api/results ---------------------------------------------------------------------------
 if live.OPERATOR_URL:
+    # The scoreboard is the curated result: always built from the committed evidence/ here, so
+    # the charts don't depend on the box's checkout. Runs, events and episodes still come from the box.
+    @router.get("/api/results/scoreboard")
+    def results_scoreboard() -> dict:
+        return store.scoreboard()
+
     @router.get("/api/results/{path:path}")
     async def results_passthrough(path: str, request: Request) -> JSONResponse:
         async with httpx.AsyncClient() as client:
