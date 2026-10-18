@@ -30,6 +30,7 @@ import time
 import httpx
 
 from nexus.harness import executor
+from nexus.harness.inspect import TARGET_WORKERS
 from nexus.target import manager
 from nexus.verifier import canary, route
 
@@ -71,6 +72,8 @@ def visible_canary(port: int) -> dict:
 def observe() -> dict:
     workers = {}
     for row in manager.status():
+        if row["worker"] not in TARGET_WORKERS:
+            continue
         state = manager.read_state(row["worker"])
         entry = {"container": row["container"], "profile": row["profile"], "port": state["port"]}
         if row["container"] == "running":

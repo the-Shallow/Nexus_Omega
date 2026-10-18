@@ -20,6 +20,8 @@ import sys
 from nexus.target import manager
 
 SERVICE_PREFIX = "target-"
+# Repairable target workers. The agent's own server (worker "agent") is never a target.
+TARGET_WORKERS = ("a", "b")
 MAX_LOG_LINES = 200
 MAX_LINE_CHARS = 500
 SINCE_RE = re.compile(r"^([1-9][0-9]{0,3})([smh])$")
@@ -48,7 +50,8 @@ class HarnessError(ValueError):
 
 def worker_for(service: str) -> str:
     worker = service.removeprefix(SERVICE_PREFIX)
-    if not service.startswith(SERVICE_PREFIX) or manager.read_state(worker) is None:
+    if (not service.startswith(SERVICE_PREFIX) or worker not in TARGET_WORKERS
+            or manager.read_state(worker) is None):
         raise HarnessError(f"unknown service: {service}")
     return worker
 

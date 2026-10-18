@@ -30,7 +30,7 @@ from pathlib import Path
 
 import httpx
 
-from nexus.harness.inspect import HarnessError, effective_launch_config, worker_for
+from nexus.harness.inspect import TARGET_WORKERS, HarnessError, effective_launch_config, worker_for
 from nexus.target import manager
 from nexus.verifier import canary
 
@@ -78,7 +78,8 @@ def gateway(method: str, path: str) -> dict:
 def other_serving_workers(worker: str) -> list[str]:
     """Workers other than `worker` that are running and receiving traffic."""
     routes = gateway("GET", "/admin/workers")
-    running = {row["worker"] for row in manager.status() if row["container"] == "running"}
+    running = {row["worker"] for row in manager.status()
+               if row["container"] == "running" and row["worker"] in TARGET_WORKERS}
     return [w for w, s in routes.items()
             if w != worker and w in running and not s["drained"] and s["weight"] > 0]
 

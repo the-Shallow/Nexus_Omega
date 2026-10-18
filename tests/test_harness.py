@@ -33,6 +33,11 @@ class InspectTests(unittest.TestCase):
         with self.assertRaises(inspect.HarnessError):
             inspect.worker_for("nexus-a")
 
+    @mock.patch.object(inspect.manager, "read_state", return_value={"port": 8103})
+    def test_agent_server_is_never_a_target(self, _state):
+        with self.assertRaises(inspect.HarnessError):
+            inspect.worker_for("target-agent")
+
     @mock.patch.object(inspect.manager, "read_state", return_value={"port": 8101})
     def test_bounded_logs_validates_arguments(self, _state):
         for kwargs in ({"since": "forever"}, {"limit": 0}, {"limit": 500}, {"pattern": "("}):

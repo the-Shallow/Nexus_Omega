@@ -9,13 +9,20 @@
   "reasoning_parser": "nemotron_v3",
   "extra_args": [
     "--trust-remote-code",
-    "--moe-backend", "humming",
-    "--linear-backend", "humming",
+    "--moe-backend",
+    "humming",
+    "--linear-backend",
+    "humming",
     "--enable-prefix-caching",
     "--async-scheduling",
-    "--mamba-backend", "flashinfer",
-    "--mamba-ssm-cache-dtype", "float16",
-    "--mamba-cache-mode", "align"
+    "--mamba-backend",
+    "flashinfer",
+    "--mamba-ssm-cache-dtype",
+    "float16",
+    "--mamba-cache-mode",
+    "align",
+    "--max-num-seqs",
+    "64"
   ],
-  "notes": "Owned by E1. Flags from the vLLM Lightning blog recipe (image v0.27.1). Agent endpoint, not a repair target."
+  "notes": "Owned by E1. Flags from the vLLM Lightning blog recipe (image v0.27.1). Agent endpoint, not a repair target. --max-num-seqs 64: at 0.35 GPU memory only 779 Mamba cache blocks exist, fewer than vLLM's default 1024 sequences, so startup fails without a cap; the agent needs few concurrent sequences."
 }
