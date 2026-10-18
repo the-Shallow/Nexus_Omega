@@ -178,9 +178,18 @@ class AgentRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ContractError, "unknown evidence"):
                 self.make_controller(Path(directory), ScriptedNemotronClient([unsupported, unsupported])).run(diagnostic_input())
         with tempfile.TemporaryDirectory() as directory:
+            # A malformed call is not executed; the model gets the error back and can correct it.
+            provider = FakeEnvironmentProvider()
             call = ModelTurn(tool_calls=(ToolCall("call-1", "run_probe", {"probe_id": "contract-check", "inputs": {"case": "visible-operation"}}),))
-            with self.assertRaisesRegex(ContractError, "missing arguments"):
-                self.make_controller(Path(directory), ScriptedNemotronClient([call])).run(diagnostic_input())
+            abstain = ModelTurn(content=json.dumps({"state": "ABSTAIN", "summary": "No usable evidence.", "hypotheses": [], "stop_reason": "insufficient evidence"}))
+            client = ScriptedNemotronClient([call, abstain])
+            result = self.make_controller(Path(directory), client, provider).run(diagnostic_input())
+            self.assertEqual(result.decision.state, "ABSTAIN")
+            self.assertEqual(provider.probe_runs, 0)
+            self.assertEqual(result.tool_calls, 1)
+            error = json.loads(client.requests[-1]["messages"][-1]["content"])
+            self.assertIn("missing arguments", error["error"])
+            self.assertIn("Not executed", error["note"])
 
     def test_repeated_request_is_bounded_before_third_execution(self):
         with tempfile.TemporaryDirectory() as directory:
