@@ -6,12 +6,13 @@ import { AnimatePresence } from 'framer-motion';
 import { SHOT, STORIES, useDirector } from './director';
 import { loadRealStory } from './script/real';
 import type { Story } from './script/types';
-import { Finale, RealityBar, RoomTitle, StepRail, TopBar, Transport } from './ui/parts';
+import { actsOf } from './script/types';
+import { ActCard, FlowMapPanel } from './ui/flow';
+import { RealityBar, RoomTitle, StepRail, TopBar, Transport } from './ui/parts';
 import { FLEET_REAL, FLEET_SCRIPTED } from './world/layout';
 import { World } from './world/world';
 
 const RAIL = 400;   // left rail plus margin, px
-const CARD = 380;   // finale card plus margin, px
 const params = new URLSearchParams(location.search);
 
 export default function StoryApp() {
@@ -52,16 +53,26 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
   // Only drive a world built for this story's fleet.
   const d = useDirector(world && world.fleet === fleet ? world : null, story);
 
-  // Keep the focused room centred in the space the panels leave free.
+  // Keep the focused room centred in the space the panels leave free (the finale's map spans the full width).
   const finale = !!d.h.finale;
   useEffect(() => {
     if (!world) return;
-    const place = (instant: boolean) => world.setInset((finale ? -CARD : RAIL) / (2 * window.innerWidth), instant);
+    const place = (instant: boolean) => world.setInset((finale ? 0 : RAIL) / (2 * window.innerWidth), instant);
     place(SHOT);
     const onResize = () => place(true);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, [world, finale]);
+
+  // A title card when the story enters a new act.
+  const acts = actsOf(story);
+  const [card, setCard] = useState<1 | 2 | 3 | null>(null);
+  useEffect(() => {
+    if (SHOT || d.h.finale || (d.hop > 0 && acts[d.hop - 1] === acts[d.hop])) return;
+    setCard(acts[d.hop]);
+    const t = setTimeout(() => setCard(null), 2600);
+    return () => clearTimeout(t);
+  }, [story, d.hop]);
 
   const next = story.mode === 'real' ? STORIES[0] : STORIES.find((s) => s.id !== story.id)!;
   return (
@@ -71,8 +82,10 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
       {!finale && <StepRail story={story} hop={d.hop} engineer={engineer} waiting={d.waiting} onApprove={d.approve} onGo={d.go} />}
       {!finale && <RoomTitle h={d.h} room={d.room} subs={story.subs} />}
       <AnimatePresence>
-        {d.h.reality && !finale && <RealityBar key="reality" r={d.h.reality} />}
-        {finale && <Finale key={`finale-${story.id}`} story={story} onReplay={d.restart} onOther={() => onStory(next)} />}
+        {/* Only when the two sides disagree: agreement needs no box. */}
+        {d.h.reality && d.h.reality.tone !== 'ok' && !finale && <RealityBar key="reality" r={d.h.reality} />}
+        {card && !finale && <ActCard key={`act-${card}`} act={card} />}
+        {finale && <FlowMapPanel key={`flow-${story.id}`} story={story} onReplay={d.restart} onOther={() => onStory(next)} otherLabel={story.mode === 'real' ? 'Illustrative scenario' : 'The other scenario'} />}
       </AnimatePresence>
       {error && <div className="glass absolute left-1/2 top-[84px] z-30 -translate-x-1/2 rounded-xl px-4 py-2 text-[13px] text-bad">{error}</div>}
       <Transport story={story} hop={d.hop} playing={d.playing} setPlaying={d.setPlaying} speed={d.speed} setSpeed={d.setSpeed} onGo={d.go} waiting={d.waiting} />

@@ -17,6 +17,21 @@ export const silent: Story = {
     { name: 'B · parser + template, 2 at a time', fate: 'win' },
     { name: 'C · restart replicas', fate: 'lose' },
   ],
+  flow: {
+    title: 'A silent tool-call drop, found and fixed',
+    meta: 'illustrative scenario · 8 replicas · values modeled on the twin',
+    stops: [
+      { title: 'Fault', time: '01:52:03', text: 'An upgrade lands on 2 replicas. Answers stay 200 OK, but the tool calls are gone.', code: 'vllm 0.27.1 → 0.28.0', tone: 'fault' },
+      { title: 'Dashboards', time: '01:52:44', delta: '+41 s', text: 'Latency, errors and GPU use all stay green. Nobody is paged.', tone: 'fault' },
+      { title: 'Detected', time: '01:52:44', text: 'The canary sends a known tool call. It comes back empty from 2 of 8.', tone: 'fault' },
+      { title: 'Diagnosed', time: '01:53:01', delta: '+17 s', text: 'The Tool-Calling Doctor finds the parser and chat template no longer match.', tone: 'work' },
+      { title: 'Tested', time: '01:53:40', delta: '+39 s', text: 'Three fixes race in a shadow copy. Parser and template together wins.', tone: 'work' },
+      { title: 'Repaired', time: '01:54:10', delta: '+30 s', text: 'Two replicas drained, patched and re-admitted, two at a time.', code: 'patch_config', tone: 'fix' },
+      { title: 'Verified', time: '01:55:15', delta: '+65 s', text: 'Canaries and hidden canaries pass for 10 s straight.', tone: 'end' },
+    ],
+    verdict: { label: 'VERIFIED', tone: 'ok' },
+    meaning: 'The dashboards never alerted. The canary, which checks the work and not the plumbing, did.',
+  },
   summary: {
     outcome: 'Verified',
     tone: 'ok',

@@ -1,4 +1,4 @@
-// The story stage: renderer, bloom, lights, a gridded floor that carries expanding
+// The story stage: renderer, bloom, lights, a floor (optionally gridded) that carries expanding
 // waves, and a tweened camera. Copied from TwinScene's setup so the story keeps the
 // twin's look without needing a live topology or frame stream.
 import * as THREE from 'three';
@@ -17,7 +17,7 @@ const FOV = 36;
 const FLOOR_VS = `varying vec3 vW;
 void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const FLOOR_FS = `
-uniform float uTime; uniform vec2 uCenter; uniform float uFade;
+uniform float uTime; uniform vec2 uCenter; uniform float uFade; uniform float uGrid;
 uniform vec4 uWaves[8]; uniform vec3 uWaveCol[8]; uniform float uWaveSpeed[8];
 varying vec3 vW;
 void main(){
@@ -25,7 +25,7 @@ void main(){
   vec2 g = abs(fract(q - 0.5) - 0.5) / fwidth(q);
   float line = 1.0 - min(min(g.x, g.y), 1.0);
   float fade = 1.0 - smoothstep(uFade * 0.35, uFade, length(vW.xz - uCenter));
-  vec3 col = vec3(0.22, 0.42, 0.10) * line * 0.16 * fade;
+  vec3 col = vec3(0.22, 0.42, 0.10) * line * 0.16 * fade * uGrid;
   for (int i = 0; i < 8; i++) {
     vec4 w = uWaves[i];
     float age = uTime - w.z;
@@ -39,7 +39,14 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-export interface StageOpts { floor?: [number, number]; center?: [number, number]; fade?: number; camera?: { pos: V3; target: V3 }; fog?: [number, number] }
+export interface StageOpts {
+  floor?: [number, number]; center?: [number, number]; fade?: number; camera?: { pos: V3; target: V3 }; fog?: [number, number];
+  /** Draw the faint floor grid (the specimen page keeps it; the story floor uses zone tints instead). */
+  grid?: boolean;
+  /** Bloom strength, radius, threshold. */
+  bloom?: [number, number, number];
+  ground?: number;
+}
 
 export class Stage {
   scene = new THREE.Scene();
@@ -116,14 +123,14 @@ export class Stage {
     // Floor: matte ground, then an additive grid that also carries the waves.
     const [fw, fd] = opts.floor ?? [60, 40];
     const [cx, cz] = opts.center ?? [0, 0];
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(fw * 3, fd * 3), new THREE.MeshStandardMaterial({ color: 0x060809, roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(fw * 3, fd * 3), new THREE.MeshStandardMaterial({ color: opts.ground ?? 0x060809, roughness: 1 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(cx, -0.01, cz);
     ground.receiveShadow = true;
     s.add(ground);
     this.floorFx = new THREE.ShaderMaterial({
       uniforms: {
-        uTime: { value: 0 }, uCenter: { value: new THREE.Vector2(cx, cz) }, uFade: { value: opts.fade ?? Math.max(fw, fd) * 0.6 },
+        uTime: { value: 0 }, uGrid: { value: opts.grid === false ? 0 : 1 }, uCenter: { value: new THREE.Vector2(cx, cz) }, uFade: { value: opts.fade ?? Math.max(fw, fd) * 0.6 },
         uWaves: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, -1, 1)) },
         uWaveCol: { value: Array.from({ length: 8 }, () => new THREE.Color()) },
         uWaveSpeed: { value: new Array(8).fill(4) },
@@ -140,7 +147,8 @@ export class Stage {
     this.composer = new EffectComposer(renderer);
     this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.composer.addPass(new RenderPass(s, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.7, 0.55, 0.82);
+    const [bs, br, bt] = opts.bloom ?? [0.7, 0.55, 0.82];
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), bs, br, bt);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 

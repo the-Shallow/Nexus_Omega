@@ -46,7 +46,8 @@ const near = (id: RoomId, dx: number, h: number, dz: number, ty = 0.9): Pose => 
 
 export const CAMS: Record<string, Pose> = {
   wide: { pos: [-1.5, 29, 33], target: [-1.5, 0, 0.5] },
-  finale: { pos: [-1.2, 47, 20], target: [-1.2, 0, 1.8] },
+  // Looks a little past the floor's centre so the overview sits above the flow map.
+  finale: { pos: [-1.2, 40, 30], target: [-1.2, 0, 8.5] },
   callers: near('callers', 2.6, 4.4, 8.6, 0.8),
   door: near('door', 2.8, 4.2, 8.2, 1.0),
   gpu: { pos: [ROOM.gpu.x - 8.6, 6.2, 4.4], target: [ROOM.gpu.x + 0.4, 0.9, 0] },
@@ -58,6 +59,14 @@ export const CAMS: Record<string, Pose> = {
   gate: { pos: [ROOM.doctors.x - 3.6, 3.0, ROOM.doctors.z + 6.6], target: [ROOM.doctors.x - 0.1, 1.1, ROOM.doctors.z + 1.55] },
   twin: near('twin', 1.8, 5.4, 8.8, 0.6),
 };
+
+/** Quiet floor tones under each part of the system. Never a state color: those mean something happened. */
+export const ZONES = [
+  { id: 'demand', label: 'DEMAND', color: 0x18212c, x: [-23.6, -9.4], z: [-4.2, 4.2] },
+  { id: 'serving', label: 'SERVING', color: 0x1a1f23, x: [-7.9, 1.9], z: [-3.7, 3.7] },
+  { id: 'signals', label: 'SIGNALS', color: 0x0f282b, x: [2.9, 10.3], z: [-3.6, 3.6] },
+  { id: 'nexus', label: 'NEXUS', color: 0x1b1c35, x: [11.4, 21.4], z: [-8.7, 8.7] },
+] as const;
 
 /** Floor paths between rooms, in the order an incident travels. y is just above the floor. */
 export const PATHS: Record<string, V3[]> = {

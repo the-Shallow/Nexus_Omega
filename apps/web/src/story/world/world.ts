@@ -7,7 +7,7 @@ import { FLOW, STATUS } from '../../twin/palette';
 import type { Candidate, CertRecord } from '../blocks/nexus';
 import { curve, glow, Travelers, type V3 } from '../engine/fx';
 import { Stage } from '../engine/stage';
-import { CAMS, PATHS, ROOM, ROOMS, ROWS, slotX, type Fleet, type RoomId } from './layout';
+import { CAMS, PATHS, ROOM, ROOMS, ROWS, ZONES, slotX, type Fleet, type RoomId } from './layout';
 import { buildRooms, type Built } from './rooms';
 
 export type PathKind = 'fault' | 'fix';
@@ -18,7 +18,7 @@ export class World {
   focused: RoomId | null = null;
   finaleOn = false;
   /** Requests per second across the whole floor. */
-  rate = 7;
+  rate = 4.5;
 
   private traffic = new Travelers(2600);
   private routes: { r: number; len: number }[][] = [];
@@ -36,7 +36,8 @@ export class World {
 
   constructor(container: HTMLElement, fleet: Fleet, subs: Partial<Record<RoomId, string>> = {}) {
     this.fleet = fleet;
-    this.stage = new Stage(container, { floor: [64, 34], center: [-1.5, 0], fade: 34, camera: CAMS.wide, fog: this.fog });
+    this.stage = new Stage(container, { floor: [64, 34], center: [-1.5, 0], fade: 34, camera: CAMS.wide, fog: this.fog, grid: false, bloom: [0.42, 0.5, 0.86], ground: 0x0a0c0d });
+    this.buildZones();
     this.built = buildRooms(this.stage.scene, fleet, subs);
     this.stage.scene.add(this.traffic.points, this.pathTr.points);
     this.buildRoutes();
@@ -117,7 +118,8 @@ export class World {
     if (outcome) {
       if (typeof outcome === 'string') cert.set(outcome);
       else cert.record(outcome);
-      cert.root.visible = true;
+      // The flow map now carries the verdict; the slab stays hidden so the overview reads as a plan.
+      cert.root.visible = false;
       this.certRise = instant ? 1 : 0;
       this.fog = [44, 110];
       this.focus(null);
@@ -169,14 +171,30 @@ export class World {
     }));
   }
 
+  /** Rounded, matte zone tints under each part of the system: the floor reads as a plan, not a grid. */
+  private buildZones() {
+    for (const z of ZONES) {
+      const [x0, x1] = z.x, [z0, z1] = z.z, r = 1.1;
+      const s = new THREE.Shape();
+      s.moveTo(x0 + r, z0); s.lineTo(x1 - r, z0); s.quadraticCurveTo(x1, z0, x1, z0 + r);
+      s.lineTo(x1, z1 - r); s.quadraticCurveTo(x1, z1, x1 - r, z1); s.lineTo(x0 + r, z1);
+      s.quadraticCurveTo(x0, z1, x0, z1 - r); s.lineTo(x0, z0 + r); s.quadraticCurveTo(x0, z0, x0 + r, z0);
+      const m = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), new THREE.MeshStandardMaterial({ color: z.color, roughness: 0.92, metalness: 0.05, side: THREE.DoubleSide }));
+      m.rotation.x = Math.PI / 2;
+      m.position.y = 0.002;
+      m.receiveShadow = true;
+      this.stage.scene.add(m);
+    }
+  }
+
   private buildPaths() {
     for (const [id, pts] of Object.entries(PATHS)) {
       const mats: THREE.MeshBasicMaterial[] = [];
       for (let i = 1; i < pts.length; i++) {
         const a = new THREE.Vector3(...pts[i - 1]), b = new THREE.Vector3(...pts[i]);
         const len = a.distanceTo(b);
-        const mat = new THREE.MeshBasicMaterial({ color: glow(0x2a343c, 0.9), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
-        const seg = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.07), mat);
+        const mat = new THREE.MeshBasicMaterial({ color: glow(0x2a343c, 0.6), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+        const seg = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.04), mat);
         seg.rotation.x = -Math.PI / 2;
         seg.rotation.z = -Math.atan2(b.z - a.z, b.x - a.x);
         seg.position.copy(a).lerp(b, 0.5);
@@ -203,7 +221,8 @@ export class World {
       const on = def.id === this.focused;
       r.group.position.y += ((on ? 0.12 : 0) - r.group.position.y) * k;
       r.light.intensity += ((on ? 16 : this.finaleOn ? 5 : 0) - r.light.intensity) * k;
-      r.edge.color.lerp(_c.copy(glow(on || this.finaleOn ? STATUS.ok : 0x2a343c, on ? 1.6 : this.finaleOn ? 1.1 : 0.9)), k);
+      r.pool.material.opacity += ((on ? 0.16 : this.finaleOn ? 0.05 : 0) - r.pool.material.opacity) * k;
+      r.edge.color.lerp(_c.copy(glow(on ? STATUS.ok : 0x2a343c, on ? 0.9 : 0.7)), k);
     }
 
     this.tickTraffic(dt);
@@ -241,24 +260,24 @@ export class World {
       const s = this.blocks[this.fleet[rack].id].state;
       const slow = s === 'hot' ? 1.7 : 1;
       const dur = (len / 8.5) * slow;
-      tr.spawn(r, FLOW.request, { dur, size: 0.11, gain: 1.6 });
+      tr.spawn(r, FLOW.request, { dur, size: 0.08, gain: 1.3 });
       const back = { reverse: true, dur, delay: dur + 0.15 * slow };
-      if (s === 'silent' || s === 'caught') tr.spawn(r, FLOW.silent, { ...back, size: 0.26, hollow: true, gain: 2.2 });
-      else if (s === 'bad') tr.spawn(r, FLOW.err, { ...back, size: 0.12, until: 0.3 });
-      else tr.spawn(r, FLOW.ok, { ...back, size: 0.11, gain: 1.6 });
+      if (s === 'silent' || s === 'caught') tr.spawn(r, FLOW.silent, { ...back, size: 0.2, hollow: true, gain: 2 });
+      else if (s === 'bad') tr.spawn(r, FLOW.err, { ...back, size: 0.1, until: 0.3 });
+      else tr.spawn(r, FLOW.ok, { ...back, size: 0.08, gain: 1.3 });
     }
     tr.update(dt);
   }
 
   private tickPaths(t: number, dt: number) {
     this.pathAcc += dt;
-    const pulse = this.pathAcc > 0.35;
+    const pulse = this.pathAcc > 0.6;
     if (pulse) this.pathAcc = 0;
     for (const p of Object.values(this.paths)) {
       const c = p.kind === 'fault' ? STATUS.warn : p.kind === 'fix' ? STATUS.ok : 0x2a343c;
       const kk = p.kind ? 1.3 + 0.3 * Math.sin(t * 3) : 0.9;
       p.mats.forEach((m) => m.color.copy(glow(c, kk)));
-      if (pulse && p.kind) this.pathTr.spawn(p.route, c, { dur: 1.6, size: 0.16, gain: 2.2 });
+      if (pulse && p.kind) this.pathTr.spawn(p.route, c, { dur: 2.2, size: 0.11, gain: 1.8 });
     }
     this.pathTr.update(dt);
   }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../../lib/api';
 import type { EpisodeSummary } from '../../lib/types';
-import type { Hop, Reality, Story } from '../script/types';
+import { ACTS, actsOf, type Hop, type Reality, type Story } from '../script/types';
 import { ROOM, type RoomId } from '../world/layout';
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -17,13 +17,13 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
   return (
     <motion.header initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease }}
       className="glass absolute left-4 right-4 top-4 z-20 flex h-14 items-center gap-4 rounded-2xl px-4">
-      <div className="flex items-center gap-2.5">
+      <a href="home.html" className="flex items-center gap-2.5" title="Back to the product story">
         <span className="grid size-8 place-items-center rounded-lg bg-accent text-[17px] font-bold text-bg">Ω</span>
         <div className="leading-tight">
-          <div className="text-[14px] font-semibold">NEXUS Ω</div>
-          <div className="label !text-[9.5px]">story mode</div>
+          <div className="text-[14px] font-semibold">Nexus</div>
+          <div className="label !text-[9.5px]">simulation</div>
         </div>
-      </div>
+      </a>
       <div className="mx-auto flex gap-1 rounded-xl bg-white/[0.04] p-1">
         {stories.map((s) => (
           <button key={s.id} onClick={() => { setPicker(false); onStory(s); }}
@@ -55,46 +55,65 @@ export function StepRail({ story, hop, engineer, waiting, onApprove, onGo }: {
 }) {
   const cur = useRef<HTMLButtonElement>(null);
   useEffect(() => { cur.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [hop, story]);
+  const acts = actsOf(story);
+  const now = acts[hop];
   return (
     <motion.aside initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease, delay: 0.1 }}
       className="glass absolute bottom-24 left-4 top-[88px] z-10 flex w-[380px] flex-col rounded-2xl">
-      <div className="flex items-baseline justify-between px-5 pb-2 pt-4">
-        <span className="label">The incident, step by step</span>
-        <span className="font-mono text-[11px] text-ink-4 tnum">{hop + 1} / {story.hops.length}</span>
-      </div>
-      <div className="flex-1 space-y-1 overflow-y-auto px-2.5 pb-3">
-        {story.hops.map((h, i) => {
-          const state = i < hop ? 'past' : i === hop ? 'now' : 'next';
+      <div className="flex-1 overflow-y-auto px-2.5 py-3">
+        {ACTS.map((a) => {
+          const idx = story.hops.map((_, i) => i).filter((i) => acts[i] === a.n);
+          if (!idx.length) return null;
+          const state = a.n < now ? 'done' : a.n === now ? 'open' : 'later';
           return (
-            <button key={story.id + h.id} ref={i === hop ? cur : undefined} onClick={() => onGo(i)}
-              className={`relative block w-full rounded-xl px-3 text-left transition-colors ${state === 'now' ? 'bg-white/[0.06] py-3' : 'py-1.5 hover:bg-white/[0.03]'}`}>
-              {state === 'now' && <span className="absolute inset-y-3 left-0 w-[3px] rounded-full bg-accent shadow-[0_0_12px_rgb(118_185_0/0.8)]" />}
-              <div className="flex items-center gap-2.5">
-                <StepDot state={state} />
-                <span className={`text-[13.5px] font-medium ${state === 'now' ? 'text-ink' : state === 'past' ? 'text-ink-2' : 'text-ink-4'}`}>{h.title}</span>
-                {h.room && <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-ink-4">{ROOM[h.room].name}</span>}
-              </div>
+            <div key={a.n} className={`mb-1.5 rounded-xl ${state === 'open' ? 'bg-white/[0.035] pb-1.5' : ''}`}>
+              <button onClick={() => onGo(idx[0])} className="flex w-full items-baseline gap-3 rounded-xl px-3 pb-1.5 pt-2.5 text-left">
+                <span className={`font-mono text-[10.5px] tracking-[0.18em] ${state === 'later' ? 'text-ink-4' : 'text-accent'}`}>ACT {a.n}</span>
+                <span className={`text-[14.5px] font-semibold ${state === 'later' ? 'text-ink-3' : 'text-ink'}`}>{a.title}</span>
+                <span className="ml-auto font-mono text-[10.5px] text-ink-4">{state === 'done' ? '✓' : `${idx.length} steps`}</span>
+              </button>
               <AnimatePresence initial={false}>
-                {state === 'now' && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }} className="overflow-hidden pl-[26px]">
-                    <p className="pt-2 text-[15px] leading-[1.45] text-ink">{h.plain}</p>
-                    <p className="mt-2 font-mono text-[11.5px] leading-snug text-accent-hi/90">{h.tech}</p>
-                    {engineer && h.engineer && (
-                      <ul className="mt-2 space-y-1 border-l border-line-2 pl-3">
-                        {h.engineer.map((l) => <li key={l} className="font-mono text-[11px] leading-snug text-ink-3">{l}</li>)}
-                      </ul>
-                    )}
-                    {h.wait && waiting && (
-                      <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onApprove(); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') onApprove(); }}
-                        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-warn px-3.5 py-2 text-[13px] font-semibold text-bg shadow-[0_0_24px_-4px_rgb(245_158_11/0.8)]">
-                        <span className="size-2 animate-pulse rounded-full bg-bg" />{h.wait.label}
-                      </span>
-                    )}
+                {state === 'open' && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }} className="overflow-hidden">
+                    {idx.map((i) => {
+                      const h = story.hops[i];
+                      const st = i < hop ? 'past' : i === hop ? 'now' : 'next';
+                      return (
+                        <button key={story.id + h.id} ref={i === hop ? cur : undefined} onClick={() => onGo(i)}
+                          className={`relative block w-full rounded-lg px-3 text-left transition-colors ${st === 'now' ? 'py-2.5' : 'py-1.5 hover:bg-white/[0.03]'}`}>
+                          {st === 'now' && <span className="absolute inset-y-2.5 left-0 w-[2px] rounded-full bg-accent" />}
+                          <div className="flex items-center gap-2.5">
+                            <StepDot state={st} />
+                            <span className={`text-[13.5px] font-medium ${st === 'now' ? 'text-ink' : st === 'past' ? 'text-ink-2' : 'text-ink-4'}`}>{h.title}</span>
+                            {h.room && <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-ink-4">{ROOM[h.room].name}</span>}
+                          </div>
+                          <AnimatePresence initial={false}>
+                            {st === 'now' && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }} className="overflow-hidden pl-[26px]">
+                                <p className="pt-2 text-[15px] leading-[1.5] text-ink">{h.plain}</p>
+                                <p className="mt-2 font-mono text-[11.5px] leading-snug text-ink-3">{h.tech}</p>
+                                {engineer && h.engineer && (
+                                  <ul className="mt-2 space-y-1 border-l border-line-2 pl-3">
+                                    {h.engineer.map((l) => <li key={l} className="font-mono text-[11px] leading-snug text-ink-3">{l}</li>)}
+                                  </ul>
+                                )}
+                                {h.wait && waiting && (
+                                  <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onApprove(); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') onApprove(); }}
+                                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-warn px-3.5 py-2 text-[13px] font-semibold text-bg">
+                                    <span className="size-2 animate-pulse rounded-full bg-bg" />{h.wait.label}
+                                  </span>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      );
+                    })}
                   </motion.div>
                 )}
               </AnimatePresence>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -179,40 +198,6 @@ export function Transport({ story, hop, playing, setPlaying, speed, setSpeed, on
         ))}
       </div>
       <button className="rounded-lg px-2 py-1 font-mono text-[12px] text-ink-2 hover:bg-white/[0.06]" onClick={() => setSpeed(speed === 1 ? 2 : 1)}>{speed}×</button>
-    </motion.div>
-  );
-}
-
-export function Finale({ story, onReplay, onOther }: { story: Story; onReplay: () => void; onOther: () => void }) {
-  const s = story.summary;
-  const ok = s.tone === 'ok';
-  const tone = { ok: ['border-ok text-ok', 'rgb(118_185_0/0.8)', 'text-ok', '✓'], warn: ['border-warn text-warn', 'rgb(245_158_11/0.8)', 'text-warn', '!'], bad: ['border-bad text-bad', 'rgb(244_63_94/0.8)', 'text-bad', '✗'], idle: ['border-ink-3 text-ink-2', 'rgb(160_170_178/0.4)', 'text-ink-2', '–'] }[s.tone];
-  return (
-    <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.9, ease, delay: 1.2 }}
-      className="glass-strong absolute bottom-24 right-4 top-[88px] z-10 flex w-[360px] flex-col rounded-2xl p-6">
-      <div className="flex items-center gap-4">
-        <motion.div initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 160, damping: 14, delay: 1.6 }}
-          className={`grid size-16 place-items-center rounded-full border-2 ${tone[0]}`} style={{ boxShadow: `0 0 40px -6px ${tone[1].replace(/_/g, ' ')}` }}>
-          <span className="text-[28px] font-bold">{tone[3]}</span>
-        </motion.div>
-        <div>
-          <div className="label">{s.label ?? 'Recovery certificate'}</div>
-          <div className={`text-[26px] font-semibold leading-tight ${tone[2]}`}>{s.outcome}</div>
-        </div>
-      </div>
-      <motion.dl initial="h" animate="v" variants={{ v: { transition: { staggerChildren: 0.08, delayChildren: 1.9 } } }} className="mt-6 space-y-2.5">
-        {s.rows.map(([k, v]) => (
-          <motion.div key={k} variants={{ h: { opacity: 0, y: 6 }, v: { opacity: 1, y: 0 } }} className="flex justify-between gap-4 border-b border-line pb-2.5">
-            <dt className="text-[13px] text-ink-3">{k}</dt>
-            <dd className="text-right text-[13px] font-medium text-ink">{v}</dd>
-          </motion.div>
-        ))}
-      </motion.dl>
-      <p className="mt-5 text-[14px] leading-relaxed text-ink-2">{s.note}</p>
-      <div className="mt-auto flex gap-2 pt-6">
-        <button onClick={onReplay} className="flex-1 rounded-xl bg-white/[0.07] py-2.5 text-[13px] font-medium hover:bg-white/[0.1]">Replay</button>
-        <button onClick={onOther} className="flex-1 rounded-xl bg-accent py-2.5 text-[13px] font-semibold text-bg">{ok ? 'Watch the other story' : 'Watch another story'}</button>
-      </div>
     </motion.div>
   );
 }

@@ -93,9 +93,9 @@ export function replica({ name = 'vllm-0', out = [[0.45, 1.3, 0.25], [1.45, 1.3,
       const ledC = red ? (blink ? STATUS.bad : 0x2a1016) : s === 'heal' ? STATUS.restart : s === 'hot' ? STATUS.thermal : s === 'drain' ? STATUS.warn : STATUS.ok;
       for (let n = 0; n < NODES; n++) leds.setColorAt(n, _c.copy(glow(ledC, red && !blink ? 1 : 2.2)));
       leds.instanceColor!.needsUpdate = true;
-      const lineC = red ? STATUS.bad : s === 'heal' ? STATUS.restart : s === 'hot' ? STATUS.thermal : s === 'drain' ? STATUS.warn : STATUS.ok;
-      (outline.material as THREE.LineBasicMaterial).color.copy(glow(lineC, red ? 1.4 + Math.sin(t * 8) * 0.8 : 0.9));
-      tor.material.color.copy(glow(lineC, 1.8));
+      const lineC = red ? STATUS.bad : s === 'heal' ? STATUS.restart : s === 'hot' ? STATUS.thermal : s === 'drain' ? STATUS.warn : 0x2e3a42;
+      (outline.material as THREE.LineBasicMaterial).color.copy(glow(lineC, red ? 1.4 + Math.sin(t * 8) * 0.8 : 1));
+      tor.material.color.copy(glow(lineC === 0x2e3a42 ? STATUS.ok : lineC, lineC === 0x2e3a42 ? 0.9 : 1.8));
       body.position.copy(red ? shake(t, s === 'bad' ? 0.018 : 0.01, _s) : _s.set(0, 0, 0));
 
       if (showOut) {
@@ -193,7 +193,7 @@ export function gateway(lanes = 8, reach = 2.4, spread = 1.5, demo = true): Bloc
       queue.scale.y += (qh - queue.scale.y) * (1 - Math.exp(-dt * 3));
       queue.position.y = queue.scale.y / 2;
       queue.material.color.copy(glow(s === 'bad' ? STATUS.bad : STATUS.warn, 1.6));
-      (frameLine.material as THREE.LineBasicMaterial).color.copy(glow(s === 'bad' ? STATUS.bad : drained.length ? STATUS.warn : STATUS.ok, s === 'bad' ? 1.4 + Math.sin(t * 8) : 1.6));
+      (frameLine.material as THREE.LineBasicMaterial).color.copy(glow(s === 'bad' ? STATUS.bad : drained.length ? STATUS.warn : 0x3a4650, s === 'bad' ? 1.4 + Math.sin(t * 8) : drained.length ? 1.6 : 1.2));
       portal.material.color.copy(glow(s === 'bad' ? STATUS.bad : 0x38bdf8, 1));
       tr.update(dt);
     },

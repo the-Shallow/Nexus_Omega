@@ -6,7 +6,7 @@ import type { EpisodeSummary, RealRunSnapshot, RunEvent } from '../../lib/types'
 import { STATUS } from '../../twin/palette';
 import type { CertRecord } from '../blocks/nexus';
 import type { World } from '../world/world';
-import type { Beat, Hop, Reality, Snapshot, Story } from './types';
+import { gap, type Beat, type FlowStop, type Hop, type Reality, type Snapshot, type Story } from './types';
 
 interface RouteWorker { error_rate?: number; p95_s?: number; median_s?: number; ok?: boolean; requests?: number }
 interface Probes {
@@ -296,12 +296,44 @@ export function buildRealStory(snap: RealRunSnapshot, probes: Probes, episode: E
     finale: record,
   });
 
+  // The end-of-story map: the same facts as the hops, as a route anyone can retell.
+  const count = new Map<string, number>();
+  for (const c of calls) { const t = String(c.detail?.tool ?? c.title); count.set(t, (count.get(t) ?? 0) + 1); }
+  const callList = [...count].map(([t, n]) => (n > 1 ? `${t} ×${n}` : t)).join(', ');
+  const stops: FlowStop[] = [
+    { title: 'Fault injected', time: null, text: faultLook === 'silent' ? `${faulty ?? 'A worker'}'s answers lose their tool calls.` : faulty ? `${faulty} starts failing.` : `The harness injects “${fault}”.`, code: fault, tone: 'fault' },
+    { title: 'Detected', time: clock0, text: faulty ? `${faultLook === 'silent' ? `Canary on ${faulty}: 0 tool calls, HTTP ${probes.canary[faulty]?.status ?? 200}.` : `${faulty}: p95 ${sec(probes.route[faulty]?.p95_s)}, errors ${pct(probes.route[faulty]?.error_rate)}.`}` : 'The opening probes show nothing clearly wrong.', tone: 'fault' },
+  ];
+  if (calls.length) stops.push({ title: 'Investigated', time: calls[0].clock, delta: gap(clock0, calls[0].clock), text: `${calls.length} tool call${calls.length === 1 ? '' : 's'}: ${cut(callList, 80)}.`, tone: 'work' });
+  if (decision) stops.push({ title: 'Diagnosed', time: decision.clock, delta: gap(calls[0]?.clock ?? clock0, decision.clock), text: `“${cut(decision.title, 95)}”`, tone: 'work' });
+  else if (crash) stops.push({ title: 'Run stopped', time: crash.clock, delta: gap(calls[0]?.clock ?? clock0, crash.clock), text: `Stopped before deciding: ${cut(String(crash.detail?.message ?? crash.title), 70)}.`, tone: 'fault' });
+  if (policy) {
+    const d = String(policy.detail?.decision ?? '');
+    stops.push({ title: d === 'APPROVED' ? 'Approved' : d.includes('APPROVAL') ? 'Needs approval' : 'Blocked', time: policy.clock, text: `Policy: ${cut(String(policy.detail?.reason ?? d), 70)}.`, tone: 'work' });
+  }
+  if (action) {
+    const kind = String(exec.action ?? action.detail?.kind ?? 'action');
+    const target = String(exec.service ?? '');
+    stops.push({ title: kind === 'drain_worker' ? 'Drained' : kind === 'restart_worker' ? 'Restarted' : 'Repaired', time: action.clock, delta: gap(policy?.clock ?? decision?.clock, action.clock), text: kind === 'drain_worker' ? `${target} taken out of rotation; ${other(target)} serves everyone.` : kind === 'restart_worker' ? `${target} restarted and came back ${exec.status === 'VERIFIED' ? 'healthy' : String(exec.status ?? '').toLowerCase()}.` : `Approved serving profile applied to ${target}.`, code: kind, tone: 'fix' });
+  }
+  if (verify) {
+    const passedNames = checks.filter((c) => c.passed).map((c) => c.name);
+    stops.push({ title: falseVerified ? 'Referee disagrees' : 'Referee', time: verify.clock, text: `${checks.filter((c) => c.passed).length} of ${checks.length} checks${passedNames.length ? `: ${passedNames.join(', ')}` : ' passed'}.`, tone: 'end' });
+  }
+
   return {
     id: `run:${runId}`, name: `Run ${runId.replace('run-', '')}`, short: runId, mode: 'real',
     badge: `RECORDED RUN · ${runId}`,
     subs: { door: 'HAProxy entry point', gpu: '2 vLLM workers · one H100', twin: 'not used by the live agent yet' },
     base,
     candidates: [{ name: '', fate: 'lose' }, { name: '', fate: 'lose' }, { name: '', fate: 'lose' }],
+    flow: {
+      title: `${docName} Doctor on “${fault}”`,
+      meta: `recorded run ${runId}${episode?.solve_seconds ? ` · solved in ${sec(episode.solve_seconds)}` : ''}${date ? ` · ${date}` : ''}`,
+      stops,
+      verdict: { label: verdict.word, tone: verdict.tone },
+      meaning: falseVerified ? 'The agent said VERIFIED. The independent referee disagreed, and the referee’s verdict is the one that counts.' : note,
+    },
     hops,
     summary: {
       label: 'Recorded run', outcome: verdict.word.charAt(0) + verdict.word.slice(1).toLowerCase(), tone: verdict.tone,

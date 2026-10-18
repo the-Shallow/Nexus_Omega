@@ -17,6 +17,22 @@ export const crah: Story = {
     { name: 'B · pause batch jobs, all rows', fate: 'win' },
     { name: 'C · restart row A replicas', fate: 'policy' },
   ],
+  flow: {
+    title: 'A cooling unit trips at 2 AM',
+    meta: 'illustrative scenario · 8 replicas · values modeled on the twin',
+    stops: [
+      { title: 'Fault', time: '02:10:41', text: 'Cooling unit CRAH-1 trips. Cold air to row A stops.', code: 'CRAH-1 running=false', tone: 'fault' },
+      { title: 'Heat', time: '02:11:30', delta: '+49 s', text: 'Row A GPUs reach 87 °C and slow themselves down.', tone: 'fault' },
+      { title: 'Detected', time: '02:11:42', delta: '+12 s', text: 'Latency and temperature alarms fire. This one is loud.', tone: 'fault' },
+      { title: 'Diagnosed', time: '02:11:55', delta: '+13 s', text: 'The Infrastructure Doctor traces it to the facility, not the model.', tone: 'work' },
+      { title: 'Tested', time: '02:12:30', delta: '+35 s', text: 'Pausing batch jobs cools fastest without touching inference.', tone: 'work' },
+      { title: 'Approved', time: '02:13:05', delta: '+35 s', text: 'Facility incidents need a person. You authorized it.', tone: 'work' },
+      { title: 'Repaired', time: '02:13:20', delta: '+15 s', text: 'Batch paused. GPUs back to 71 °C; inference never stopped.', code: 'pause_batch', tone: 'fix' },
+      { title: 'Handed over', time: '02:15:02', delta: '+1 min 42 s', text: 'Service verified. CRAH-1 itself still needs a technician.', tone: 'end' },
+    ],
+    verdict: { label: 'NEEDS A HUMAN', tone: 'warn' },
+    meaning: 'Nexus protected the service and said plainly what software cannot fix.',
+  },
   summary: {
     outcome: 'Needs a human',
     tone: 'warn',

@@ -1,0 +1,14 @@
+/* Product pages scroll; the platform and the simulation are fixed-height apps. */
+html, body, #root { height: auto; }
+body { overflow-y: auto; overflow-x: hidden; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Floor zone tones, shared by the diagrams and the 3D floor. Never state colors. */
+:root {
+  --zone-demand: #18212c;
+  --zone-serving: #1a1f23;
+  --zone-signals: #0f282b;
+  --zone-nexus: #1b1c35;
+  --ground: #0a0c0d;
+}

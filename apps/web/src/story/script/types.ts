@@ -36,6 +36,51 @@ export interface Hop {
   finale?: 'verified' | 'human' | CertRecord;
 }
 
+/** One stop on the end-of-story map: what happened, when, in plain words. */
+export interface FlowStop {
+  title: string;
+  /** Clock time, or null when the data doesn't record it. */
+  time: string | null;
+  /** Gap since the previous timed stop, e.g. "+14 s". */
+  delta?: string;
+  text: string;
+  code?: string;
+  tone: 'fault' | 'work' | 'fix' | 'end';
+}
+
+export interface FlowMap {
+  title: string;
+  meta: string;
+  stops: FlowStop[];
+  verdict: { label: string; tone: 'ok' | 'warn' | 'bad' | 'idle' };
+  meaning: string;
+}
+
+export const ACTS = [
+  { n: 1, title: 'The break', sub: 'What failed, and who noticed' },
+  { n: 2, title: 'The diagnosis', sub: 'How Nexus found the cause' },
+  { n: 3, title: 'Repair and proof', sub: 'What it changed, and who checked' },
+] as const;
+
+/** Which act each hop belongs to: the break until the doctors engage, the diagnosis until a repair starts. */
+export function actsOf(story: Story): (1 | 2 | 3)[] {
+  const hops = story.hops;
+  let a2 = hops.findIndex((h) => h.room === 'doctors' || h.room === 'twin');
+  if (a2 < 0) a2 = hops.length;
+  let a3 = hops.findIndex((h, i) => i > a2 && (h.cam === 'gate' || h.room === 'gpu' || h.room === 'signals' || h.finale));
+  if (a3 < 0) a3 = hops.length;
+  return hops.map((_, i) => (i < a2 ? 1 : i < a3 ? 2 : 3));
+}
+
+/** Seconds between two "HH:MM:SS" clocks, as "+N s" / "+M min N s". */
+export function gap(from: string | null | undefined, to: string | null | undefined) {
+  const s = (c: string) => { const [h, m, x] = c.split(':').map(Number); return h * 3600 + m * 60 + (x || 0); };
+  if (!from || !to || !/^\d\d:\d\d/.test(from) || !/^\d\d:\d\d/.test(to)) return undefined;
+  const d = s(to) - s(from);
+  if (d <= 0) return undefined;
+  return d < 60 ? `+${d} s` : `+${Math.floor(d / 60)} min ${d % 60} s`;
+}
+
 export interface Story {
   id: string;
   name: string;
@@ -49,6 +94,7 @@ export interface Story {
   base: Snapshot;
   candidates: Candidate[];
   hops: Hop[];
+  flow: FlowMap;
   summary: { outcome: string; tone: 'ok' | 'warn' | 'bad' | 'idle'; rows: [string, string][]; note: string; label?: string };
 }
 

@@ -11,7 +11,7 @@ import type { Block } from '../blocks/types';
 import { basic, edges, glow, label, mesh, metal, Travelers } from '../engine/fx';
 import { RACK_X, ROOMS, ROWS, slotX, type Fleet, type RoomId } from './layout';
 
-export interface RoomParts { def: (typeof ROOMS)[number]; group: THREE.Group; edge: THREE.LineBasicMaterial; light: THREE.PointLight; title: CSS2DObject }
+export interface RoomParts { def: (typeof ROOMS)[number]; group: THREE.Group; edge: THREE.LineBasicMaterial; light: THREE.PointLight; pool: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; title: CSS2DObject }
 
 export interface Built {
   rooms: Record<RoomId, RoomParts>;
@@ -51,6 +51,19 @@ function manager(targets: Record<string, THREE.Vector3>): Block {
   return b;
 }
 
+let poolTex: THREE.CanvasTexture | null = null;
+function poolTexture() {
+  if (poolTex) return poolTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(222,232,238,1)'); grad.addColorStop(0.45, 'rgba(222,232,238,0.35)'); grad.addColorStop(1, 'rgba(222,232,238,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  poolTex = new THREE.CanvasTexture(c);
+  return poolTex;
+}
+
 export function buildRooms(scene: THREE.Scene, fleet: Fleet, subs: Partial<Record<RoomId, string>> = {}): Built {
   const rooms = {} as Record<RoomId, RoomParts>;
   const blocks: Record<string, Block> = {};
@@ -79,7 +92,12 @@ export function buildRooms(scene: THREE.Scene, fleet: Fleet, subs: Partial<Recor
     group.add(light);
     const title = label(`<i>${def.n}</i><b>${def.name}</b><span>${subs[def.id] ?? def.sub}</span>`, 'lbl story-room', [0, 0.02, hd + 0.6]);
     group.add(title);
-    rooms[def.id] = { def, group, edge, light, title };
+    // A soft pool of light on the floor around the room, raised when the story is here.
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(def.w * 2.2, def.d * 2.2), new THREE.MeshBasicMaterial({ map: poolTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.y = 0.006;
+    group.add(pool);
+    rooms[def.id] = { def, group, edge, light, pool, title };
   }
 
   // 01 Callers: four agents in front, three people behind, all facing the door (+x).
