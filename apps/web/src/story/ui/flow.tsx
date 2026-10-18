@@ -55,7 +55,7 @@ export function FlowMapPanel({ story, onReplay, onOther, otherLabel }: { story: 
         <div className="flex flex-wrap gap-2 text-[13px] font-medium">
           <button onClick={onReplay} className="rounded-xl bg-white/[0.07] px-3.5 py-2 hover:bg-white/[0.1]">Replay</button>
           <button onClick={onOther} className="rounded-xl bg-white/[0.07] px-3.5 py-2 hover:bg-white/[0.1]">{otherLabel}</button>
-          <a href="home.html#how" className="rounded-xl bg-white/[0.07] px-3.5 py-2 hover:bg-white/[0.1]">How it works</a>
+          <a href="./#how" className="rounded-xl bg-white/[0.07] px-3.5 py-2 hover:bg-white/[0.1]">How it works</a>
           <a href="results.html" className="rounded-xl bg-accent px-3.5 py-2 font-semibold text-bg">See all results</a>
         </div>
       </div>

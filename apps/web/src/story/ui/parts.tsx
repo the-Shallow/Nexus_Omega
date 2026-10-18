@@ -17,7 +17,7 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
   return (
     <motion.header initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease }}
       className="glass absolute left-4 right-4 top-4 z-20 flex h-14 items-center gap-4 rounded-2xl px-4">
-      <a href="home.html" className="flex items-center gap-2.5" title="Back to the product story">
+      <a href="./" className="flex items-center gap-2.5" title="Back to the product story">
         <span className="grid size-8 place-items-center rounded-lg bg-accent text-[17px] font-bold text-bg">Ω</span>
         <div className="leading-tight">
           <div className="text-[14px] font-semibold">Nexus</div>
