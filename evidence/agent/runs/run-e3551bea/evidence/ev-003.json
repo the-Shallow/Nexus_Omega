@@ -1,0 +1,50 @@
+{
+  "content": {
+    "data": {
+      "flags": {
+        "target-b": [
+          "direct: p95 4.533 s, error rate 0.0",
+          "through HAProxy: p95 4.506 s, error rate 0.0"
+        ]
+      },
+      "limits": {
+        "max_error_rate": 0.0,
+        "max_p95_s": 0.5
+      },
+      "observation_id": "path-compare-4d136c59",
+      "probe_id": "path-compare",
+      "workers": {
+        "target-a": {
+          "direct": {
+            "error_rate": 0.0,
+            "p95_s": 0.089,
+            "requests": 5
+          },
+          "through_haproxy": {
+            "error_rate": 0.0,
+            "p95_s": 0.075,
+            "requests": 5
+          }
+        },
+        "target-b": {
+          "direct": {
+            "error_rate": 0.0,
+            "p95_s": 4.533,
+            "requests": 5
+          },
+          "through_haproxy": {
+            "error_rate": 0.0,
+            "p95_s": 4.506,
+            "requests": 5
+          }
+        }
+      }
+    },
+    "observed_at": "2026-10-18T08:39:19+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-003",
+  "source": "probe:path-compare:path-compare-4d136c59",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

@@ -163,6 +163,18 @@ Next fix (not run: it would mean rerunning v1 and v2 after the deadline for this
 
 **Build 4 on the known faults: 11/12, 0 false VERIFIED** (before 7/12 with 3). Records `known-after.json`. Link faults were drained in 6/6 (before: restarted in 3/6). The miss, kill-b round 1, decided in 9 s without checking process state: the opening snapshot does not include container state, so it saw "100% errors on both paths, no config difference", drafted failed/unknown, and the relabel call turned that into network_path (contradicting that class's own definition), so it drained. Next fix: add process state to the opening snapshot, and relabel only contradictory drafts.
 
+**Temperature ablation (build 4, same code; `NEMOTRON_TEMPERATURE=0.6`, the closest public Nemotron card's recommendation for tool calling).** Records `temp06-after.json`.
+
+| Fault | Temperature 0 | Temperature 0.6 |
+|---|---|---|
+| noop | 3/3 | 0/0 |
+| compound-latb-32926a | 2/3 | 1/2 |
+| capacity-b | 1/3 | 3/3 |
+| vllm-32926 | 3/3 | 2/3 |
+| **Total** | **9/12** | **6/8** |
+
+Same total, different spread: 0.6 fixed capacity-b every time (its labels stayed "misconfigured") but did worse on compound and once abstained on 32926. With 3 runs per cell this is within noise; temperature 0 stays the default for repeatability. 0 false VERIFIED at either setting.
+
 ## How it got there: every attempt
 
 All on VLLM-32926. Episodes in `episodes/`, matching trails in `runs/` (matched by start time).

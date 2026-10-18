@@ -1,0 +1,24 @@
+{
+  "content": {
+    "artifact_id": "art-5a9a28d327",
+    "content": {
+      "content": null,
+      "http_status": 200,
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"city\": \"Raleigh\", \"unit\": \"celsius\"}",
+            "name": "get_weather"
+          },
+          "id": "chatcmpl-tool-8ceaeb3d6c796074",
+          "type": "function"
+        }
+      ]
+    },
+    "section": "structured_response"
+  },
+  "evidence_id": "ev-007",
+  "source": "artifact:art-5a9a28d327:structured_response",
+  "source_type": "artifact",
+  "trust": "untrusted"
+}
