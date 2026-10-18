@@ -20,8 +20,12 @@ from .tools.environment import EnvironmentTools
 from .tools.manifest import EnvironmentManifest
 
 
-def build_live_controller(run_id: str, run_root: Path) -> AgentController:
-    """Compose a controller from the model and environment HTTP endpoints."""
+def build_live_controller(run_id: str, run_root: Path, *, structured: bool = False) -> AgentController:
+    """Compose a controller from the model and environment HTTP endpoints.
+
+    structured=True ends each run with assess -> choose-from-menu (see
+    AgentController._structured_decision) instead of a free-form decision.
+    """
     provider = HttpEnvironmentProvider(HttpEnvironmentConfig.from_env())
     manifest = EnvironmentManifest.from_dict(provider.describe_environment())
     policy = RepairPolicy(manifest)
@@ -32,6 +36,8 @@ def build_live_controller(run_id: str, run_root: Path) -> AgentController:
         evidence=EvidenceLedger(run_root),
         event_log=JsonlEventLog(run_root / "events.jsonl", run_id),
         repair_precheck=RepairPrecheck(policy, provider),
+        structured=structured,
+        provider=provider,
     )
 
 

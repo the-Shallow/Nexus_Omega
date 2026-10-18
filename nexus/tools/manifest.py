@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..agent.contracts import ContractError
@@ -99,6 +99,11 @@ class ActionDefinition:
     before_state_keys: tuple[str, ...]
     automatic: bool = False
     requires_rollback: bool = True
+    # Optional, for the structured decision: the fault classes this action repairs
+    # or mitigates, and whether it takes its target out of service while it runs.
+    addresses: tuple[str, ...] = ()
+    removes_capacity: bool = False
+    restores_service: bool = True  # False for a mitigation such as a drain: the target stays out
 
     @classmethod
     def from_dict(cls, payload: Any) -> "ActionDefinition":
@@ -108,9 +113,11 @@ class ActionDefinition:
             raise ContractError("action parameters schema must have type object")
         automatic = item.get("automatic", False)
         requires_rollback = item.get("requires_rollback", True)
-        if not isinstance(automatic, bool) or not isinstance(requires_rollback, bool):
+        removes_capacity = item.get("removes_capacity", False)
+        restores_service = item.get("restores_service", True)
+        if not all(isinstance(v, bool) for v in (automatic, requires_rollback, removes_capacity, restores_service)):
             raise ContractError(
-                "action automatic and requires_rollback must be booleans"
+                "action automatic, requires_rollback, removes_capacity and restores_service must be booleans"
             )
         return cls(
             action_id=_text(item.get("id"), "action id"),
@@ -127,6 +134,9 @@ class ActionDefinition:
             ),
             automatic=automatic,
             requires_rollback=requires_rollback,
+            addresses=_strings(item.get("addresses", []), "action addresses"),
+            removes_capacity=removes_capacity,
+            restores_service=restores_service,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -138,6 +148,9 @@ class ActionDefinition:
             "before_state_keys": list(self.before_state_keys),
             "automatic": self.automatic,
             "requires_rollback": self.requires_rollback,
+            "addresses": list(self.addresses),
+            "removes_capacity": self.removes_capacity,
+            "restores_service": self.restores_service,
         }
 
 
@@ -150,6 +163,8 @@ class EnvironmentManifest:
     actions: tuple[ActionDefinition, ...] = ()
     artifact_sections: tuple[str, ...] = ()
     verifiers: tuple[str, ...] = ()
+    # Optional {fault class: plain description} for the structured decision; "none" means healthy.
+    fault_classes: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, payload: Any) -> "EnvironmentManifest":
@@ -173,6 +188,8 @@ class EnvironmentManifest:
                 item.get("artifact_sections", []), "environment artifact_sections"
             ),
             verifiers=_strings(item.get("verifiers", []), "environment verifiers"),
+            fault_classes={_text(k, "fault class"): _text(v, "fault class description")
+                           for k, v in _object(item.get("fault_classes", {}), "fault_classes").items()},
         )
         manifest._validate_references()
         return manifest
@@ -198,6 +215,7 @@ class EnvironmentManifest:
             "actions": [item.to_dict() for item in self.actions],
             "artifact_sections": list(self.artifact_sections),
             "verifiers": list(self.verifiers),
+            "fault_classes": dict(self.fault_classes),
         }
 
     def _validate_references(self) -> None:
@@ -214,4 +232,9 @@ class EnvironmentManifest:
             if unknown:
                 raise ContractError(
                     f"action {action.action_id} has unknown targets: {sorted(unknown)}"
+                )
+            undeclared = set(action.addresses) - set(self.fault_classes)
+            if undeclared:
+                raise ContractError(
+                    f"action {action.action_id} addresses undeclared fault classes: {sorted(undeclared)}"
                 )
