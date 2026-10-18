@@ -7,6 +7,7 @@ import { Inspector, ReplayBar, Toasts, Vitals } from './components/Overlays';
 import { Approval, Panels } from './components/Panels';
 import { RecoveryTimeline } from './components/RecoveryTimeline';
 import { TwinCanvas } from './components/TwinCanvas';
+import { WhatIf } from './components/WhatIf';
 import { api } from './lib/api';
 import { toast, twin } from './lib/bus';
 import { store, useStore } from './lib/store';
@@ -72,6 +73,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <WhatIf />
       <BreakOverlay open={breakOpen} onClose={() => setBreakOpen(false)} />
       <OutcomeSheet open={outcomeOpen} run={run} onClose={closeOutcome} />
     </div>

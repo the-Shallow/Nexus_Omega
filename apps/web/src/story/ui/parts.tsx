@@ -1,5 +1,5 @@
 // Story-mode overlays: top bar, step rail, room title, reality bar, transport, finale.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../../lib/api';
 import type { EpisodeSummary } from '../../lib/types';
@@ -8,9 +8,11 @@ import { ROOM, type RoomId } from '../world/layout';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-export function TopBar({ stories, story, onStory, onRun, loading, clock, engineer, setEngineer, onAbout }: {
+export function TopBar({ stories, story, onStory, onRun, loading, clock, engineer, setEngineer, onAbout, extra }: {
   stories: Story[]; story: Story; onStory: (s: Story) => void; onRun: (runId: string) => void; loading: string | null;
   clock: string; engineer: boolean; setEngineer: (v: boolean) => void; onAbout: () => void;
+  /** Optional control before the clock (Break it live, when the fleet is connected). */
+  extra?: ReactNode;
 }) {
   const [picker, setPicker] = useState(false);
   const real = story.mode === 'real';
@@ -39,6 +41,7 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
         </button>
       </div>
       <AnimatePresence>{picker && <RunPicker current={real ? story.short : null} onPick={(id) => { setPicker(false); onRun(id); }} />}</AnimatePresence>
+      {extra}
       <div className="font-mono text-[15px] tnum text-ink-2">{clock}</div>
       <div className="flex rounded-xl bg-white/[0.04] p-1 text-[12px]">
         {(['Story', 'Engineer'] as const).map((m) => (
