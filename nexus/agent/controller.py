@@ -11,6 +11,7 @@ from ..infrastructure.nemotron import NemotronClient
 from ..tools.environment import EnvironmentTools, ToolObservation
 from .budgets import ContextBudget, RunBudget
 from .contracts import AgentDecision, ContractError, DiagnosticInput, ModelTurn
+from .decision_format import parse_decision
 from .evidence import EvidenceLedger, EvidenceRecord
 from .policy import PolicyDecision, PrecheckResult, RepairPrecheck
 
@@ -134,7 +135,10 @@ class AgentController:
                     self._expand_context(messages, turn)
                     continue
 
-                decision = AgentDecision.from_json(turn.content or "")
+                decision = parse_decision(
+                    self.client, messages, turn,
+                    consume_step=self.run_budget.consume_step, log=self.event_log.append,
+                )
                 self._validate_decision(decision)
                 self.event_log.append("decision_validated", decision.to_dict())
                 final_state, precheck = self._prepare_repair(decision)

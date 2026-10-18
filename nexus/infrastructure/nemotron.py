@@ -12,6 +12,9 @@ from typing import Any, Protocol
 from ..agent.contracts import ContractError, ModelTurn
 
 
+FORMATTED_MAX_TOKENS = 1024
+
+
 class ModelClientError(RuntimeError):
     """Raised when the model endpoint cannot provide a usable response."""
 
@@ -21,8 +24,13 @@ class NemotronClient(Protocol):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
     ) -> ModelTurn:
-        """Return one validated assistant turn."""
+        """Return one validated assistant turn.
+
+        response_format, when given, is passed to the server so constrained
+        decoding enforces the shape of the reply (used for the final decision).
+        """
 
 
 @dataclass(frozen=True)
@@ -51,19 +59,38 @@ class VLLMNemotronClient:
     def __init__(self, config: VLLMClientConfig) -> None:
         self.config = config
 
+    def build_payload(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "model": self.config.model,
+            "messages": messages,
+            "temperature": 0,
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        if response_format is not None:
+            payload["response_format"] = response_format
+            # A schema permits arbitrarily long arrays and strings; without a cap,
+            # constrained decoding was seen running to the timeout. A decision
+            # is a few hundred tokens.
+            payload["max_tokens"] = FORMATTED_MAX_TOKENS
+            # The formatted turn restates a decision already made; reasoning
+            # tokens there only consume the cap.
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
+        return payload
+
     def complete(
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
     ) -> ModelTurn:
-        payload = {
-            "model": self.config.model,
-            "messages": messages,
-            "tools": tools,
-            "tool_choice": "auto",
-            "temperature": 0,
-        }
-        body = json.dumps(payload).encode("utf-8")
+        body = json.dumps(self.build_payload(messages, tools, response_format)).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
@@ -102,8 +129,10 @@ class ScriptedNemotronClient:
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
     ) -> ModelTurn:
-        self.requests.append({"messages": list(messages), "tools": list(tools)})
+        self.requests.append({"messages": list(messages), "tools": list(tools),
+                              "response_format": response_format})
         try:
             return next(self._turns)
         except StopIteration as exc:

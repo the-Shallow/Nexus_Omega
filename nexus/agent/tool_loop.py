@@ -11,6 +11,7 @@ from ..infrastructure.events import JsonlEventLog
 from ..infrastructure.nemotron import NemotronClient
 from ..tools.registry import ToolRegistry
 from .contracts import AgentDecision, ModelTurn
+from .decision_format import parse_decision
 
 
 SYSTEM_PROMPT = """You are the Nexus Omega diagnostic agent.
@@ -97,7 +98,10 @@ class ToolLoopController:
                         )
                     continue
 
-                decision = AgentDecision.from_json(turn.content or "")
+                decision = parse_decision(
+                    self.client, messages, turn,
+                    consume_step=self.budget.consume_step, log=self.event_log.append,
+                )
                 self.event_log.append("decision_validated", decision.to_dict())
                 self.event_log.append(
                     "run_completed",
