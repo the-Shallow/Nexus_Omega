@@ -1,0 +1,37 @@
+{
+  "certificate_id": "fixture-vllm-32926-prior",
+  "provenance": "fixture",
+  "fixture_note": "Illustrative seed certificate so incident memory has something to match. Not a recorded incident.",
+  "doctor": "tool",
+  "controller": "fixture",
+  "issued_at": "2026-09-28 03:14 (fixture)",
+  "incident": {
+    "title": "Silent tool-call failure",
+    "incident_class": "Tool-call correctness",
+    "candidate_id": "VLLM-32926",
+    "target": "staging replica"
+  },
+  "signature": [
+    "class:tool-call",
+    "http:200",
+    "health:ok",
+    "canary:fail",
+    "tool_calls:empty",
+    "errors:none",
+    "parser:hermes",
+    "config:recent_change",
+    "raw:call_shaped",
+    "contract:parser_template_mismatch"
+  ],
+  "diagnosis": {
+    "hypothesis": "parser_template_mismatch",
+    "summary": "Upgrade replaced the chat template; hermes parser no longer found <tool_call> tags"
+  },
+  "repair": {
+    "label": "Matched parser/template pair, rolling",
+    "rollback_token": null
+  },
+  "timeline": {},
+  "terminal_state": "VERIFIED",
+  "terminal_reason": "fixture"
+}

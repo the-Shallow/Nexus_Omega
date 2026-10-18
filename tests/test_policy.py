@@ -65,6 +65,15 @@ class RepairPolicyTests(unittest.TestCase):
         result = precheck.prepare(repair_plan(), known_evidence={"ev-001", "ev-002"}, hypothesis_evidence={"runtime-contract": {"ev-001", "ev-002"}})
         self.assertEqual(result.policy.status, "REQUIRES_APPROVAL")
         self.assertEqual(provider.reads, [])
+        approved = precheck.prepare(
+            repair_plan(),
+            known_evidence={"ev-001", "ev-002"},
+            hypothesis_evidence={"runtime-contract": {"ev-001", "ev-002"}},
+            operator_approved=True,
+        )
+        self.assertEqual(approved.policy.status, "APPROVED")
+        self.assertIsNotNone(approved.approval)
+        self.assertEqual(provider.reads, [("target-a", ["mode", "template"])])
 
     def test_undeclared_tool_target_and_parameters_are_rejected(self):
         shell = self.prepare(repair_plan(tool="shell", arguments={"command": "x"}))

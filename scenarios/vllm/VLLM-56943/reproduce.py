@@ -28,6 +28,8 @@ def observe():
         "reproduced": len(depths) == 4
         and all(same_instance)
         and all(later > earlier for earlier, later in zip(depths, depths[1:])),
+        "passed": len(depths) == 4 and not any(same_instance)
+        and max(depths) - min(depths) <= 1,
         "summary": "Repeated request errors grow a shared traceback.",
         "traceback_depths": depths,
         "same_exception_instance": same_instance,

@@ -46,11 +46,17 @@ def observe():
                 "tool_call_count": len(tool_calls),
             }
         )
+    passed = all(
+        item["observed_content"] == item["expected_content"]
+        and item["tool_call_count"] >= 1
+        for item in observations
+    )
     return {
         "reproduced": any(
             item["observed_content"] != item["expected_content"]
             for item in observations
         ),
+        "passed": passed,
         "summary": "Nonstreaming parsing loses content adjacent to tool calls.",
         "cases": observations,
     }

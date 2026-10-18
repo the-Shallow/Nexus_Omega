@@ -28,6 +28,7 @@ async def observe():
     except Exception as exc:
         return {
             "reproduced": isinstance(exc, AttributeError),
+            "passed": False,
             "summary": "Malformed tool arguments raised during retry handling.",
             "exception_type": type(exc).__name__,
             "exception_message": str(exc),
@@ -36,6 +37,12 @@ async def observe():
     retry = output[0] if output else None
     return {
         "reproduced": False,
+        "passed": bool(
+            retry
+            and getattr(retry, "call_id", None) == call.call_id
+            and "Error parsing tool arguments as JSON" in str(getattr(retry, "output", ""))
+            and session.call_tool.await_count == 0
+        ),
         "summary": "Retry handling returned an output item.",
         "retry_call_id": getattr(retry, "call_id", None),
         "retry_output": getattr(retry, "output", None),
