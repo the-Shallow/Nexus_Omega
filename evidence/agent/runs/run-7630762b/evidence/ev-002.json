@@ -1,0 +1,27 @@
+{
+  "content": {
+    "data": {
+      "between_workers": {},
+      "flags": {},
+      "observation_id": "config-diff-02b0db9d",
+      "probe_id": "config-diff",
+      "unavailable": {},
+      "versus_reviewed": {
+        "target-a": {
+          "differs_from_reviewed": {},
+          "matches_reviewed": true
+        },
+        "target-b": {
+          "differs_from_reviewed": {},
+          "matches_reviewed": true
+        }
+      }
+    },
+    "observed_at": "2026-10-18T08:20:14+00:00",
+    "resource_id": null
+  },
+  "evidence_id": "ev-002",
+  "source": "probe:config-diff:config-diff-02b0db9d",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

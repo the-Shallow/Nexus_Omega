@@ -167,11 +167,11 @@ Next fix (not run: it would mean rerunning v1 and v2 after the deadline for this
 
 | Fault | Temperature 0 | Temperature 0.6 |
 |---|---|---|
-| noop | 3/3 | 0/0 |
-| compound-latb-32926a | 2/3 | 1/2 |
+| noop | 3/3 | 3/3 |
+| compound-latb-32926a | 2/3 | 1/3 |
 | capacity-b | 1/3 | 3/3 |
 | vllm-32926 | 3/3 | 2/3 |
-| **Total** | **9/12** | **6/8** |
+| **Total** | **9/12** | **9/12** |
 
 Same total, different spread: 0.6 fixed capacity-b every time (its labels stayed "misconfigured") but did worse on compound and once abstained on 32926. With 3 runs per cell this is within noise; temperature 0 stays the default for repeatability. 0 false VERIFIED at either setting.
 
