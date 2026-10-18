@@ -1,0 +1,33 @@
+{
+  "content": {
+    "available_fields": [
+      "container",
+      "ready",
+      "drained",
+      "weight",
+      "active_requests",
+      "queued_requests",
+      "port",
+      "container_state"
+    ],
+    "resource_id": "target-a",
+    "state": {
+      "container_state": "running"
+    },
+    "unavailable_fields": [
+      "error_rate",
+      "median_s",
+      "p95_s",
+      "requests",
+      "queue_waiting",
+      "kv_cache_usage",
+      "route_error_rate",
+      "route_latency_avg_s",
+      "ttft_p95_s"
+    ]
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

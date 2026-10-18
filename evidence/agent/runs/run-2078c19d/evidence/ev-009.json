@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "ttft_p95_s",
+    "note": "window limited to the current incident (198s)",
+    "resource_id": "target-a",
+    "unit": "seconds",
+    "value": 0.0198,
+    "window": "10m",
+    "window_applied": "198s"
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-a:metric:ttft_p95_s",
+  "source_type": "metric",
+  "trust": "trusted"
+}

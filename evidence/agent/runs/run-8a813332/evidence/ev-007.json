@@ -1,0 +1,30 @@
+{
+  "content": {
+    "available_fields": [
+      "container",
+      "ready",
+      "drained",
+      "weight",
+      "active_requests",
+      "queued_requests",
+      "port",
+      "container_state"
+    ],
+    "resource_id": "target-a",
+    "state": {
+      "container_state": "running"
+    },
+    "unavailable_fields": [
+      "tool_call_parser",
+      "chat_template",
+      "enable_auto_tool_choice",
+      "tool_parser_plugin",
+      "model",
+      "model_revision"
+    ]
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

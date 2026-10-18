@@ -1,0 +1,20 @@
+{
+  "content": {
+    "available_fields": null,
+    "resource_id": "target-a",
+    "state": {
+      "active_requests": 0,
+      "container_state": "running",
+      "drained": false,
+      "port": 8101,
+      "queued_requests": 0,
+      "ready": true,
+      "weight": 1.0
+    },
+    "unavailable_fields": []
+  },
+  "evidence_id": "ev-008",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

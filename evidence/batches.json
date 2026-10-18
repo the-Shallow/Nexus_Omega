@@ -1,0 +1,12 @@
+[
+  {"id": "rules-known", "label": "Rule baseline, known faults", "solver": "rules", "heldout": false,
+   "from": "2026-10-17T22:44:00+00:00", "to": "2026-10-17T22:57:00+00:00"},
+  {"id": "agent-tuning-32926", "label": "Nemotron tuning runs on VLLM-32926 (before the final setup)", "solver": "agent", "heldout": false,
+   "from": "2026-10-18T01:20:00+00:00", "to": "2026-10-18T02:05:00+00:00"},
+  {"id": "agent-final-32926", "label": "Nemotron final setup on VLLM-32926", "solver": "agent", "heldout": false,
+   "from": "2026-10-18T02:05:00+00:00", "to": "2026-10-18T02:20:00+00:00"},
+  {"id": "agent-batch1", "label": "Nemotron Batch 1, known faults (before fixes)", "solver": "agent", "heldout": false,
+   "from": "2026-10-18T02:48:00+00:00", "to": "2026-10-18T03:11:00+00:00"},
+  {"id": "rules-heldout", "label": "Rule baseline, Batch 2 held-out faults", "solver": "rules", "heldout": true,
+   "from": "2026-10-18T03:29:00+00:00", "to": "2026-10-18T04:02:00+00:00"}
+]

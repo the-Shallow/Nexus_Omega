@@ -31,7 +31,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 |---|---|---|---|---|---|---|---|
 | Rule baseline | Batch 2 (2026-10-18 03:29–04:01 UTC) | 0/3 (20 s) | 0/3 (56 s) | 0/3 (2 s) | 3/3 (2 s) | **3/12** | 0 |
 | Nemotron | Batch 2 round 1 only, **contaminated** (stale metrics; see below) | 0/1 | 0/1 (scored 1/1 by the old referee) | 0/1 (crash) | 0/1 [1] | 0/4 | 1 |
-| Nemotron | Batch 2 rerun, incident-scoped evidence + stricter referee | running | | | | | |
+| Nemotron | Batch 2 rerun, before design changes (incident-scoped evidence, stricter referee; 04:21–05:08 UTC) | 0/3 (130 s) | 0/3 (112 s) | 1/3 (19 s) | 1/3 [1] (50 s) | **2/12** | 1 |
 
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
@@ -111,6 +111,15 @@ The rules fail safe (no false claims, no harmful action that the executor let th
 | capacity-b | `run-914bc452` | ✅ by the old referee, ❌ in truth | Drained b, calling it a network-proxy fault. The old referee's "root fixed" was only the hidden canary, which a one-sequence worker still passes (correctly, slowly); draining hid the fault without fixing it |
 | tools-stripped-a | `run-1615f8c8` | ❌ ABSTAIN (crash) | ContractError: "PLAN requires evidence for the leading hypothesis" |
 | noop | `run-036cb2f3` | ❌ false VERIFIED | Summary: "Both targets are healthy … No abnormalities detected", then proposed restart-worker on a anyway |
+
+**Nemotron rerun ×3 (clean evidence, stricter referee): 2/12, 1 false VERIFIED.** This is the held-out v1 "before" for the design changes. Records `../heldout/agent-v1-before.json`, trails in `runs/`.
+
+| Fault | Rounds (action:target per solver round) | Pattern |
+|---|---|---|
+| compound-latb-32926a | `apply:b → apply:a`, `apply:b → apply:b`, `apply:b → apply:a` | Always repaired **b** first (wrong worker; its config was the healthy one), which the executor's route check then drained; by round 2 a could no longer be repaired without an outage |
+| capacity-b | drain b, restart b, ABSTAIN | Never found the concurrency cap; called the configurations identical |
+| tools-stripped-a | crash, crash, ✅ apply:a VERIFIED | Two "PLAN requires evidence for the leading hypothesis" crashes, then a clean fix |
+| noop | restart b (false VERIFIED), ✅ ABSTAIN, drain b | Acted on a healthy fleet in 2 of 3 runs |
 
 **Why the batch was stopped: two harness faults, not agent faults.**
 1. *Stale evidence across episodes.* During the compound fault the agent queried a 10-minute metric window and got b's TTFT p95 4.8 s and queue 4. A link toxic cannot produce either (it delays the proxy, not vLLM). They came from the previous episode, the rules' capacity-b run. The agent partly reasoned from another incident's data, while the rules, which never read Prometheus, were unaffected. Fix: the episode runner marks the incident start after each reset, and the environment API clamps metric windows and log `since` to it, saying so in a note (`nexus/harness/incident.py`).

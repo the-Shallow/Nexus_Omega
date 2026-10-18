@@ -1,0 +1,209 @@
+{
+  "content": {
+    "actions": [
+      {
+        "allowed_targets": [
+          "target-a",
+          "target-b"
+        ],
+        "automatic": true,
+        "before_state_keys": [
+          "tool_call_parser",
+          "chat_template",
+          "enable_auto_tool_choice",
+          "tool_parser_plugin"
+        ],
+        "description": "Restart a worker with a reviewed serving profile (parser and chat template pair).",
+        "id": "apply-serving-profile",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "profile": {
+              "enum": [
+                "qwen25-coder-7b.tools-template"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "profile"
+          ],
+          "type": "object"
+        },
+        "requires_rollback": true
+      },
+      {
+        "allowed_targets": [
+          "target-a",
+          "target-b"
+        ],
+        "automatic": true,
+        "before_state_keys": [
+          "container_state",
+          "tool_call_parser"
+        ],
+        "description": "Stop routing new traffic to a worker. Refused if no other worker is serving.",
+        "id": "drain-worker",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "requires_rollback": true
+      },
+      {
+        "allowed_targets": [
+          "target-a",
+          "target-b"
+        ],
+        "automatic": true,
+        "before_state_keys": [
+          "container_state",
+          "tool_call_parser"
+        ],
+        "description": "Relaunch a worker with its current profile (for a crashed or hung worker).",
+        "id": "restart-worker",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "requires_rollback": true
+      },
+      {
+        "allowed_targets": [
+          "target-a",
+          "target-b"
+        ],
+        "automatic": false,
+        "before_state_keys": [
+          "container_state"
+        ],
+        "description": "Return a drained worker to rotation.",
+        "id": "undrain-worker",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "requires_rollback": true
+      }
+    ],
+    "artifact_sections": [
+      "structured_response",
+      "request_trace",
+      "raw_generation"
+    ],
+    "description": "Two vLLM workers serving Qwen2.5-Coder-7B behind HAProxy on one H100. target-b is reached through a network proxy that can be impaired.",
+    "id": "nexus-brev-fleet",
+    "probes": [
+      {
+        "description": "Send one visible request that should produce a structured tool call, directly to one worker. Returns an artifact_id for its trace and raw generation.",
+        "id": "tool-call-visible",
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "case": {
+              "enum": [
+                "visible_tool_call"
+              ],
+              "type": "string"
+            },
+            "resource_id": {
+              "enum": [
+                "target-a",
+                "target-b"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "case",
+            "resource_id"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Send small requests through the HAProxy entry point and report p95 latency and error rate per worker, as users see them.",
+        "id": "route-probe",
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "requests": {
+              "maximum": 30,
+              "minimum": 5,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "requests"
+          ],
+          "type": "object"
+        }
+      }
+    ],
+    "resources": [
+      {
+        "configuration_keys": [
+          "tool_call_parser",
+          "chat_template",
+          "enable_auto_tool_choice",
+          "tool_parser_plugin",
+          "reasoning_parser",
+          "model",
+          "model_revision",
+          "image_digest",
+          "container_state",
+          "max_num_seqs",
+          "gpu_memory_utilization",
+          "max_model_len"
+        ],
+        "description": "vLLM worker a behind the HAProxy entry point.",
+        "id": "target-a",
+        "kind": "inference-service",
+        "metrics": [
+          "ttft_p95_s",
+          "queue_waiting",
+          "kv_cache_usage",
+          "route_latency_avg_s",
+          "route_error_rate"
+        ]
+      },
+      {
+        "configuration_keys": [
+          "tool_call_parser",
+          "chat_template",
+          "enable_auto_tool_choice",
+          "tool_parser_plugin",
+          "reasoning_parser",
+          "model",
+          "model_revision",
+          "image_digest",
+          "container_state",
+          "max_num_seqs",
+          "gpu_memory_utilization",
+          "max_model_len"
+        ],
+        "description": "vLLM worker b behind the HAProxy entry point.",
+        "id": "target-b",
+        "kind": "inference-service",
+        "metrics": [
+          "ttft_p95_s",
+          "queue_waiting",
+          "kv_cache_usage",
+          "route_latency_avg_s",
+          "route_error_rate"
+        ]
+      }
+    ],
+    "verifiers": [
+      "tool-call-hidden",
+      "route-probe"
+    ]
+  },
+  "evidence_id": "ev-004",
+  "source": "environment:nexus-brev-fleet",
+  "source_type": "environment_manifest",
+  "trust": "trusted"
+}

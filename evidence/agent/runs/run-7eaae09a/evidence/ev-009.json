@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "ttft_p95_s",
+    "note": "no samples in window (no traffic or not scraping); window limited to the current incident (85s)",
+    "resource_id": "target-a",
+    "unit": "seconds",
+    "value": null,
+    "window": "10m",
+    "window_applied": "85s"
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-a:metric:ttft_p95_s",
+  "source_type": "metric",
+  "trust": "trusted"
+}

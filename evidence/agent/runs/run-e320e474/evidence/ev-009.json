@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "kv_cache_usage",
+    "note": "window limited to the current incident (195s)",
+    "resource_id": "target-a",
+    "unit": "fraction",
+    "value": 0.0051,
+    "window": "10m",
+    "window_applied": "195s"
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-a:metric:kv_cache_usage",
+  "source_type": "metric",
+  "trust": "trusted"
+}
