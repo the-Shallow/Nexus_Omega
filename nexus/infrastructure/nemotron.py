@@ -59,10 +59,11 @@ class VLLMNemotronClient:
         payload = {
             "model": self.config.model,
             "messages": messages,
-            "tools": tools,
-            "tool_choice": "auto",
             "temperature": 0,
         }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.config.api_key:

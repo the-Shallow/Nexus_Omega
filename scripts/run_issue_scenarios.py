@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import traceback
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,7 +19,8 @@ from nexus.agent.policy import RepairPolicy, RepairPrecheck
 from nexus.app import _result_payload
 from nexus.evaluation.catalog import IssueCandidateCatalog
 from nexus.evaluation.scenario import ScenarioDefinition
-from nexus.evaluation.verification import verify_diagnosis
+from nexus.evaluation.source_repair import IsolatedSourceExecutor, SourcePatchPlanner
+from nexus.evaluation.verification import verify_diagnosis, verify_repair_reproduction
 from nexus.infrastructure.events import JsonlEventLog
 from nexus.infrastructure.local_workspace import LocalWorkspaceProvider
 from nexus.infrastructure.nemotron import VLLMClientConfig, VLLMNemotronClient
@@ -35,7 +37,19 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def run_scenario(candidate_id: str, repository: Path, artifact_root: Path) -> bool:
+def _print_status(message: str, *, error: bool = False) -> None:
+    stream = sys.stderr if error else sys.stdout
+    encoding = stream.encoding or "utf-8"
+    print(message.encode(encoding, errors="backslashreplace").decode(encoding), file=stream)
+
+
+def run_scenario(
+    candidate_id: str,
+    repository: Path,
+    artifact_root: Path,
+    *,
+    execute_repair: bool = False,
+) -> bool:
     candidate = IssueCandidateCatalog.from_csv(
         ROOT / "data" / "issue-candidates.csv"
     ).get(candidate_id)
@@ -68,7 +82,7 @@ def run_scenario(candidate_id: str, repository: Path, artifact_root: Path) -> bo
                 run_root / "verification.json",
                 {"passed": False, "reason": "pinned reproduction did not complete and reproduce"},
             )
-            print(f"{candidate_id}: reproduction unavailable; see {run_root}")
+            _print_status(f"{candidate_id}: reproduction unavailable; see {run_root}")
             return False
         now = datetime.now(timezone.utc).isoformat()
         diagnostic_input = DiagnosticInput.from_dict(
@@ -92,17 +106,23 @@ def run_scenario(candidate_id: str, repository: Path, artifact_root: Path) -> bo
             }
         )
         _write_json(run_root / "diagnostic-input.json", diagnostic_input.to_dict())
+        client = VLLMNemotronClient(VLLMClientConfig.from_env())
+        ledger = EvidenceLedger(run_root)
+        event_log = JsonlEventLog(run_root / "events.jsonl", run_id)
+        precheck = RepairPrecheck(RepairPolicy(scenario.environment), provider)
         controller = AgentController(
             run_id=run_id,
-            client=VLLMNemotronClient(VLLMClientConfig.from_env()),
+            client=client,
             tools=EnvironmentTools(
                 provider,
                 scenario.environment,
-                BoundedRepository(run_root / "workspace", allowed_roots=scenario.allowed_roots),
+                repository=BoundedRepository(
+                    run_root / "workspace", allowed_roots=scenario.allowed_roots
+                ),
             ),
-            evidence=EvidenceLedger(run_root),
-            event_log=JsonlEventLog(run_root / "events.jsonl", run_id),
-            repair_precheck=RepairPrecheck(RepairPolicy(scenario.environment), provider),
+            evidence=ledger,
+            event_log=event_log,
+            repair_precheck=precheck,
             run_budget=RunBudget(
                 max_steps=12,
                 max_tool_calls=15,
@@ -114,14 +134,101 @@ def run_scenario(candidate_id: str, repository: Path, artifact_root: Path) -> bo
         _write_json(run_root / "result.json", _result_payload(result))
         report = verify_diagnosis(scenario, reproduction, result)
         _write_json(run_root / "verification.json", report.to_dict())
-        print(f"{candidate_id}: {result.state}, verification={'PASS' if report.passed else 'FAIL'}; {run_root}")
-        return report.passed
+        if not report.passed or not execute_repair:
+            _print_status(f"{candidate_id}: {result.state}, diagnosis={'PASS' if report.passed else 'FAIL'}; {run_root}")
+            return report.passed
+
+        plan = result.decision.repair_plan
+        assert plan is not None
+        proposed_files = plan.action.arguments["parameters"]["files"]
+        allowed_files = tuple(
+            path for path in proposed_files if path in scenario.expectation.expected_paths
+        )
+        proposal = SourcePatchPlanner(client, ledger).propose(result, allowed_files)
+        _write_json(run_root / "patch-proposal.json", proposal.to_dict())
+        event_log.append("source_patch_proposed", proposal.to_dict())
+        approval_result = precheck.prepare(
+            plan,
+            known_evidence={record.evidence_id for record in result.evidence},
+            hypothesis_evidence={
+                hypothesis.hypothesis_id: set(hypothesis.supports)
+                for hypothesis in result.decision.hypotheses
+            },
+            operator_approved=True,
+        )
+        if approval_result.policy.status != "APPROVED" or approval_result.approval is None:
+            raise RuntimeError("source repair was not approved by the policy precheck")
+        _write_json(run_root / "repair-approval.json", approval_result.to_dict())
+        executor = IsolatedSourceExecutor(run_root / "workspace", scenario.allowed_roots)
+        try:
+            diff = executor.apply(proposal, revision)
+            (run_root / "patch.diff").write_text(diff, encoding="utf-8")
+            event_log.append(
+                "source_change_applied",
+                {
+                    "change_id": approval_result.approval.change_id,
+                    "modified_hashes": executor.modified_hashes(),
+                },
+            )
+            post_reproduction = provider.run_probe("reproduce", {})
+            _write_json(run_root / "post-repair-reproduction.json", post_reproduction)
+            recovery_verification = verify_repair_reproduction(
+                reproduction, post_reproduction
+            )
+            _write_json(
+                run_root / "post-repair-verification.json",
+                recovery_verification.to_dict(),
+            )
+            recovered = recovery_verification.passed
+            event_log.append("post_change_probe", post_reproduction)
+            if recovered:
+                precheck.mark_verified(approval_result.approval.change_id)
+                recovery = {
+                    "state": "VERIFIED",
+                    "passed": True,
+                    "change_id": approval_result.approval.change_id,
+                    "rollback_token": approval_result.approval.rollback_token,
+                    "before_revision": revision,
+                    "modified_hashes": executor.modified_hashes(),
+                    "baseline_artifact_id": reproduction["artifact_id"],
+                    "post_change_artifact_id": post_reproduction["artifact_id"],
+                }
+            else:
+                executor.rollback()
+                rollback_probe = provider.run_probe("reproduce", {})
+                _write_json(run_root / "rollback-reproduction.json", rollback_probe)
+                recovery = {
+                    "state": "ROLLED_BACK",
+                    "passed": False,
+                    "change_id": approval_result.approval.change_id,
+                    "rollback_token": approval_result.approval.rollback_token,
+                    "before_revision": revision,
+                    "post_change_artifact_id": post_reproduction["artifact_id"],
+                    "rollback_artifact_id": rollback_probe["artifact_id"],
+                    "rollback_reproduced": rollback_probe.get("reproduced") is True,
+                }
+            _write_json(run_root / "recovery.json", recovery)
+            event_log.append("repair_run_completed", recovery)
+            _print_status(f"{candidate_id}: {recovery['state']}; {run_root}")
+            return recovered
+        except Exception:
+            if executor.modified_hashes():
+                executor.rollback()
+                event_log.append("source_change_rolled_back", {"reason": "verification error"})
+            raise
     except Exception as exc:
         _write_json(
             run_root / "error.json",
-            {"error_type": type(exc).__name__, "message": str(exc)},
+            {
+                "error_type": type(exc).__name__,
+                "message": str(exc),
+                "traceback": traceback.format_exc(),
+            },
         )
-        print(f"{candidate_id}: ERROR ({type(exc).__name__}: {exc}); {run_root}", file=sys.stderr)
+        _print_status(
+            f"{candidate_id}: ERROR ({type(exc).__name__}: {exc}); {run_root}",
+            error=True,
+        )
         return False
 
 
@@ -130,9 +237,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--vllm-repo", type=Path, required=True)
     parser.add_argument("--candidate", choices=DEFAULT_CANDIDATES, action="append")
     parser.add_argument("--artifact-dir", type=Path, default=ROOT / "artifacts" / "issue-scenarios")
+    parser.add_argument(
+        "--execute-repair",
+        action="store_true",
+        help="Approve and test a model-proposed source edit in the isolated worktree",
+    )
     args = parser.parse_args(argv)
     selected = args.candidate or list(DEFAULT_CANDIDATES)
-    results = [run_scenario(candidate, args.vllm_repo, args.artifact_dir) for candidate in selected]
+    results = [
+        run_scenario(
+            candidate,
+            args.vllm_repo,
+            args.artifact_dir,
+            execute_repair=args.execute_repair,
+        )
+        for candidate in selected
+    ]
     return 0 if all(results) else 1
 
 

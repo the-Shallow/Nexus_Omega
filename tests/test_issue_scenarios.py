@@ -13,7 +13,7 @@ from nexus.evaluation.scenario import (
     ProbeCommand,
     ScenarioDefinition,
 )
-from nexus.evaluation.verification import verify_diagnosis
+from nexus.evaluation.verification import verify_diagnosis, verify_repair_reproduction
 from nexus.infrastructure.local_workspace import LocalWorkspaceProvider
 from nexus.infrastructure.worktrees import create_isolated_worktree
 from nexus.tools.manifest import EnvironmentManifest
@@ -23,6 +23,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IssueScenarioTests(unittest.TestCase):
+    def test_post_change_verifier_requires_explicit_probe_success(self):
+        baseline = {"reproduced": True, "exit_code": 0, "artifact_id": "before"}
+        post = {
+            "reproduced": False,
+            "passed": True,
+            "exit_code": 0,
+            "timed_out": False,
+            "artifact_id": "after",
+        }
+        self.assertTrue(verify_repair_reproduction(baseline, post).passed)
+        post["passed"] = False
+        report = verify_repair_reproduction(baseline, post)
+        self.assertFalse(report.passed)
+        self.assertFalse(report.checks["regression_contract_passed"])
+
     def test_three_scenarios_match_real_catalog_entries(self):
         catalog = IssueCandidateCatalog.from_csv(ROOT / "data" / "issue-candidates.csv")
         for candidate_id in ("VLLM-55530", "VLLM-59218", "VLLM-56943"):

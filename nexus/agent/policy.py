@@ -63,7 +63,9 @@ class RepairPolicy:
     def __init__(self, manifest: EnvironmentManifest) -> None:
         self.manifest = manifest
 
-    def evaluate(self, plan: RepairPlan) -> PolicyDecision:
+    def evaluate(
+        self, plan: RepairPlan, *, operator_approved: bool = False
+    ) -> PolicyDecision:
         action = plan.action
         if action.tool != self.ACTION_TOOL:
             return PolicyDecision("REJECTED", f"repair tool is not allow-listed: {action.tool}")
@@ -92,14 +94,12 @@ class RepairPolicy:
             validate_schema(parameters, declared.parameters, "action parameters")
         except ContractError as exc:
             return PolicyDecision("REJECTED", str(exc))
-        if not declared.automatic:
+        if not declared.automatic and not operator_approved:
             return PolicyDecision(
                 "REQUIRES_APPROVAL",
                 f"declared action requires operator approval: {action_id}",
             )
-        return PolicyDecision(
-            "APPROVED", f"declared automatic action {action_id} may target {target}"
-        )
+        return PolicyDecision("APPROVED", f"declared action {action_id} may target {target}")
 
 
 class RepairPrecheck:
@@ -127,6 +127,7 @@ class RepairPrecheck:
         *,
         known_evidence: set[str],
         hypothesis_evidence: dict[str, set[str]],
+        operator_approved: bool = False,
     ) -> PrecheckResult:
         unknown = set(plan.evidence) - known_evidence
         if unknown:
@@ -146,7 +147,7 @@ class RepairPrecheck:
                     "REJECTED", "a repair is already awaiting execution or verification"
                 )
             )
-        decision = self.policy.evaluate(plan)
+        decision = self.policy.evaluate(plan, operator_approved=operator_approved)
         if decision.status != "APPROVED":
             return PrecheckResult(decision)
 

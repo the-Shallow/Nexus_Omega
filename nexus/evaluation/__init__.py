@@ -2,7 +2,7 @@
 
 from .catalog import IssueCandidate, IssueCandidateCatalog
 from .scenario import ScenarioDefinition
-from .verification import VerificationReport, verify_diagnosis
+from .verification import VerificationReport, verify_diagnosis, verify_repair_reproduction
 
 __all__ = [
     "IssueCandidate",
@@ -10,4 +10,5 @@ __all__ = [
     "ScenarioDefinition",
     "VerificationReport",
     "verify_diagnosis",
+    "verify_repair_reproduction",
 ]
