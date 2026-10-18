@@ -1,0 +1,16 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "tool_call_parser": "qwen2_5_coder",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py"
+    },
+    "resource_id": "target-b",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-011",
+  "source": "resource:target-b:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

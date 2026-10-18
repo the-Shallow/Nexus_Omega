@@ -32,6 +32,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 | Rule baseline | Batch 2 (2026-10-18 03:29–04:01 UTC) | 0/3 (20 s) | 0/3 (56 s) | 0/3 (2 s) | 3/3 (2 s) | **3/12** | 0 |
 | Nemotron | Batch 2 round 1 only, **contaminated** (stale metrics; see below) | 0/1 | 0/1 (scored 1/1 by the old referee) | 0/1 (crash) | 0/1 [1] | 0/4 | 1 |
 | Nemotron | Batch 2 rerun, before design changes (incident-scoped evidence, stricter referee; 04:21–05:08 UTC) | 0/3 (130 s) | 0/3 (112 s) | 1/3 (19 s) | 1/3 [1] (50 s) | **2/12** | 1 |
+| Nemotron | **after design changes** (structured build 4, `db9836c`; 07:32–08:03 UTC) | 2/3 (152 s) | 1/3 (105 s) | 3/3 (92 s) | 3/3 (7 s) | **9/12** | 0 |
 
 **Held-out v2** (written before the design changes, `60bdd15`; two are label swaps of known faults)
 
@@ -147,6 +148,17 @@ After held-out v1, the end of the run was redesigned following `docs/research/ag
 | 4 | `db9836c` | Each flagged or non-healthy resource is **labelled again from its own finding in a short, separate context** | **v2: 12/12, 0 false VERIFIED** | see matrix |
 
 The pattern behind builds 2–4: Lightning's written findings were consistently right; the labels it chose at the end of a long structured answer were not. Moving the labelling into a short, focused context fixed it. Held-out caveat: v2 was frozen before any of this (`60bdd15`), but builds 2–3 ran on half of it, so build 4's v2 score is not fully blind; each fix is a general rule (compare with the reviewed config, hold labels to flagged evidence, label in a short context), none mentions a specific fault.
+
+**Build 4 on held-out v1: 9/12, 0 false VERIFIED** (old agent 2/12, rules 3/12). Records `../heldout/agent-v1-after.json`.
+
+| Fault | Result | Notes |
+|---|---|---|
+| compound-latb-32926a | 2/3 | Rounds 1 and 3 repaired a, then drained b: the right order, which neither the rules nor the old agent ever found. Round 2 drained b first despite the menu note "do this after repairing target-a", then a could not be repaired |
+| capacity-b | 1/3 | Round 3 applied the reviewed profile to b (VERIFIED), the first correct fix of this fault by any solver. In rounds 1–2 the draft assessment was right ("misconfigured … max_num_seqs 1 vs default … bottleneck on the worker itself"), but build 4's short relabel call changed it to *overloaded*, for which only a drain is offered |
+| tools-stripped-a | 3/3 | Old agent: 1/3 with two crashes |
+| noop | 3/3 | "No fault found" in 7–13 s; the old agent acted on a healthy fleet in 2 of 3 runs |
+
+Next fix (not run: it would mean rerunning v1 and v2 after the deadline for this batch): relabel only when the draft contradicts the evidence (healthy despite flags, or class none/unknown), never override a specific valid fault class.
 
 ## How it got there: every attempt
 

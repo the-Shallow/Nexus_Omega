@@ -1,0 +1,16 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "reasoning_parser": null
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-008",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}
