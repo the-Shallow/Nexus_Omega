@@ -63,7 +63,7 @@ About 57 GB of the 97 GB is used, and most of it is not ours:
 - **~14 GB** of OS, CUDA and drivers in `/usr`, plus a few GB in `/opt` and Brev's monitoring.
 - **~5 GB of system logs.** Brev's `grafana-agent` logs at debug level and writes about 3 MB a minute. The journal is already at its 4 GB cap and syslog rotates daily, so this should level off around 13 GB at most.
 
-So it's fine for now, with ~41 GB free. Pulling another large image (a second vLLM version, a Red Hat build) will eat into that. If space gets tight:
+So it's fine for now, with ~41 GB free. Pulling another large image (for example a second vLLM version) will eat into that. If space gets tight:
 
 ```bash
 sudo journalctl --vacuum-size=200M     # frees ~4 GB, no downtime

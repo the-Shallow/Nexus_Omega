@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Record the host environment required by data/failure-category-candidates.md.
+# Record the host environment (GPU, driver, Docker, CUDA) before bring-up.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p artifacts/env

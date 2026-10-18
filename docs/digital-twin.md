@@ -11,7 +11,7 @@ npm run dev                # http://127.0.0.1:5173, hot reload, proxies the twin
 npm run build              # writes apps/web/dist, which the twin server serves at /
 ```
 
-`/` serves the React platform when `apps/web/dist` exists; the previous light-mode views stay at `/classic`.
+`/platform.html` serves the React platform when `apps/web/dist` exists (`/` is the story landing page); the previous light-mode views stay at `/classic`.
 
 ## Doctors
 
@@ -20,9 +20,9 @@ npm run build              # writes apps/web/dist, which the twin server serves 
 - **Tool-Calling Doctor** engages when a replica fails the functional canary while it is healthy, serving tokens and fast. It reads the serving config, change history, raw generation and parser logs; retries a stale trace id; matches past certificates; rejects single-sided repairs by policy; and patches the parser and chat template together.
 - **Infrastructure Doctor** engages on every other alarm (SLO breach, stalled replica, XID, CRAH, UPS). It localizes from `list_workers` and `inspect_facility` output only, never from the injected fault. Facility and hardware causes end `REQUIRES_APPROVAL`.
 
-**The reasoning is a deterministic rule-based stand-in for Nemotron** (every run and certificate says so) so the loop, UI and certificates can be exercised before the agent is connected. Tool calls, actions and verification act on the twin for real. Replacing the stand-in means swapping the hypothesis and plan steps for Nemotron turns under the Checkpoint 0 contract.
+**The reasoning here is a deterministic rule-based stand-in** (every run and certificate says so). It drives only the simulated scene; tool calls, actions and verification act on the twin. The real agent on the Brev fleet is Nemotron 3.5 Lightning (`nexus/agent/`, `nexus/harness/agent_run.py`), and its runs are episode records and event trails in `evidence/`, not certificates.
 
-Each terminal run writes a certificate to `artifacts/certificates/` (git-ignored). Certificates are matched by signature (Jaccard over symptom tokens; Nemotron Embed can replace it). `nexus/certificate/seed/` holds one labelled fixture so incident memory has a prior to match.
+Each terminal run writes a certificate to `artifacts/certificates/` (git-ignored). Certificates are matched by signature (Jaccard over symptom tokens). `nexus/certificate/seed/` holds one labelled fixture so incident memory has a prior to match.
 
 ## Platform UI (`apps/web`)
 
@@ -39,7 +39,7 @@ One dark, single-page view (React, TypeScript, Tailwind, Framer Motion, a WebSoc
 
 The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor. A recovery shows as verified only when the certificate says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
 
-Data modes: **SIMULATED** is the SimPy twin. **LIVE** (`/ws?source=live`) reads the Brev fleet's gateway, Prometheus and operator app when they are tunnelled (web/README.md). **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
+Data modes: **SIMULATED** is the SimPy twin. **LIVE** is not connected to this view (the header says so); the real fleet is shown on the story page (Break it live and recorded replays), and the UI server's `/ws?source=live` feed reads the tunnelled gateway, Prometheus and operator app (web/README.md). **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
 
 ## What is modeled
 
@@ -57,7 +57,7 @@ Topology and parameters live in `nexus/simulator/profiles/pod-h100.json`: 2 rows
 
 ## Faults
 
-Each chaos card links to its row in `data/infra_candidate_csv.csv` (the infrastructure taxonomy; `issue-candidates.csv` is the agent benchmark shortlist). The badge tells the viewer whether a real episode exists on the live target (REAL EPISODE / HYBRID) or the category is simulation-only (SIM-ONLY). Everything inside the twin itself is simulated, and the header says so.
+Each chaos card links to its row in `data/infra_candidate_csv.csv` (the infrastructure taxonomy; `issue-candidates.csv` is the agent benchmark shortlist). The badge shows the execution mode planned for that category in the CSV (REAL EPISODE / HYBRID / SIM-ONLY); it is not a record of a run. The faults actually run on the fleet are the 12 in `nexus/eval/episode.py`, with every episode in `evidence/`. Everything inside the twin itself is simulated, and the header says so.
 
 | Fault | Candidate | Expected best fix (from preview) |
 |---|---|---|
@@ -88,11 +88,10 @@ Software agents never "fix" cooling, power or hardware. Those clear only through
 | `POST /api/doctors/runs/{id}/approve {choice}` | Authorize a candidate (`recommended` or an id) or `reject` |
 | `GET /api/certificates` · `GET /api/certificates/{id}[?download=1]` · `GET /api/certificates/{id}/summary` | Certificate list, JSON, and the notification and morning-summary renderings |
 
-## Recording the demo video
+## Controls (platform page)
 
 - Keys: `B` break the system (then `1–9` to pick a failure), `space` play/pause, `O` overview camera, `Esc` close overlays. Reset is in the `⋯` menu.
 - The camera flies to each new fault, stays out of the way of the panels, and returns home after a verified repair. The hall orbits slowly when nothing is happening.
 - The header clock shows twin time as time of day (t = 0 is 01:47:00) for the 2 AM story. Use 4× for the tool-call run (about 2.5 simulated minutes), 10× for cooling incidents.
 - **Replay last incident** (menu or certificate) replays a recorded run for retakes, with its own speed control and a violet frame so it is never mistaken for live.
-- Suggested beats: silent tool-call failure on autopilot (callouts read `200 OK · tool_calls: []`, canary drops, dashboards never alert, proof) → CRAH trip with autopilot off (Authorize in the prompt, "service verified · facility needs a human", record field repair).
 - `window.nexus.twin.get()` exposes camera presets (`preset('top' | 'cold' | 'hot' | 'power' | 'network')`) for scripted shots.

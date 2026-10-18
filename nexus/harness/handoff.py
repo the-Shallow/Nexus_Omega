@@ -1,9 +1,9 @@
-"""Produce the E1 context-expansion handoff from the live fleet (E1.md sections 6-7).
+"""Produce the context-expansion handoff samples from the live fleet (evidence/brev-context-expansion/).
 
 Resets the target worker to its healthy profile, captures the visible canary,
 launch config, trace, raw generation and bounded logs; injects VLLM-32926 and
-captures the same; repeats; then restores the healthy profile. Output shapes
-follow E1.md. The other worker keeps serving throughout.
+captures the same; repeats; then restores the healthy profile. The other worker
+keeps serving throughout.
 
 Raw generation: vLLM does not expose a request's pre-parser text, so it is the
 identical rendered prompt replayed through /tokenize + /v1/completions at

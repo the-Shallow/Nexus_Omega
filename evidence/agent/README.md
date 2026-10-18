@@ -8,7 +8,7 @@ This is the record of putting Nemotron 3.5 Lightning in charge of the live Brev 
 |---|---|
 | Agent model | `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4` (≈30B total, ≈3B active per token), vLLM v0.27.1, 35% of one H100, `--max-num-seqs 64`, temperature 0 |
 | Agent runtime | E1's manifest-driven controller (`nexus/agent/controller.py`, `nexus/app.py`) plus the fixes listed below |
-| Environment | `apps/environment` (E1.md §3 API) over two Qwen2.5-Coder-7B workers behind HAProxy |
+| Environment | `apps/environment` (the manifest-driven environment API) over two Qwen2.5-Coder-7B workers behind HAProxy |
 | Trigger | A monitoring snapshot taken through the environment API: route probe through HAProxy, plus the visible tool-call canary on each worker. These are the same signals the rule baseline starts from. No hint about the fault. |
 | Actions | Declared in the manifest (`apply-serving-profile`, `drain-worker`, `restart-worker` automatic; `undrain-worker` needs approval). Policy and precheck in E1's runtime; applied by `nexus.harness.executor` (drain → change → hidden canary → undrain or roll back). |
 | Referee | `nexus.eval.episode`, independent of the agent: users served (route probe + hidden canary through HAProxy) and root cause fixed (hidden canary on the faulty worker). The agent never declares its own success. |

@@ -1,7 +1,8 @@
 """Read-only diagnostic tools backed by the digital twin.
 
-Each tool mirrors a tool from docs/agentic-requirements.md §7 so the same calls
-can later be pointed at the live target. Results are small, typed dicts.
+Tools for the SimPy twin's rule-based doctors (the platform page's simulated scene).
+The live agent's tools come from the environment manifest (apps/environment).
+Results are small, typed dicts.
 """
 
 from __future__ import annotations

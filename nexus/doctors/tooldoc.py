@@ -1,7 +1,7 @@
 """Tool-Calling Doctor: silent tool-call failures (incident class: Tool-call correctness).
 
-Follows docs/agentic-requirements.md §10: distinguish six causes, expand context
-through read-only tools, repair the parser/template pair together, verify on
+Twin-only (rule-based stand-in). Distinguishes six causes, expands context
+through read-only tools, repairs the parser/template pair together, verifies on
 canaries the agent never saw.
 """
 

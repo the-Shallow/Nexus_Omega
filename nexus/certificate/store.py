@@ -2,8 +2,8 @@
 
 A signature is a set of short tokens describing what was observed (for example
 ``http:200``, ``tool_calls:empty``, ``config:recent_change``). Matching uses
-Jaccard similarity over those tokens. It is deterministic and explainable; an
-embedding model (Nemotron Embed) can replace it behind the same interface.
+Jaccard similarity over those tokens. It is deterministic and explainable.
+Used only by the SimPy twin's rule-based doctors (the platform page's simulated scene).
 """
 
 from __future__ import annotations

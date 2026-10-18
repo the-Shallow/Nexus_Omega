@@ -8,7 +8,7 @@ The demo is one incident, end to end, on a real fleet:
 
 1. **Silent fault:** worker `a` starts dropping tool calls. Its `/health` stays 200 and HTTP stays 200, but the tool-call canary fails. That gap is the pitch.
 2. **The doctor investigates:** each tool call Nemotron makes and what it got back, e.g. launch config shows `tool_call_parser: hermes`; raw output shows a `get_weather` call the parser ignored.
-3. **The repair:** drain `a` → apply the approved profile → hidden canary passes → undrain. Users keep being served by `b` throughout. Measured once: 1,550 requests, 0 errors.
+3. **The repair:** drain `a` → apply the approved profile → hidden canary passes → undrain. Users keep being served by `b` throughout.
 4. **The scoreboard:** rule baseline vs Nemotron (and a large reference model) on the same episodes; capacity findings.
 
 ## Boundary: read freely, change nothing directly

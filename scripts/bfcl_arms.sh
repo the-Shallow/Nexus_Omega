@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BFCL on worker a under each serving profile (agentic-requirements section 10):
+# BFCL on worker a under each serving profile:
 # same model, cases, decoding and seed; only the profile changes. Worker a is
 # drained from HAProxy for the whole run and returned healthy at the end.
 # Results: artifacts/bfcl/<profile>-<time>.json

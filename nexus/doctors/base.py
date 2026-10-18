@@ -3,9 +3,9 @@
 Both doctors run this same loop (INGEST → DIAGNOSE → EXPAND_CONTEXT → PLAN →
 PRECHECK → ACT → VERIFY → terminal) and differ only in their tools and rules.
 
-The reasoning in this module is a deterministic, rule-based stand-in for
-Nemotron so the twin and UI can be exercised before the agent is connected.
-Every run says so in ``controller``. Tool calls, actions and verification act on
+The reasoning in this module is a deterministic, rule-based stand-in used only by
+the SimPy twin behind the platform page's simulated scene; the live fleet's agent
+is Nemotron (nexus/agent, nexus/harness/agent_run.py). Every run says so in ``controller``. Tool calls, actions and verification act on
 the twin for real.
 """
 

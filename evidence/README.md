@@ -4,7 +4,7 @@ These are small, reviewable copies of results produced on the Brev H100. The ful
 
 | Path | What it is | Produced by |
 |---|---|---|
-| `brev-context-expansion/` | E1 handoff (E1.md sections 6–7): healthy vs VLLM-32926-broken canary, effective launch config, request trace, raw generation (deterministic replay), bounded logs. 3/3 runs matched. | `python3 -m nexus.harness.handoff --service target-a --runs 3` |
+| `brev-context-expansion/` | Handoff samples: healthy vs VLLM-32926-broken canary, effective launch config, request trace, raw generation (deterministic replay), bounded logs. 3/3 runs matched. | `python3 -m nexus.harness.handoff --service target-a --runs 3` |
 | `gates/summary.json` | Every fault-gate run: healthy → broken → recovered, per run. | `scripts/gate1.sh`, `scripts/gate_route.sh` |
 | `agent/` | **Nemotron on the live fleet:** evaluation log (`agent/README.md`), every episode record including failed attempts, each run's full event trail and evidence, and the results matrix. After the harness redesign: known faults 7/12 (3 false VERIFIED) → **11/12 (0)**; `known-after.json`, `temp06-after.json` (temperature 0.6 ablation), `big-model.json` (Nemotron 3 Super 120B-A12B reference on held-out v1: 11/11 valid). | `python -m nexus.eval.episode <fault or set> --solver agent --repeat 3` |
 | `heldout/` | Held-out sets, rules and agent, before and after the redesign. v1: rules 3/12, agent 2/12 → **9/12**; v2: rules 12/12, agent 10/12 → **12/12**; 0 false VERIFIED in every after-set. Also the structured dev builds and the contaminated first round (kept, never scored). | `python -m nexus.eval.episode heldout\|heldout2 --solver rules\|agent --repeat 3` |
@@ -32,7 +32,7 @@ The two Qwen3-4B faults were reproduced once, on the earlier single-worker fleet
 |---|---|---|---|
 | `direct-a-baseline.csv` | 1 replica, direct, other replica idle | 42.5 (at 128 concurrent) | GPU compute |
 | `sweep-2rep-coder7b.csv` | 2 replicas, Python gateway (httpx default pool) | 24.1 | 100-connection pool in the gateway |
-| `gateway-ab-fixed.csv` | 2 replicas, Python gateway, pool raised | 36.5 | gateway at 100% of one CPU core |
+| `gateway-ab-fixed.csv` | 2 replicas, Python gateway, pool raised | 29.6 successful (36.5 including errored requests) | gateway at 100% of one CPU core |
 | `haproxy-ab.csv` | 2 replicas, HAProxy | 36.1 | GPU at 100% utilization, 317 W |
 
 Two replicas on one GPU share its compute. The second replica gives fault isolation (one can be drained while the other serves), not extra throughput.

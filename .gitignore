@@ -9,3 +9,11 @@ artifacts/
 # React app (apps/web)
 apps/web/node_modules/
 apps/web/dist/
+
+# Pre-build plans and team handoffs, kept locally and out of the submitted repo.
+docs/hackathon-plan.md
+docs/agentic-requirements.md
+E1.md
+docs/brev-target-interface.md
+BREV_INNER_LOOP.md
+data/failure-category-candidates.md

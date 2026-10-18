@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Concurrency sweep through the gateway with guidellm. Produces the
-# latency-vs-load curve used for the overload fault thresholds and for
-# calibrating the twin. Output: artifacts/load/<name>.{json,csv}
+# latency-vs-load curve used for the overload fault thresholds and the
+# capacity numbers. Output: artifacts/load/<name>.{json,csv}
 # Usage: scripts/load_sweep.sh [name] [streams] [seconds-per-step]
 # DATA overrides the guidellm --data spec.
 # TARGET overrides the endpoint (default: HAProxy, the fleet entry point), e.g. TARGET=http://nexus-a:8000

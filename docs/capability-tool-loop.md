@@ -18,4 +18,4 @@ python -m scripts.capability_smoke_test --mode live --runs 3
 ```
 
 This validates model-side tool calling only. A full diagnostic run also needs a
-target environment implementing the HTTP capability contract in `E1.md`.
+target environment implementing the HTTP capability contract (`apps/environment/`).

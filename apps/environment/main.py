@@ -1,4 +1,4 @@
-"""Brev environment API: the live fleet as a manifest-driven environment (E1.md section 3).
+"""Brev environment API: the live fleet as a manifest-driven environment.
 
 The agent's HttpEnvironmentProvider calls the eight read routes with
 NEXUS_ENVIRONMENT_API_KEY. Everything it can see or propose is declared in the
