@@ -1,0 +1,40 @@
+/* Story-mode 3D label styles, on top of the twin's .lbl base in index.css. */
+
+.lbl.story-cap { text-align: center; font-size: 10.5px; color: var(--color-ink-3); letter-spacing: .02em; }
+.lbl.story-cap b { display: block; font-family: var(--font-sans); font-size: 15px; font-weight: 600; letter-spacing: 0; margin-bottom: 3px; }
+.lbl.story-cap.tone-ok b { color: var(--color-ok); }
+.lbl.story-cap.tone-warn b { color: var(--color-warn); }
+.lbl.story-cap.tone-bad b { color: var(--color-bad); }
+.lbl.story-cap.tone-info b { color: var(--color-info); }
+.lbl.story-cap.tone-sim b { color: var(--color-replay); }
+.lbl.story-cap.tone-idle b { color: var(--color-ink-2); }
+
+.lbl.story-bubble {
+  font-size: 10px; padding: 3px 8px; border-radius: 9px 9px 9px 2px;
+  background: rgb(8 10 12 / .72); border: 1px solid rgb(118 185 0 / .4); color: var(--color-ok);
+}
+.lbl.story-bubble[data-tone="silent"] { border-color: rgb(245 158 11 / .45); color: var(--color-warn); }
+.lbl.story-bubble[data-tone="bad"] { border-color: rgb(244 63 94 / .5); color: var(--color-bad); }
+
+.lbl.story-tool { font-size: 9.5px; color: var(--color-ink-4); transition: color .25s, text-shadow .25s; }
+.lbl.story-tool[data-on="1"] { color: #c9f27a; text-shadow: 0 0 10px rgb(118 185 0 / .8); }
+
+.lbl.story-cand { font-size: 10px; color: #c4b5fd; }
+.lbl.story-cand[data-fate="win"] { color: var(--color-ok); text-shadow: 0 0 10px rgb(118 185 0 / .6); }
+.lbl.story-cand[data-fate="policy"] { color: var(--color-bad); text-decoration: line-through; }
+.lbl.story-cand[data-fate="lose"] { color: var(--color-ink-4); }
+
+/* Room titles on the floor: quiet until focused, large in the finale. */
+.lbl.story-room { text-align: center; color: var(--color-ink-4); transition: opacity .5s, color .5s; }
+.lbl.story-room i { font-style: normal; font-size: 10px; letter-spacing: .2em; margin-right: 8px; }
+.lbl.story-room b { font-family: var(--font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.lbl.story-room span { display: none; }
+.lbl.story-room.on { color: var(--color-accent); }
+.lbl.story-room.on b { color: var(--color-ink); }
+body.story-finale .lbl.story-room { color: var(--color-accent); }
+body.story-finale .lbl.story-room b { color: var(--color-ink); font-size: 17px; }
+body.story-finale .lbl.story-room span { display: block; font-size: 10.5px; color: var(--color-ink-3); margin-top: 2px; }
+
+/* Transport: the current hop's progress. */
+.story-fill { width: 0; animation-name: story-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes story-fill { to { width: 100%; } }

@@ -1,0 +1,136 @@
+// Story A: the silent tool-call drop (VLLM-32926). Illustrative values modeled on the
+// twin's defaults (SLO TTFT p95 ≤ 1 s, canary every 5 s); nothing here is live.
+import { STATUS } from '../../twin/palette';
+import { BASE, type Story } from './types';
+
+const OK = { dash: 'All green', real: 'All 8 replicas answering', tone: 'ok' as const };
+
+export const silent: Story = {
+  id: 'silent',
+  name: 'Silent tool-call drop',
+  short: 'Silent drop',
+  mode: 'scripted',
+  badge: 'SIMULATED · ILLUSTRATIVE DATA',
+  base: BASE,
+  candidates: [
+    { name: 'A · patch parser only', fate: 'policy' },
+    { name: 'B · parser + template, 2 at a time', fate: 'win' },
+    { name: 'C · restart replicas', fate: 'lose' },
+  ],
+  summary: {
+    outcome: 'Verified',
+    tone: 'ok',
+    rows: [['Detected', '41 s after the rollout'], ['Closed', '3 min 12 s'], ['Dashboards alerted', 'never'], ['Checks', '6 / 6 held for 10 s'], ['Doctor', 'Tool-Calling'], ['Fix', 'parser + template, 2 at a time']],
+    note: 'Every dashboard stayed green the whole time. Only the canary, which checks the work and not the plumbing, saw it.',
+  },
+  hops: [
+    {
+      id: 'night', room: null, cam: 'wide', title: 'A normal night', clock: '01:47:00', dur: 6,
+      plain: 'It’s 1:47 AM. Agents and people are using an AI service that runs on eight GPU replicas. Everything is green.',
+      tech: '8 × vLLM 0.27.1 · ~36 req/s · TTFT p95 0.41 s',
+      engineer: ['Profile pod-h100 (uncalibrated, illustrative)', 'SLO: TTFT p95 ≤ 1 s · TPOT p95 ≤ 25 ms · errors ≤ 1%'],
+      reality: OK,
+    },
+    {
+      id: 'callers', room: 'callers', cam: 'callers', title: 'Agents call tools', clock: '01:47:20', dur: 6.5,
+      plain: 'AI agents don’t just chat. They ask the model which tool to call, then act on the answer.',
+      tech: '35% of requests carry tools · every answer has tool_calls',
+      engineer: ['Blue: request out', 'Solid green: an answer with content'],
+      paths: { 'callers-door': 'fault' }, reality: OK,
+    },
+    {
+      id: 'door', room: 'door', cam: 'door', title: 'One front door', clock: '01:47:40', dur: 6,
+      plain: 'Every request goes through one gateway, which spreads the load across all eight replicas.',
+      tech: 'weighted routing · health check every 2 s',
+      engineer: ['HAProxy leastconn on Brev; even weights in the twin', 'Health check only asks “is the process up?”'],
+      paths: { 'door-gpu': 'fault' }, reality: OK,
+    },
+    {
+      id: 'rollout', room: 'gpu', cam: 'gpu', title: 'A quiet upgrade', clock: '01:52:03', dur: 8,
+      plain: 'A routine upgrade lands on two replicas. They keep answering fast with 200 OK, but the tool calls inside are gone.',
+      tech: 'vllm-0, vllm-1 → 0.28.0 · tool_calls: [] · parser hermes',
+      engineer: ['Upstream issue VLLM-32926', 'Hollow amber ring = HTTP 200 with nothing to act on', 'No crash, no error, no latency change'],
+      beats: [{ at: 1.6, set: { 'vllm-0': 'silent', 'vllm-1': 'silent' } }],
+      reality: { dash: 'All green', real: '2 of 8 replicas quietly wrong', tone: 'lie' },
+    },
+    {
+      id: 'stall', room: 'callers', cam: 'callers', title: 'Agents stall', clock: '01:52:30', dur: 7,
+      plain: 'Agents get answers with nothing to act on. They don’t crash. They just quietly stop doing their jobs.',
+      tech: 'HTTP 200 · finish_reason: stop · tool_calls: []',
+      engineer: ['From the agent’s side this looks like “the model chose not to act”'],
+      beats: [{ at: 1.2, set: { 'agent-0': 'silent', 'agent-2': 'silent' } }],
+      reality: { dash: 'All green', real: '2 of 8 replicas quietly wrong', tone: 'lie' },
+    },
+    {
+      id: 'green', room: 'signals', cam: 'signals', title: 'Dashboards stay green', clock: '01:52:44', dur: 7,
+      plain: 'Every dashboard is green. Latency is fine, errors are zero. Nobody gets paged.',
+      tech: 'TTFT p95 0.41 s · errors 0.0% · GPU util 81%',
+      engineer: ['Dashboards measure the plumbing: speed, errors, load', 'None of them checks whether an answer is right'],
+      set: { dash: 'silent' }, paths: { 'gpu-signals': 'fault' },
+      reality: { dash: 'All green', real: '2 of 8 replicas quietly wrong', tone: 'lie' },
+    },
+    {
+      id: 'canary', room: 'signals', cam: 'signals-wide', title: 'The canary catches it', clock: '01:52:44', dur: 9,
+      plain: 'Every 5 seconds a canary sends a known tool-call request. It comes back empty. Now the failure is visible.',
+      tech: 'run_canary vllm-0 → tool_calls: [] · FAIL on 2 of 8',
+      engineer: ['Functional canary: 4 cases per replica', 'The doctor is only engaged when a replica fails the canary while healthy and fast'],
+      beats: [
+        { at: 0.4, fx: (w) => w.canaryRun(0, 'fail', 4.4) },
+        { at: 4.9, set: { canary: 'fail' } },
+        { at: 5.3, cam: 'gpu', focus: 'gpu', set: { 'vllm-0': 'caught', 'vllm-1': 'caught' }, fx: (w) => w.wave('gpu', STATUS.bad, 2.4, 5) },
+      ],
+      reality: { dash: 'Still green', real: 'Caught: 2 replicas fail the canary', tone: 'caught' },
+    },
+    {
+      id: 'diagnose', room: 'doctors', cam: 'doctors', title: 'A doctor investigates', clock: '01:53:01', dur: 9,
+      plain: 'The manager hands it to the Tool-Calling Doctor. It reads the change history, the raw output and the serving config.',
+      tech: 'get_change_history · read_raw_generation · read_serving_config',
+      engineer: ['Every claim must cite a tool result (evidence ledger)', 'Reasoning is a rule-based stand-in; Nemotron is not connected in the twin'],
+      set: { mgr: 'tool', 'doc-tool': 'investigate' },
+      beats: [{ at: 5.6, set: { 'doc-tool': 'conclude' } }],
+      paths: { 'signals-doctors': 'fault' },
+      reality: { dash: 'Still green', real: 'Cause found: parser and template mismatch', tone: 'caught' },
+    },
+    {
+      id: 'shadow', room: 'twin', cam: 'twin', title: 'Test fixes in a shadow', clock: '01:53:40', dur: 9,
+      plain: 'Before touching anything real, Nexus forks a shadow copy of the system and races three fixes, three runs each.',
+      tech: 'A parser only ✗ policy · B parser + template ✓ · C restart ✗',
+      engineer: ['Fork of live state, 3 seeds per candidate, min/median/max bands', 'A single-sided patch is rejected by policy'],
+      set: { mgr: 'idle', twin: 'race' },
+      beats: [{ at: 4.8, set: { twin: 'winner' } }],
+      paths: { 'doctors-twin': 'fault' },
+      reality: { dash: 'Still green', real: 'Fix chosen in simulation', tone: 'caught' },
+    },
+    {
+      id: 'repair', room: 'gpu', cam: 'gate', title: 'Repair, two at a time', clock: '01:54:10', dur: 11,
+      plain: 'The fix passes the policy gate. The two replicas are drained, get the matching parser and template, and rejoin.',
+      tech: 'drain vllm-0,1 → patch_config(parser, template) → canary → re-admit',
+      engineer: ['One reversible change set, rollback token issued', 'Traffic keeps flowing on the other six replicas'],
+      set: { gate: 'pass' },
+      beats: [
+        { at: 2.0, cam: 'gpu', focus: 'gpu', set: { 'vllm-0': 'drain', 'vllm-1': 'drain', gateway: 'drain' } },
+        { at: 5.2, set: { 'vllm-0': 'heal', 'vllm-1': 'heal' } },
+        { at: 7.6, set: { 'vllm-0': 'ok', 'vllm-1': 'ok', gateway: 'ok', 'agent-0': 'ok', 'agent-2': 'ok' }, fx: (w) => w.wave('gpu', STATUS.ok, 4.2, 5.5) },
+      ],
+      paths: { fix: 'fix' },
+      reality: { dash: 'Green', real: 'Repaired, re-admitting', tone: 'caught' },
+    },
+    {
+      id: 'verify', room: 'signals', cam: 'signals-wide', title: 'Prove it', clock: '01:55:15', dur: 9,
+      plain: 'Independent checks decide, not the model: canaries and hidden canaries pass for 10 seconds straight.',
+      tech: '6/6 checks · TTFT p95 0.39 s · canary 8/8 · hidden canary 12/12',
+      engineer: ['The model never judges its own repair', 'A failed check rolls the change back automatically'],
+      set: { dash: 'ok', 'doc-tool': 'idle', twin: 'idle', gate: 'idle' },
+      beats: [{ at: 0.4, fx: (w) => w.canaryRun(0, 'pass', 4.4) }, { at: 4.9, set: { canary: 'pass' } }],
+      reality: { dash: 'Green', real: 'Green, and actually right', tone: 'ok' },
+    },
+    {
+      id: 'proof', room: null, cam: 'finale', title: 'The whole picture', clock: '01:55:15', dur: 12,
+      plain: 'Detected in 41 seconds, closed in 3 minutes 12. Sealed in a certificate the next incident can learn from.',
+      tech: 'VERIFIED · sha256 9f2c41ab e07d5c19…',
+      engineer: ['Certificates are matched by symptom signature next time'],
+      finale: 'verified',
+      reality: { dash: 'Green', real: 'Green, and actually right', tone: 'ok' },
+    },
+  ],
+};
