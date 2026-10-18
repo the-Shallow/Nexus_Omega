@@ -102,19 +102,30 @@ export function stepAt(rec: RecordingDetail, cursor: number): number {
 
 // ------------------------------------------------------------------ fleet view model
 
-export interface FleetWorker { id: string; canary: 'ok' | 'bad' | 'unknown'; parser: string | null; template: string | null; profile: string | null; state: 'serving' | 'faulty' | 'repairing' | 'repaired' }
+export type FleetIssue = 'canary' | 'link' | 'down';
+export interface FleetWorker {
+  id: string;
+  canary: 'ok' | 'bad' | 'unknown';
+  parser: string | null;
+  template: string | null;
+  profile: string | null;
+  /** Why the worker looks faulty, from recorded evidence only. */
+  issue: FleetIssue | null;
+  state: 'serving' | 'faulty' | 'repairing' | 'repaired' | 'drained' | 'unresolved';
+}
 export interface FleetView {
   phase: FleetPhase;
   focus: string | null;
   focusAt: number;
   workers: FleetWorker[];
-  route: Record<string, { p95: number; err: number }>;
-  repair: { start: number; end: number; progress: number; target: string; seconds: number } | null;
+  route: Record<string, { p95: number; err: number; ok: boolean }>;
+  repair: { start: number; end: number; progress: number; target: string; seconds: number; action: string } | null;
   referee: boolean;
 }
 
 const WORKER_IDS = ['target-a', 'target-b'];
 const alias = (k: string) => (k.length === 1 ? `target-${k}` : k);
+const RANK: Record<FleetIssue, number> = { canary: 1, link: 2, down: 3 };
 
 /** What the recorded fleet looked like at the cursor, from recorded evidence only. */
 export function fleetView(rec: RecordingDetail, cursor: number): FleetView {
@@ -125,7 +136,11 @@ export function fleetView(rec: RecordingDetail, cursor: number): FleetView {
     if (e.phase) phase = e.phase;
     if (e.focus !== undefined && e.focus !== null) { focus = e.focus; focusAt = e.t; }
   }
-  const workers: Record<string, FleetWorker> = Object.fromEntries(WORKER_IDS.map((id) => [id, { id, canary: 'unknown', parser: null, template: null, profile: null, state: 'serving' } as FleetWorker]));
+  const workers: Record<string, FleetWorker> = Object.fromEntries(WORKER_IDS.map((id) => [id, { id, canary: 'unknown', parser: null, template: null, profile: null, issue: null, state: 'serving' } as FleetWorker]));
+  const flag = (id: string, issue: FleetIssue) => {
+    const w = workers[id];
+    if (w && (!w.issue || RANK[issue] > RANK[w.issue])) w.issue = issue;
+  };
   const route: FleetView['route'] = {};
   // An evidence document counts from the moment the trail recorded it.
   const recordedAt = new Map<string, number>();
@@ -136,15 +151,23 @@ export function fleetView(rec: RecordingDetail, cursor: number): FleetView {
     const c = rec.evidence[row.evidence_id]?.content;
     const d = c?.data;
     if (d?.probe_id?.startsWith('tool-call') && workers[d.resource_id]) {
-      workers[d.resource_id].canary = (d.structured_tool_call_count ?? 0) > 0 ? 'ok' : 'bad';
+      const ok = (d.structured_tool_call_count ?? 0) > 0;
+      workers[d.resource_id].canary = ok ? 'ok' : 'bad';
+      if (!ok) flag(d.resource_id, 'canary');
     } else if (d?.probe_id === 'route-probe') {
-      for (const [k, w] of Object.entries<any>(d.workers ?? {})) route[alias(k)] = { p95: w.p95_s, err: w.error_rate };
+      for (const [k, w] of Object.entries<any>(d.workers ?? {})) {
+        route[alias(k)] = { p95: w.p95_s, err: w.error_rate, ok: !!w.ok };
+        if (w.ok === false) flag(alias(k), 'link');
+      }
     } else if (c?.configuration && workers[c.resource_id]) {
       workers[c.resource_id].parser = c.configuration.tool_call_parser ?? null;
       workers[c.resource_id].template = c.configuration.chat_template ?? null;
+      if (c.configuration.container_state && c.configuration.container_state !== 'running') flag(c.resource_id, 'down');
+    } else if (c?.state && workers[c.resource_id]) {
+      if (c.state.container_state && c.state.container_state !== 'running') flag(c.resource_id, 'down');
     }
   }
-  for (const w of Object.values(workers)) if (w.canary === 'bad') w.state = 'faulty';
+  for (const w of Object.values(workers)) if (w.issue) w.state = 'faulty';
 
   let repair: FleetView['repair'] = null;
   const x = rec.episode?.executor;
@@ -152,20 +175,28 @@ export function fleetView(rec: RecordingDetail, cursor: number): FleetView {
   const endEntry = tl.find((e) => e.item?.id === 'x-end');
   if (x && startEntry && endEntry && cursor >= startEntry.t) {
     const progress = Math.min(1, (cursor - startEntry.t) / (endEntry.t - startEntry.t));
-    repair = { start: startEntry.t, end: endEntry.t, progress, target: x.service, seconds: x.seconds };
+    repair = { start: startEntry.t, end: endEntry.t, progress, target: x.service, seconds: x.seconds, action: x.action };
     const w = workers[x.service];
     if (w) {
-      w.state = progress < 1 ? 'repairing' : x.verification?.passed ? 'repaired' : 'faulty';
-      if (progress >= 1 && x.verification?.passed) {
-        w.canary = 'ok';
-        w.profile = x.profile ?? null;
-      }
+      if (x.action === 'drain_worker') w.state = 'drained';
+      else if (progress < 1) w.state = 'repairing';
+      else if (x.verification?.passed) { w.state = 'repaired'; w.canary = 'ok'; w.profile = x.profile ?? null; }
+      else w.state = 'faulty';
     }
   }
+  const s = rec.summary;
   const v = rec.episode?.verification;
   const refEntry = tl.find((e) => e.item?.id === 'ref-0');
   const referee = !!(v && refEntry && cursor >= refEntry.t);
-  if (referee && v) for (const [k, r] of Object.entries(v.route ?? {})) route[alias(k)] = { p95: r.p95_s, err: r.error_rate };
-
+  if (referee && v) {
+    for (const [k, r] of Object.entries(v.route ?? {})) route[alias(k)] = { p95: r.p95_s, err: r.error_rate, ok: r.ok };
+    // The referee has the last word: a "repaired" worker that still fails its probe is not repaired.
+    if (!s.success) {
+      for (const w of Object.values(workers)) {
+        const r = route[w.id];
+        if (w.state !== 'drained' && (w.issue || (r && !r.ok))) w.state = 'unresolved';
+      }
+    }
+  }
   return { phase, focus, focusAt, workers: WORKER_IDS.map((id) => workers[id]), route, repair, referee };
 }

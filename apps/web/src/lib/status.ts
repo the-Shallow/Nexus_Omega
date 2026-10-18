@@ -41,7 +41,9 @@ export function systemStatus(connected: boolean, frame: Frame | null, run: Docto
 export function fleetStatus(flow: FlowRun): SystemStatus {
   if (flow.terminal) {
     const o = OUTCOME[flow.terminal];
-    return { label: o.short, tone: o.tone === 'muted' ? 'muted' : o.tone === 'info' ? 'info' : o.tone, pulse: false };
+    const tone = flow.verdict?.tone ?? o.tone;
+    const label = flow.verdict?.label === 'FALSE VERIFIED' ? 'False VERIFIED' : o.short;
+    return { label, tone: tone === 'muted' ? 'muted' : tone === 'info' ? 'info' : tone, pulse: false };
   }
   const key = flow.stages[flow.stages.length - 1]?.key;
   if (flow.stages.some((s) => s.status === 'halted')) return { label: 'Agent failed', tone: 'bad', pulse: true };

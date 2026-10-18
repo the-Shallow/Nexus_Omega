@@ -2,7 +2,7 @@
 // differently; both are reduced to the same Proof so the overlay shows one layout.
 // Every value comes from the record; anything missing is shown as missing.
 import { api } from './api';
-import { describeEvidence, modelName, utc } from './flow';
+import { describeEvidence, fleetVerdict, modelName, refereeChecks, utc, type Tone } from './flow';
 import { dur, ms as msTxt, pct } from './format';
 import type { CertificateSummary, Kpi, RecordingDetail, Terminal, Topology } from './types';
 
@@ -15,6 +15,10 @@ export interface Proof {
   failureType: string | null;
   knownIssue: string | null;
   terminal: Terminal;
+  /** The headline: the terminal state, or FALSE VERIFIED when the referee disagrees. */
+  label: string;
+  tone: Tone;
+  falseVerified: boolean;
   reason: string;
   data: string;
   controller: string;
@@ -52,6 +56,9 @@ export function proofFromTwin(s: CertificateSummary, slo: Topology['slo'] | null
     failureType: c.incident.incident_class ?? null,
     knownIssue: c.incident.candidate_id ?? null,
     terminal: c.terminal_state,
+    label: c.terminal_state.replace('_', ' '),
+    tone: c.terminal_state === 'VERIFIED' ? 'ok' : c.terminal_state === 'ROLLED_BACK' ? 'bad' : c.terminal_state === 'REQUIRES_APPROVAL' ? 'warn' : 'muted',
+    falseVerified: false,
     reason: c.terminal_reason,
     data: 'Simulated · SimPy digital twin',
     controller: c.controller,
@@ -116,6 +123,7 @@ export function proofFromFleet(rec: RecordingDetail): Proof {
   const plan = ep?.decision?.repair_plan?.action?.arguments ?? rec.events.find((e) => e.event_type === 'decision_validated')?.payload?.repair_plan?.action?.arguments;
   const policy = rec.events.find((e) => e.event_type === 'repair_plan_evaluated')?.payload?.policy;
   const agentSecs = (Date.parse(s.agent_ended_at) - Date.parse(s.started_at)) / 1000;
+  const verdict = fleetVerdict(s);
   return {
     id: s.id,
     kind: 'fleet',
@@ -124,9 +132,14 @@ export function proofFromFleet(rec: RecordingDetail): Proof {
     failureType: s.fault,
     knownIssue: s.fault?.toUpperCase() ?? null,
     terminal: s.terminal_state ?? 'ABSTAIN',
-    reason: s.success
-      ? "The executor's hidden canary verified the repair, and the independent referee confirmed users were served and the root cause was fixed."
-      : s.failure ? `Agent run failed: ${s.failure}` : 'The referee did not confirm a repair.',
+    label: verdict.label,
+    tone: verdict.tone,
+    falseVerified: verdict.falseVerified,
+    reason: verdict.falseVerified
+      ? "The executor's own canary passed and it reported VERIFIED, but the independent referee found users still affected or the cause unresolved. Catching this is what the referee is for."
+      : s.success && s.terminal_state === 'VERIFIED'
+        ? "The executor's hidden canary verified the repair, and the independent referee confirmed users were served and the root cause was fixed."
+        : verdict.headline + '.',
     data: `Recorded on the real fleet · ${s.environment ?? 'Brev'}`,
     controller: modelName(s.controller),
     controllerReal: true,
@@ -138,14 +151,10 @@ export function proofFromFleet(rec: RecordingDetail): Proof {
     ],
     slo,
     sloNote: 'Before: the monitoring snapshot the agent started from. After: the referee\'s probe through HAProxy once the run closed.',
-    checks: v ? [
-      { name: 'Users served through HAProxy', passed: v.users_ok, detail: Object.entries(v.route ?? {}).map(([k, r]) => `${k}: ${msTxt(r.p95_s)} p95`).join(' · ') },
-      { name: 'Hidden tool-call canary through HAProxy', passed: v.hidden_passed, detail: 'held-out cases' },
-      { name: 'Root cause fixed', passed: v.root_fixed, detail: `hidden canary on ${s.target ?? 'the faulty worker'}` },
-      { name: x ? 'Repaired worker back in rotation' : 'Faulty worker not left drained', passed: !v.faulty_worker_drained, detail: v.faulty_worker_drained ? 'still drained' : 'serving' },
-      { name: 'No false VERIFIED claim', passed: s.false_verified === false, detail: s.success ? 'referee scored a success' : 'referee scored a failure' },
+    checks: [
+      ...refereeChecks(rec),
       ...(x?.verification ? [{ name: "Executor's canary", passed: x.verification.passed, detail: `health ${x.verification.health_status} · ${x.verification.failed_cases.length} failed cases` }] : []),
-    ] : [],
+    ],
     actions: [
       ...(plan ? [`Nemotron proposed ${plan.action_id}(${Object.entries(plan.parameters ?? {}).map(([k, val]) => `${k}=${val}`).join(', ')}) on ${plan.target}`] : []),
       ...(policy ? [`Policy ${policy.status}: ${policy.reason}`] : []),

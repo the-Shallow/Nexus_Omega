@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { toast } from '../lib/bus';
 import { pct } from '../lib/format';
-import { OUTCOME, type FlowItem, type FlowRun, type FlowStage, type StageKey, type StageStatus, type Tone } from '../lib/flow';
+import type { FlowItem, FlowRun, FlowStage, StageKey, StageStatus, Tone } from '../lib/flow';
 import { useStore } from '../lib/store';
 import type { Candidate } from '../lib/types';
 
@@ -48,7 +48,7 @@ function Header({ flow, onDismiss }: { flow: FlowRun; onDismiss: () => void }) {
       <div className="flex items-center gap-2.5">
         <span className="relative flex size-2">
           {live && <span className="absolute inset-0 animate-ping rounded-full bg-accent opacity-70" />}
-          <span className={`relative size-2 rounded-full ${live ? 'bg-accent' : 'bg-ink-3'}`} style={!live && flow.terminal ? { background: OUT_HEX[OUTCOME[flow.terminal].tone] } : undefined} />
+          <span className={`relative size-2 rounded-full ${live ? 'bg-accent' : 'bg-ink-3'}`} style={!live && flow.verdict ? { background: OUT_HEX[flow.verdict.tone] } : undefined} />
         </span>
         <span className="label !text-[9.5px]">Recovery · {flow.doctor === 'tool' ? 'Tool-Calling Doctor' : 'Infrastructure Doctor'}</span>
         <button onClick={onDismiss} disabled={live} title={live ? 'The run is still in progress' : 'Hide the workflow'} aria-label="Hide the workflow" className="ml-auto grid size-7 place-items-center rounded-full text-ink-3 transition hover:bg-white/5 hover:text-ink disabled:opacity-0">
@@ -99,7 +99,7 @@ function StageModule({ stage, index, prev, focus, open, onToggle, flow, onCertif
   stage: FlowStage; index: number; prev?: FlowStage; focus: boolean; open: boolean; onToggle: () => void; flow: FlowRun; onCertificate: () => void;
 }) {
   const live = stage.status === 'active' || stage.status === 'waiting';
-  const hex = stage.key === 'certificate' && flow.terminal ? OUT_HEX[OUTCOME[flow.terminal].tone] : STATUS_HEX[stage.status];
+  const hex = stage.key === 'certificate' && flow.verdict ? OUT_HEX[flow.verdict.tone] : STATUS_HEX[stage.status];
   const isCert = stage.key === 'certificate';
   return (
     <motion.li layout="position" transition={{ layout: { duration: 0.45, ease } }} className="relative">
@@ -130,8 +130,8 @@ function StageModule({ stage, index, prev, focus, open, onToggle, flow, onCertif
                 transition={{ duration: 0.25 }}
                 className={`mt-0.5 block truncate font-mono text-[11px] ${isCert ? 'text-ink-2' : 'text-ink-3'}`}
               >
-                {isCert && flow.terminal ? <span style={{ color: hex }}>{flow.terminal.replace('_', ' ')}</span> : null}
-                {isCert && flow.terminal ? ' · ' : ''}{stage.headline || (live ? 'starting…' : '')}
+                {isCert && flow.verdict ? <span style={{ color: hex }}>{flow.verdict.label}</span> : null}
+                {isCert && flow.verdict ? ' · ' : ''}{stage.headline || (live ? 'starting…' : '')}
               </motion.span>
             </AnimatePresence>
           </span>

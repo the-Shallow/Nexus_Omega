@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { fleet } from '../lib/fleet';
-import { OUTCOME, type Tone } from '../lib/flow';
+import type { Tone } from '../lib/flow';
 import { proofFromFleet, proofFromTwin, type Proof } from '../lib/proof';
 import { useStore } from '../lib/store';
 import type { Terminal } from '../lib/types';
@@ -68,8 +68,7 @@ export function CertificateOverlay({ cert, onClose }: { cert: CertRef | null; on
 }
 
 function Body({ p, replay }: { p: Proof; replay: boolean }) {
-  const o = OUTCOME[p.terminal];
-  const hex = HEX[o.tone];
+  const hex = HEX[p.tone];
   const [copied, setCopied] = useState(false);
   const copy = () => navigator.clipboard?.writeText(p.footer.value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); }).catch(() => undefined);
   const item = { initial: { opacity: 0, y: 12, filter: 'blur(4px)' }, animate: { opacity: 1, y: 0, filter: 'blur(0px)' } };
@@ -90,9 +89,14 @@ function Body({ p, replay }: { p: Proof; replay: boolean }) {
         </motion.div>
 
         <motion.div variants={item} className="mt-6 flex flex-wrap items-center gap-6">
-          <Seal terminal={p.terminal} hex={hex} />
+          <Seal terminal={p.falseVerified ? 'ROLLED_BACK' : p.terminal} hex={hex} cross={p.falseVerified} />
           <div className="min-w-0 flex-1">
-            <h2 className="display text-[30px] font-medium leading-tight md:text-[36px]" style={{ color: hex }}>{p.terminal.replace('_', ' ')}</h2>
+            <h2 className="display text-[30px] font-medium leading-tight md:text-[36px]" style={{ color: hex }}>{p.label}</h2>
+            {p.falseVerified && (
+              <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-bad/40 bg-bad/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-bad">
+                <span className="size-1.5 rounded-full bg-bad" />executor: verified · referee: not fixed
+              </p>
+            )}
             <p className="mt-1.5 max-w-[560px] text-[14px] leading-relaxed text-ink-2">{p.reason}</p>
             <p className="mt-2 text-[14px] text-ink">
               {p.title}
@@ -186,7 +190,7 @@ function Body({ p, replay }: { p: Proof; replay: boolean }) {
   );
 }
 
-function Seal({ terminal, hex }: { terminal: Terminal; hex: string }) {
+function Seal({ terminal, hex, cross = false }: { terminal: Terminal; hex: string; cross?: boolean }) {
   return (
     <div className="relative grid size-[104px] shrink-0 place-items-center">
       <motion.svg viewBox="0 0 100 100" className="absolute inset-0" animate={terminal === 'VERIFIED' ? { rotate: 360 } : undefined} transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}>
@@ -202,7 +206,8 @@ function Seal({ terminal, hex }: { terminal: Terminal; hex: string }) {
       >
         <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke={hex} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
           {terminal === 'VERIFIED' && <motion.path d="M5 12.5 10 17l9-10" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 1, duration: 0.6 }} />}
-          {terminal === 'ROLLED_BACK' && <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />}
+          {cross && <motion.path d="M7 7l10 10M17 7 7 17" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 1, duration: 0.5 }} />}
+          {terminal === 'ROLLED_BACK' && !cross && <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />}
           {terminal === 'REQUIRES_APPROVAL' && <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>}
           {terminal === 'ABSTAIN' && <path d="M8 6v12M16 6v12" />}
         </svg>

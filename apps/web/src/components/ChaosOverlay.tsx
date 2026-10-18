@@ -4,7 +4,7 @@ import { datacenter } from '../domains';
 import { api } from '../lib/api';
 import { toast, twin } from '../lib/bus';
 import { fleet } from '../lib/fleet';
-import { utc } from '../lib/flow';
+import { fleetVerdict, utc } from '../lib/flow';
 import { store } from '../lib/store';
 import type { FaultSpec, RecordingSummary } from '../lib/types';
 
@@ -55,9 +55,8 @@ export function ChaosOverlay({ open, onClose, onInjected, onReplay }: { open: bo
     return cats.map((c) => ({ label: c.label, items: faults.filter((f) => f.category === c.match) })).filter((g) => g.items.length);
   }, [faults]);
   const flat = groups.flatMap((g) => g.items.map((f) => ({ f, group: g.label })));
-  const verified = (recs ?? []).filter((r) => r.terminal_state === 'VERIFIED');
-  const featured = verified[0] ?? (recs ?? [])[0] ?? null;
-  const total = flat.length + (featured ? 1 : 0);
+  const fleetGroups = useMemo(() => groupRecordings(recs ?? []), [recs]);
+  const total = flat.length + fleetGroups.length;
 
   const preview = (f: FaultSpec | null) => twin.get()?.setPreview(f ? previewIds(f) : null, f ? `${f.title} → ${targetText(f)}` : undefined);
 
@@ -96,7 +95,7 @@ export function ChaosOverlay({ open, onClose, onInjected, onReplay }: { open: bo
 
   const pick = (i: number) => {
     if (i < flat.length) inject(flat[i].f);
-    else if (featured) replay(featured);
+    else if (fleetGroups[i - flat.length]) replay(fleetGroups[i - flat.length].featured);
   };
 
   useEffect(() => {
@@ -178,18 +177,23 @@ export function ChaosOverlay({ open, onClose, onInjected, onReplay }: { open: bo
                 </div>
               ))}
 
-              {featured && (
+              {fleetGroups.length > 0 && (
                 <>
                   <SectionTitle text="Real fleet" chip="recorded" chipClass="text-replay border-replay/35" />
-                  <FleetCard
-                    index={flat.length}
-                    featured={featured}
-                    recs={recs ?? []}
-                    busy={busy}
-                    active={cursor === flat.length}
-                    onReplay={replay}
-                    onFocus={() => { setCursor(flat.length); preview(null); }}
-                  />
+                  <p className="px-3 pb-1 pt-2 text-[11.5px] leading-relaxed text-ink-3">
+                    Nemotron 3.5 Lightning on the Brev fleet, replayed exactly as recorded, failures and false VERIFIED claims included. The fleet's fault endpoint is not connected to this UI, so these cannot be re-run from here.
+                  </p>
+                  {fleetGroups.map((g, gi) => (
+                    <FleetCard
+                      key={g.fault}
+                      index={flat.length + gi}
+                      group={g}
+                      busy={busy}
+                      active={cursor === flat.length + gi}
+                      onReplay={replay}
+                      onFocus={() => { setCursor(flat.length + gi); preview(null); }}
+                    />
+                  ))}
                 </>
               )}
             </div>
@@ -252,15 +256,36 @@ function FaultRow({ f, index, hue, busy, active, onPick, onFocus, onHover }: { f
   );
 }
 
-function FleetCard({ index, featured, recs, busy, active, onReplay, onFocus }: { index: number; featured: RecordingSummary; recs: RecordingSummary[]; busy: string | null; active: boolean; onReplay: (r: RecordingSummary) => void; onFocus: () => void }) {
-  const runs = [...recs].filter((r) => r.fault === featured.fault).sort((a, b) => a.started_at.localeCompare(b.started_at));
+interface FleetGroup { fault: string; title: string; runs: RecordingSummary[]; featured: RecordingSummary; remedy: RecordingSummary['remedy'] }
+const FAULT_ORDER = ['vllm-32926', 'net-latency-b', 'net-blackhole-b', 'kill-b'];
+
+/** One card per recorded fault; the featured run is the latest the referee scored a success, else the latest. */
+function groupRecordings(recs: RecordingSummary[]): FleetGroup[] {
+  const by = new Map<string, RecordingSummary[]>();
+  for (const r of recs) {
+    const k = r.fault ?? r.title;
+    by.set(k, [...(by.get(k) ?? []), r]);
+  }
+  const rank = (f: string) => (FAULT_ORDER.indexOf(f) === -1 ? 99 : FAULT_ORDER.indexOf(f));
+  return [...by.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([fault, list]) => {
+      const runs = [...list].sort((a, b) => a.started_at.localeCompare(b.started_at));
+      const latest = [...runs].reverse();
+      return { fault, title: runs[0].title, runs, featured: latest.find((r) => r.success) ?? latest[0], remedy: runs[0].remedy };
+    });
+}
+
+function FleetCard({ index, group, busy, active, onReplay, onFocus }: { index: number; group: FleetGroup; busy: string | null; active: boolean; onReplay: (r: RecordingSummary) => void; onFocus: () => void }) {
+  const { runs, featured } = group;
   const ok = runs.filter((r) => r.success).length;
   const falseVerified = runs.filter((r) => r.false_verified).length;
+  const remedy = group.remedy?.drain.length ? `drain ${group.remedy.drain.join(', ')} for a human` : group.remedy?.fix.length ? `fix ${group.remedy.fix.join(', ')}` : null;
   return (
     <motion.div
       initial={{ opacity: 0, x: 18 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.5, duration: 0.5, ease }}
+      transition={{ delay: 0.45 + (index % 6) * 0.05, duration: 0.5, ease }}
       className="mx-1 mt-2 rounded-3xl border border-replay/20 bg-[linear-gradient(160deg,rgba(167,139,250,0.08),rgba(167,139,250,0.015))] p-4"
     >
       <button
@@ -275,35 +300,30 @@ function FleetCard({ index, featured, recs, busy, active, onReplay, onFocus }: {
           <svg viewBox="0 0 24 24" className="relative size-3.5 fill-replay"><path d="M8 5.5v13l10.5-6.5z" /></svg>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14.5px] font-medium text-ink">{featured.title} <span className="text-ink-3">· Nemotron on the live fleet</span></span>
-          <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-3 group-hover:text-ink-2">
-            Real tool calls, real evidence and a real repair on vLLM workers, as recorded. Plays back the run from {featured.started_at.slice(0, 10)} {utc(featured.started_at)} UTC.
+          <span className="block text-[14.5px] font-medium text-ink">{group.title}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em]">
+            <span className="text-replay">recorded</span>
+            {remedy && <span className="text-ink-4">· referee expects: {remedy}</span>}
           </span>
-          <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em]">
-            <span className="text-replay">recorded · replay only</span>
-            <span className="text-ink-4">· {ok}/{runs.length} confirmed by the referee · {falseVerified} false VERIFIED</span>
+          <span className="mt-1 block font-mono text-[10px] text-ink-3">
+            {ok}/{runs.length} confirmed by the referee{falseVerified ? <span className="text-bad"> · {falseVerified} false VERIFIED</span> : ' · 0 false VERIFIED'}
           </span>
         </span>
-        <span className="mt-1 rounded-full bg-replay/15 px-3 py-1.5 text-[11.5px] font-medium text-replay transition group-hover:bg-replay/25 group-focus-visible:bg-replay/25">
+        <span className="mt-1 shrink-0 rounded-full bg-replay/15 px-3 py-1.5 text-[11.5px] font-medium text-replay transition group-hover:bg-replay/25 group-focus-visible:bg-replay/25">
           {busy === featured.id ? 'Loading…' : 'Replay'}
         </span>
       </button>
       {runs.length > 1 && (
-        <div className="mt-3.5 border-t border-replay/10 pt-3">
-          <span className="label !text-[9px]">Every attempt, including failures</span>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {runs.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => onReplay(r)}
-                title={r.failure ?? r.summary ?? r.id}
-                className={`rounded-full border px-2.5 py-1 font-mono text-[10px] transition hover:bg-white/5 ${r.terminal_state === 'VERIFIED' ? 'border-ok/30 text-ok' : 'border-line-2 text-ink-3'} ${busy === r.id ? 'opacity-60' : ''}`}
-              >
-                {utc(r.started_at).slice(0, 5)} · {r.terminal_state === 'VERIFIED' ? 'verified' : (r.terminal_state ?? 'no verdict').toLowerCase()}
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-replay/10 pt-3">
+          {runs.map((r) => {
+            const v = fleetVerdict(r);
+            const cls = v.falseVerified ? 'border-bad/40 text-bad' : r.success ? 'border-ok/30 text-ok' : 'border-line-2 text-ink-3';
+            return (
+              <button key={r.id} onClick={() => onReplay(r)} title={v.headline} className={`rounded-full border px-2.5 py-1 font-mono text-[10px] transition hover:bg-white/5 ${cls} ${busy === r.id ? 'opacity-60' : ''}`}>
+                {utc(r.started_at).slice(0, 5)} · {v.label.toLowerCase()}
               </button>
-            ))}
-          </div>
-          <p className="mt-2.5 text-[11px] leading-relaxed text-ink-4">The fleet's fault endpoint is not connected to this UI, so these cannot be re-run from here. They replay exactly as recorded.</p>
+            );
+          })}
         </div>
       )}
     </motion.div>

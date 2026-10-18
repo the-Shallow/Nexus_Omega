@@ -257,6 +257,8 @@ export interface RecordingSummary {
   evidence_count: number;
   summary: string | null;
   action: Record<string, unknown> | null;
+  /** How the referee scores this fault: workers it expects fixed, and links it expects drained for a human. */
+  remedy: { fix: string[]; drain: string[]; heldout: boolean; expect_action: boolean } | null;
 }
 
 export interface AgentEvent {
@@ -279,7 +281,11 @@ export interface Episode {
   solve_seconds: number;
   action: Record<string, unknown> | null;
   decision: { state: string; summary: string; hypotheses: { id: string; confidence: number; supports: string[]; contradicts: string[] }[]; stop_reason: string | null; repair_plan?: Record<string, any> };
-  verification: { users_ok: boolean; route: Record<string, RouteStats>; hidden_passed: boolean; root_fixed: boolean; faulty_worker_drained: boolean } | null;
+  verification: {
+    users_ok: boolean; route: Record<string, RouteStats>; hidden_passed: boolean; root_fixed: boolean; faulty_worker_drained: boolean;
+    /** Newer episodes: per-worker results and who is drained now. */
+    root?: Record<string, boolean>; drained?: Record<string, boolean>; drained_now?: string[];
+  } | null;
   executor: {
     action: string; service: string; change_id: string; started_at: string; ended_at: string; seconds: number;
     status: string; profile?: string; before?: Record<string, any>;

@@ -60,6 +60,8 @@ export interface FlowRun {
   approval: { runId: string; label: string; candidate: Candidate | null } | null;
   certificate: { kind: 'twin' | 'fleet'; id: string } | null;
   counts: { tools: number; evidence: number };
+  /** How the outcome should read: the terminal state, corrected by the referee where it disagrees. */
+  verdict: { label: string; tone: Tone } | null;
 }
 
 export const LABEL: Record<StageKey, string> = {
@@ -182,6 +184,7 @@ export function fromTwin(run: DoctorSnapshot): FlowRun {
     approval: run.awaiting_approval ? { runId: run.id, label: rec?.label ?? 'the recommended repair', candidate: rec } : null,
     certificate: run.certificate_id ? { kind: 'twin', id: run.certificate_id } : null,
     counts: { tools: run.usage.tool_calls, evidence: run.ledger.length },
+    verdict: run.terminal ? { label: run.terminal.replace('_', ' '), tone: OUTCOME[run.terminal].tone } : null,
   };
 }
 
@@ -217,12 +220,18 @@ export function describeEvidence(doc: any): { title: string; detail: string; ton
   }
   if (c?.configuration) {
     const cfg = c.configuration;
-    return { title: `Configuration · ${c.resource_id}`, detail: `parser ${cfg.tool_call_parser ?? '–'} · template ${cfg.chat_template ?? '–'}`, tone: 'info' };
+    const down = cfg.container_state && cfg.container_state !== 'running';
+    return { title: `Configuration · ${c.resource_id}`, detail: `parser ${cfg.tool_call_parser ?? '–'} · template ${cfg.chat_template ?? '–'}${down ? ` · container ${cfg.container_state}` : ''}`, tone: down ? 'bad' : 'info' };
+  }
+  if (c?.metric) {
+    const v = typeof c.value === 'number' ? (c.unit === 'fraction' ? pctTxt(c.value) : c.unit === 'seconds' ? msTxt(c.value) : String(c.value)) : '–';
+    return { title: `Metric · ${c.resource_id}`, detail: `${c.metric} ${v}${c.window ? ` over ${c.window}` : ''}`, tone: 'info' };
   }
   if (c?.state || doc?.source_type === 'resource_state') {
     const st = c?.state ?? c;
-    const fields = Object.entries<any>(st?.fields ?? st ?? {}).filter(([k]) => k !== 'resource_id' && k !== 'source').slice(0, 3);
-    return { title: `State · ${c?.resource_id ?? ''}`, detail: fields.map(([k, v]) => `${k} ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ') || 'collected', tone: 'info' };
+    const fields = Object.entries<any>(st?.fields ?? st ?? {}).filter(([k]) => k !== 'resource_id' && k !== 'source').slice(0, 4);
+    const down = st?.container_state && st.container_state !== 'running';
+    return { title: `State · ${c?.resource_id ?? ''}`, detail: fields.map(([k, v]) => `${k} ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ') || 'collected', tone: down ? 'bad' : 'info' };
   }
   if (doc?.source_type === 'environment_manifest') {
     const n = (k: string) => (Array.isArray(c?.[k]) ? c[k].length : 0);
@@ -342,33 +351,76 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
   if (x) {
     const start = Math.max(ms(x.started_at), lastT + 150);
     const end = Math.max(ms(x.ended_at), start + 1000);
+    const drain = x.action === 'drain_worker';
     if (!acting) out.push({ t: start, stage: 'act' });
-    out.push({ t: start, phase: 'repair', focus: x.service, item: { id: 'x-start', at: utc(start), kind: 'action', title: `Executor · ${x.action} on ${x.service}`, detail: `drain → apply ${x.profile ?? 'change'} → hidden canary → undrain`, tone: 'info', payload: x.before } });
-    out.push({ t: end, stage: 'verify', phase: 'verify', item: { id: 'x-end', at: utc(end), kind: 'check', title: `Executor's canary ${x.verification?.passed ? 'passed' : 'failed'}`, detail: `${x.status} after ${x.seconds.toFixed(1)} s · health ${x.verification?.health_status ?? '–'} · ${(x.verification?.failed_cases ?? []).length} failed cases`, tone: x.verification?.passed ? 'ok' : 'bad', payload: x.verification } });
+    out.push({ t: start, phase: 'repair', focus: x.service, item: { id: 'x-start', at: utc(start), kind: 'action', title: `Executor · ${x.action} on ${x.service}`, detail: PROTOCOL[x.action]?.(x.profile) ?? 'one approved change, with a rollback path', tone: 'info', payload: x.before ?? x } });
+    out.push({
+      t: end, stage: 'verify', phase: 'verify',
+      item: drain
+        ? { id: 'x-end', at: utc(end), kind: 'action', title: `Drain ${x.status === 'APPLIED' ? 'applied' : x.status.toLowerCase()}`, detail: `${x.service} out of rotation after ${x.seconds.toFixed(1)} s; the link itself needs a human`, tone: x.status === 'APPLIED' ? 'info' : 'bad', payload: x }
+        : { id: 'x-end', at: utc(end), kind: 'check', title: `Executor's canary ${x.verification?.passed ? 'passed' : 'failed'}`, detail: `${x.status} after ${x.seconds.toFixed(1)} s · health ${x.verification?.health_status ?? '–'} · ${(x.verification?.failed_cases ?? []).length} failed cases`, tone: x.verification?.passed ? 'ok' : 'bad', payload: x.verification },
+    });
     lastT = end;
   }
   if (ep) {
     const at = Math.max(ms(ep.at), lastT + 300);
-    const v = ep.verification;
     if (!x) out.push({ t: at, stage: 'verify', phase: 'verify' });
-    if (v) {
-      const routes = Object.entries(v.route ?? {});
-      const checks: [string, boolean, string?][] = [
-        ['Users served through HAProxy', v.users_ok, routes.map(([k, r]) => `${k} p95 ${msTxt(r.p95_s)} · ${pctTxt(r.error_rate)} err`).join(' · ')],
-        ['Hidden tool-call canary through HAProxy', v.hidden_passed],
-        ['Root cause fixed', v.root_fixed, 'hidden canary on the faulty worker'],
-        [x ? 'Repaired worker back in rotation' : 'Faulty worker not left drained', !v.faulty_worker_drained],
-        ['Referee: episode succeeded', !!ep.success, ep.false_verified ? 'FALSE VERIFIED' : 'no false VERIFIED claim'],
-      ];
-      checks.forEach(([name, ok, detail], i) => out.push({ t: at + i * 140, item: { id: `ref-${i}`, at: utc(at), kind: 'check', title: name, detail: detail || (ok ? 'pass' : 'fail'), tone: ok ? 'ok' : 'bad' } }));
-      const passed = checks.filter(([, ok]) => ok).length;
-      out.push({ t: at + checks.length * 140, headline: `Referee: ${passed}/${checks.length} checks passed` });
-    }
+    const checks = refereeChecks(rec);
+    checks.forEach((c, i) => out.push({ t: at + i * 140, item: { id: `ref-${i}`, at: utc(at), kind: 'check', title: c.name, detail: c.detail || (c.passed ? 'pass' : 'fail'), tone: c.passed ? 'ok' : 'bad' } }));
+    if (checks.length) out.push({ t: at + checks.length * 140, headline: `Referee: ${checks.filter((c) => c.passed).length}/${checks.length} checks passed` });
     out.push({ t: at + 900, end: 'terminal', phase: 'done' });
   }
   out.sort((a, b) => a.t - b.t);
   timelines.set(rec, out);
   return out;
+}
+
+/** What the executor does for each action it is allowed to run. */
+const PROTOCOL: Record<string, (profile?: string) => string> = {
+  patch_serving_config: (profile) => `drain → apply ${profile ?? 'the reviewed profile'} → hidden canary → undrain`,
+  restart_worker: () => 'drain → restart → hidden canary → undrain',
+  drain_worker: () => 'drain: traffic moves to the healthy worker',
+};
+
+const alias = (k: string) => (k.length === 1 ? `target-${k}` : k);
+
+/** The referee's checks for a recorded episode, scored the way the referee scores that fault:
+ *  workers it expects fixed, and links it expects drained for a human. */
+export function refereeChecks(rec: RecordingDetail): { name: string; passed: boolean; detail: string }[] {
+  const s = rec.summary, ep = rec.episode, v = ep?.verification;
+  if (!v) return [];
+  const fix = s.remedy?.fix ?? [], drain = s.remedy?.drain ?? [];
+  const out = [
+    { name: 'Users served through HAProxy', passed: v.users_ok, detail: Object.entries(v.route ?? {}).map(([k, r]) => `${alias(k)} p95 ${msTxt(r.p95_s)} · ${pctTxt(r.error_rate)} err`).join(' · ') },
+    { name: 'Hidden tool-call canary through HAProxy', passed: v.hidden_passed, detail: 'held-out cases' },
+  ];
+  if (v.root && Object.keys(v.root).length) {
+    for (const [w, ok] of Object.entries(v.root)) out.push({ name: `Root cause fixed on ${alias(w)}`, passed: ok, detail: 'hidden canary on that worker' });
+  } else if (fix.length || !s.remedy) {
+    out.push({ name: 'Root cause fixed', passed: v.root_fixed, detail: `hidden canary on ${fix.join(', ') || 'the faulty worker'}` });
+  }
+  if (drain.length) {
+    out.push({ name: `${drain.join(', ')} drained for a human`, passed: v.faulty_worker_drained, detail: 'a degraded link is never fixed by software' });
+    out.push({ name: 'Escalated to a human', passed: s.terminal_state === 'REQUIRES_APPROVAL', detail: `terminal state ${s.terminal_state ?? '–'}` });
+  } else {
+    const back = v.drained_now && fix.length ? !fix.some((w) => v.drained_now!.includes(w.replace('target-', ''))) : !v.faulty_worker_drained;
+    out.push({ name: ep?.executor ? 'Repaired worker back in rotation' : 'Faulty worker not left drained', passed: back, detail: back ? 'serving' : 'left drained' });
+  }
+  if (typeof s.false_verified === 'boolean') out.push({ name: 'No false VERIFIED claim', passed: !s.false_verified, detail: s.success ? 'referee scored a success' : 'referee scored a failure' });
+  return out;
+}
+
+/** How a recorded outcome should read once the referee has had its say. */
+export function fleetVerdict(s: RecordingDetail['summary']): { label: string; tone: Tone; headline: string; falseVerified: boolean } {
+  const t = s.terminal_state;
+  if (t === 'VERIFIED' && s.false_verified) return { label: 'FALSE VERIFIED', tone: 'bad', falseVerified: true, headline: 'The executor said VERIFIED; the independent referee found the fault unresolved' };
+  if (t === 'VERIFIED') return { label: 'VERIFIED', tone: s.success ? 'ok' : 'warn', falseVerified: false, headline: s.success ? 'Referee confirmed users served and the root cause fixed' : 'Verified by the executor; the referee did not score a success' };
+  if (t === 'REQUIRES_APPROVAL') {
+    const drained = s.remedy?.drain?.join(', ');
+    return { label: 'REQUIRES APPROVAL', tone: s.success ? 'warn' : 'bad', falseVerified: false, headline: s.success ? `Users served; ${drained || 'the faulty worker'} drained and handed to a human` : 'Escalated, but the referee scored a failure' };
+  }
+  if (t === 'ROLLED_BACK') return { label: 'ROLLED BACK', tone: 'bad', falseVerified: false, headline: 'Verification failed; the change was rolled back' };
+  return { label: t ? t.replace('_', ' ') : 'NO VERDICT', tone: 'muted', falseVerified: false, headline: s.failure ? `Agent failed: ${s.failure}` : 'No repair was proposed or proven' };
 }
 
 export function fleetBounds(rec: RecordingDetail): { start: number; end: number } {
@@ -394,18 +446,19 @@ export function fromFleet(rec: RecordingDetail, cursor: number): FlowRun {
     if (en.end === 'terminal') ended = true;
   }
   const terminal = ended ? s.terminal_state : null;
+  const verdict = fleetVerdict(s);
   for (const st of stages) if (st.key === failedAt) st.status = 'halted';
   const last = stages[stages.length - 1];
   if (last && !ended) last.status = failedAt === last.key ? 'halted' : 'active';
-  if (ended && terminal && terminal !== 'VERIFIED') {
+  if (ended && terminal && !s.success) {
     const verify = stages.find((x) => x.key === 'verify');
     if (verify) verify.status = 'failed';
   }
   if (ended && terminal) {
     stages.push({
       key: 'certificate', label: LABEL.certificate, at: s.ended_at ? utc(s.ended_at) : '', items: [],
-      status: terminal === 'VERIFIED' ? 'done' : terminal === 'ROLLED_BACK' ? 'failed' : 'halted',
-      headline: s.success ? 'Referee confirmed users served and root cause fixed' : s.failure ? `Agent failed: ${s.failure}` : 'The referee did not confirm a repair',
+      status: verdict.tone === 'ok' ? 'done' : verdict.tone === 'bad' ? 'failed' : 'halted',
+      headline: verdict.headline,
     });
   }
   return {
@@ -419,10 +472,11 @@ export function fromFleet(rec: RecordingDetail, cursor: number): FlowRun {
     startedAt: utc(s.started_at),
     stages,
     terminal,
-    reason: s.success ? (s.summary ?? 'Confirmed by the independent referee') : s.failure ?? s.summary ?? '',
+    reason: s.summary ?? s.failure ?? '',
     awaitingApproval: false,
     approval: null,
     certificate: terminal ? { kind: 'fleet', id: s.id } : null,
     counts: { tools, evidence },
+    verdict: terminal ? { label: verdict.label, tone: verdict.tone } : null,
   };
 }
