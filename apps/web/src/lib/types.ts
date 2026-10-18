@@ -228,3 +228,101 @@ export interface CertificateSummary {
 
 /** Where the pixels on screen come from. Never shown as anything it is not. */
 export type DataMode = 'live' | 'simulated' | 'replay';
+
+// ---- Real runs from the Brev box (apps/twin/results_api.py, nexus/results/) ----------------
+
+export interface ScoreCell { success: number; total: number; false_verified: number; median_s: number | null }
+
+export interface ScoreBatch {
+  id: string;
+  label: string;
+  solver: 'rules' | 'agent' | string;
+  heldout?: boolean;
+  from: string;
+  to: string;
+  faults: Record<string, ScoreCell>;
+  total: ScoreCell;
+}
+
+export interface Scoreboard { batches: ScoreBatch[] }
+
+export interface EpisodeSummary {
+  id: string;
+  fault: string;
+  solver: string;
+  heldout: boolean;
+  at: string;
+  terminal_state: Terminal;
+  success: boolean;
+  false_verified: boolean;
+  solve_seconds: number | null;
+  run_id: string | null;
+  action: string | null;
+  target: string | null;
+  contaminated: boolean;
+  source: string;
+}
+
+export interface RunSummary {
+  run_id: string;
+  started_at: string | null;
+  updated_at: string | null;
+  trigger: string | null;
+  resources: string[];
+  events: number;
+  completed: boolean;
+  outcome: 'run_completed' | 'run_failed' | null;
+  state: string | null;
+  steps: number | null;
+  tool_calls: number | null;
+}
+
+/** One raw line of artifacts/agent-runs/<id>/events.jsonl. */
+export interface AgentEnvelope {
+  run_id: string;
+  sequence: number;
+  timestamp: string;
+  event_type: string;
+  payload: Record<string, any>;
+}
+
+/** A real run adapted to the twin's snapshot; controller is "nemotron". */
+export type RealRunSnapshot = DoctorSnapshot & { episode_id: string | null };
+
+export interface BfclProfile {
+  label: string;
+  port: number;
+  at: string;
+  by_category: Record<'simple' | 'multiple' | 'parallel' | 'irrelevance', { passed: number; total: number; score: number }>;
+  tool_calling_score: number;
+  overall: number;
+  http_errors: number;
+  file: string;
+}
+
+export interface CapacityTable { name: string; columns: string[]; rows: string[][] }
+
+export interface LiveStatus {
+  gateway: boolean;
+  prometheus: boolean;
+  operator: boolean;
+  operator_configured: boolean;
+  box: boolean;
+  active_job: string | null;
+  checked_at: string;
+}
+
+export interface RealFault { name: string; heldout: boolean; fix: string[]; drain: string[]; expect_action: boolean }
+
+export interface Job {
+  id: string;
+  fault: string;
+  solver: 'rules' | 'agent';
+  state: 'queued' | 'running' | 'done' | 'failed';
+  queued_at: string;
+  started_at: string | null;
+  ended_at: string | null;
+  run_ids: string[];
+  episode: Pick<EpisodeSummary, 'fault' | 'solver' | 'at' | 'terminal_state' | 'success' | 'false_verified' | 'solve_seconds' | 'run_id'> | null;
+  error: string | null;
+}

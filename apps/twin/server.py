@@ -2,7 +2,9 @@
 
 Runs the SimPy twin against the wall clock, streams frames to the 3D view over
 a WebSocket, and exposes faults, actions, rollback, what-if previews and
-Prometheus metrics over HTTP.
+Prometheus metrics over HTTP. Real runs from the Brev box (results, a live run
+stream, live fleet frames on /ws?source=live, Break it) are in results_api.py
+and live.py.
 
     uvicorn apps.twin.server:app --port 8765
 """
@@ -23,6 +25,8 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from apps.twin import live
+from apps.twin.results_api import live_doctor, router as results_router
 from nexus.certificate import morning_summary, notification_preview
 from nexus.doctors import DoctorManager
 from nexus.simulator import Twin, actions, faults, telemetry, whatif
@@ -126,6 +130,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Nexus Ω digital twin", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.include_router(results_router)  # real runs: /api/results/*, /api/runs/{id}/stream, /api/live/*
 
 
 class FaultRequest(BaseModel):
@@ -165,9 +170,21 @@ def _guard(fn, *args):
 
 @app.get("/")
 def index() -> FileResponse:
-    """The React platform when it is built, otherwise the static twin view."""
+    """The story landing page when the web app is built, otherwise the static twin view."""
     built = WEB_DIST / "index.html"
     return FileResponse(built if built.exists() else STATIC / "index.html")
+
+
+# The web app's other pages; only these names, so no other file in dist/ can be requested this way.
+WEB_PAGES = {"about", "story", "results", "platform"}
+
+
+@app.get("/{page}.html")
+def web_page(page: str) -> FileResponse:
+    target = WEB_DIST / f"{page}.html"
+    if page not in WEB_PAGES or not target.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(target)
 
 
 @app.get("/classic")
@@ -331,10 +348,16 @@ async def metrics() -> PlainTextResponse:
 
 
 @app.websocket("/ws")
-async def stream(ws: WebSocket) -> None:
+async def stream(ws: WebSocket, source: str = "twin") -> None:
     await ws.accept()
+    if source == "live":  # the real Brev fleet, polled once a second (apps/twin/live.py)
+        try:
+            await live.stream(ws, live_doctor)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        return
     s = rt.twin.state
-    # source tells the view where frames come from: "twin" (simulated) or, later, "live".
+    # source tells the view where frames come from: "twin" (simulated) here, "live" above.
     hello = {"type": "hello", "source": "twin", "topology": telemetry.topology(rt.twin), "events": list(s.events)[-40:]}
     await ws.send_text(json.dumps(hello))
     clients.add(ws)

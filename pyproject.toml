@@ -11,7 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 # SimPy digital twin and its live 3D view (apps/twin).
-twin = ["simpy>=4.1", "fastapi>=0.115", "uvicorn[standard]>=0.30"]
+twin = ["simpy>=4.1", "fastapi>=0.115", "uvicorn[standard]>=0.30", "httpx>=0.27"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
