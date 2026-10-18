@@ -28,6 +28,7 @@ from nexus.doctors import DoctorManager
 from nexus.simulator import Twin, actions, faults, telemetry, whatif
 
 STATIC = Path(__file__).parent / "static"
+WEB_DIST = Path(__file__).resolve().parents[1] / "web" / "dist"  # React app (apps/web), built with `npm run build`
 CERT_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "certificates"
 TICK_S = 0.05
 FRAME_S = 0.1
@@ -40,15 +41,18 @@ class Runtime:
         self.reset()
 
     def reset(self, seed: int | None = None) -> None:
+        # Warm the new twin up before publishing it, so the stream loop never
+        # advances a half-built simulation.
+        twin = Twin(seed=seed)
+        twin.advance(WARMUP_S)
+        twin.log("info", f"digital twin online · profile {twin.profile['name']}", None, "boot")
         self.doctors.reset()
         self.doctor_rev = ""
         self.preview_task: asyncio.Task | None = None
-        self.twin = Twin(seed=seed)
-        self.twin.advance(WARMUP_S)
         self.speed = 1.0
         self.paused = False
-        self.last_seq = self.twin.state.event_seq
-        self.twin.log("info", f"digital twin online · profile {self.twin.profile['name']}", None, "boot")
+        self.last_seq = twin.state.event_seq
+        self.twin = twin
 
 
 rt = Runtime()
@@ -150,6 +154,8 @@ class ControlRequest(BaseModel):
     seed: int | None = None
 
 
+# Endpoints that read or change the twin are `async def` so they run on the event
+# loop, between ticks of _run(), instead of racing it from a worker thread.
 def _guard(fn, *args):
     try:
         return fn(*args)
@@ -159,16 +165,32 @@ def _guard(fn, *args):
 
 @app.get("/")
 def index() -> FileResponse:
+    """The React platform when it is built, otherwise the static twin view."""
+    built = WEB_DIST / "index.html"
+    return FileResponse(built if built.exists() else STATIC / "index.html")
+
+
+@app.get("/classic")
+def classic() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/assets/{path:path}")
+def web_asset(path: str) -> FileResponse:
+    root = (WEB_DIST / "assets").resolve()
+    target = (root / path).resolve()
+    if not target.is_relative_to(root) or not target.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(target)
+
+
 @app.get("/api/topology")
-def get_topology() -> dict:
+async def get_topology() -> dict:
     return telemetry.topology(rt.twin)
 
 
 @app.get("/api/state")
-def get_state() -> dict:
+async def get_state() -> dict:
     s = rt.twin.state
     return {"t": rt.twin.now, "kpi": s.series[-1] if s.series else rt.twin.kpis(), "faults": list(s.faults.values())}
 
@@ -179,12 +201,12 @@ def get_faults() -> list[dict]:
 
 
 @app.post("/api/faults")
-def post_fault(req: FaultRequest) -> dict:
+async def post_fault(req: FaultRequest) -> dict:
     return _guard(faults.inject, rt.twin, req.kind, req.target)
 
 
 @app.post("/api/faults/{fid}/repair")
-def repair_fault(fid: str) -> dict:
+async def repair_fault(fid: str) -> dict:
     return _guard(faults.repair, rt.twin, fid)
 
 
@@ -194,17 +216,17 @@ def get_actions() -> list[str]:
 
 
 @app.post("/api/actions")
-def post_action(req: ActionRequest) -> dict:
+async def post_action(req: ActionRequest) -> dict:
     return _guard(actions.apply_action, rt.twin, req.kind, req.args)
 
 
 @app.post("/api/rollback")
-def post_rollback(req: RollbackRequest) -> dict:
+async def post_rollback(req: RollbackRequest) -> dict:
     return _guard(actions.rollback, rt.twin, req.token)
 
 
 @app.get("/api/candidates")
-def get_candidates() -> list[dict]:
+async def get_candidates() -> list[dict]:
     return whatif.candidate_set(rt.twin)
 
 
@@ -221,7 +243,7 @@ async def post_preview(req: PreviewRequest) -> dict:
 
 
 @app.post("/api/control")
-def post_control(req: ControlRequest) -> dict:
+async def post_control(req: ControlRequest) -> dict:
     if req.reset:
         rt.reset(req.seed)
     if req.speed is not None:
@@ -241,7 +263,7 @@ class ApprovalRequest(BaseModel):
 
 
 @app.get("/api/doctors")
-def get_doctors() -> dict:
+async def get_doctors() -> dict:
     d = rt.doctors
     return {
         "enabled": d.enabled,
@@ -252,7 +274,7 @@ def get_doctors() -> dict:
 
 
 @app.post("/api/doctors/config")
-def post_doctor_config(req: DoctorConfig) -> dict:
+async def post_doctor_config(req: DoctorConfig) -> dict:
     if req.autopilot is not None:
         rt.doctors.autopilot = req.autopilot
         if rt.doctors.active:
@@ -264,7 +286,7 @@ def post_doctor_config(req: DoctorConfig) -> dict:
 
 
 @app.get("/api/doctors/runs/{run_id}")
-def get_run(run_id: str) -> dict:
+async def get_run(run_id: str) -> dict:
     for r in rt.doctors.runs:
         if r.id == run_id:
             return r.snapshot()
@@ -272,7 +294,7 @@ def get_run(run_id: str) -> dict:
 
 
 @app.post("/api/doctors/runs/{run_id}/approve")
-def approve_run(run_id: str, req: ApprovalRequest) -> dict:
+async def approve_run(run_id: str, req: ApprovalRequest) -> dict:
     run = next((r for r in rt.doctors.runs if r.id == run_id), None)
     if run is None or not run.awaiting_approval:
         raise HTTPException(400, "run is not awaiting approval")
@@ -304,7 +326,7 @@ def certificate_summary(cert_id: str) -> dict:
 
 
 @app.get("/metrics")
-def metrics() -> PlainTextResponse:
+async def metrics() -> PlainTextResponse:
     return PlainTextResponse(telemetry.prometheus(rt.twin), media_type="text/plain; version=0.0.4")
 
 
@@ -312,7 +334,9 @@ def metrics() -> PlainTextResponse:
 async def stream(ws: WebSocket) -> None:
     await ws.accept()
     s = rt.twin.state
-    await ws.send_text(json.dumps({"type": "hello", "topology": telemetry.topology(rt.twin), "events": list(s.events)[-40:]}))
+    # source tells the view where frames come from: "twin" (simulated) or, later, "live".
+    hello = {"type": "hello", "source": "twin", "topology": telemetry.topology(rt.twin), "events": list(s.events)[-40:]}
+    await ws.send_text(json.dumps(hello))
     clients.add(ws)
     try:
         while True:

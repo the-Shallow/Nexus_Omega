@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 artifacts/
+
+# React app (apps/web)
+apps/web/node_modules/
+apps/web/dist/

@@ -15,13 +15,13 @@ def notification_preview(cert: dict, channel: str = "#sre-oncall") -> dict:
     state = cert["terminal_state"]
     icon = {"VERIFIED": "✅", "ROLLED_BACK": "↩️", "REQUIRES_APPROVAL": "🟠", "ABSTAIN": "⏸️"}.get(state, "ℹ️")
     t = cert["timeline"]
-    checks = cert.get("verification", {}).get("checks", [])
+    checks = (cert.get("verification") or {}).get("checks", [])
     passed = sum(c["passed"] for c in checks)
     lines = [
         f"{icon} *{state.replace('_', ' ')}* · {cert['incident']['title']} on {cert['incident'].get('target') or 'fleet'}",
         f"Detected {t.get('detected_clock', '–')} · repaired {t.get('acted_clock', '–')} · verified {t.get('closed_clock', '–')}",
-        f"Root cause: {cert['diagnosis']['summary']}",
-        f"Repair: {cert.get('repair', {}).get('label', 'none')} · rollback token {cert.get('repair', {}).get('rollback_token') or 'n/a'}",
+        f"Root cause: {(cert.get('diagnosis') or {}).get('summary', 'not diagnosed')}",
+        f"Repair: {(cert.get('repair') or {}).get('label') or 'none'} · rollback token {(cert.get('repair') or {}).get('rollback_token') or 'n/a'}",
         f"Independent checks: {passed}/{len(checks)} passed · certificate {cert['certificate_id']}",
     ]
     return {"channel": channel, "sent": False, "text": "\n".join(lines)}

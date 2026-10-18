@@ -1,11 +1,17 @@
 # Digital twin, doctors and the operations UI
 
-A SimPy model of a GPU inference pod, the two doctors that diagnose and repair it, and the light-mode operations UI used for the demo. The twin powers the PRECHECK step (`simulate_action`) and covers the failure categories that are simulation-only on the live target (thermal, power, compound).
+A SimPy model of a GPU inference pod, the two doctors that diagnose and repair it, and the NEXUS Ω platform UI used for the demo. The twin powers the PRECHECK step (`simulate_action`) and covers the failure categories that are simulation-only on the live target (thermal, power, compound).
 
 ```bash
-./scripts/twin.sh          # http://127.0.0.1:8765
+./scripts/twin.sh          # http://127.0.0.1:8765 (builds apps/web once if npm is available)
 .venv/bin/python -m pytest # twin, doctor and agent-contract tests
+
+cd apps/web && npm install
+npm run dev                # http://127.0.0.1:5173, hot reload, proxies the twin on :8765
+npm run build              # writes apps/web/dist, which the twin server serves at /
 ```
+
+`/` serves the React platform when `apps/web/dist` exists; the previous light-mode views stay at `/classic`.
 
 ## Doctors
 
@@ -18,17 +24,22 @@ A SimPy model of a GPU inference pod, the two doctors that diagnose and repair i
 
 Each terminal run writes a certificate to `artifacts/certificates/` (git-ignored). Certificates are matched by signature (Jaccard over symptom tokens; Nemotron Embed can replace it). `nexus/certificate/seed/` holds one labelled fixture so incident memory has a prior to match.
 
-## UI views
+## Platform UI (`apps/web`)
 
-| View | What it shows |
+One dark, single-page view (React, TypeScript, Tailwind, Framer Motion, a WebSocket store, and a Three.js twin with bloom). The digital twin fills the screen; everything else floats over it in glass.
+
+| Element | What it shows |
 |---|---|
-| Mission Control | Status, vital signs, both doctors, incidents, detection gap (dashboards vs Nexus), certificates, 3D twin, recovery timeline |
-| Tool-Calling Doctor | Workflow rail and budgets, request anatomy (where the call is dropped), raw generation vs API response, per-replica serving contract and change history, reasoning and tool stream, hypotheses, incident memory, shadow test |
-| Infrastructure Doctor | Rail, hypotheses, incident memory, 3D twin, shadow-twin branches (authorize when autopilot is off), reasoning and tool stream |
-| Architecture | Animated pipeline and technology layer, each item marked live on Brev, built, in progress or planned |
-| Domain menu | Healthcare, agriculture, education and logistics as clearly labelled concept modules |
+| Header | Data source (LIVE / SIMULATED / REPLAY), system status, simulation time with play, pause and 1× / 4× / 10×, a menu (autopilot, overview camera, replay last incident, reset), **Break the system** |
+| Break the system | Glass overlay of the 9 failure scenarios grouped by category, each with its known-issue id, whether a real episode exists on Brev, and which doctor answers |
+| Twin | Racks, GPUs (heat-colored), replicas, fibre routes lit by replica state, cooling, power, airflow, request and response packets. Faults add a shockwave, a marker and a callout; rack outlines take the worst state of their nodes; a verified repair sends a green wave through the hall |
+| Recovery timeline | Detect → Investigate → Select tools → Simulate → Repair → Verify, mapped from the doctor states, with the latest step's real event below |
+| Panels (collapsed by default) | Incident (signal, class, hypotheses, memory, evidence), Tool calls (every call with arguments, reason and raw result), Recovery (shadow-twin race, applied actions, independent checks, field repair) |
+| Outcome | Opens when the run ends: the path the run took through the system, then the recovery certificate (outcome seal, time to detect and close, dashboards alerted, prediction error, checks, evidence, repair, sha256, JSON download, replay) |
 
-Proof of Recovery opens from any finished run: morning summary, chat notification preview (not sent), before/after, independent checks, predicted vs actual, repair and rollback, evidence chain, JSON download and print.
+The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor. A recovery shows as verified only when the certificate says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
+
+Data modes: **SIMULATED** is the SimPy twin (the only source today). **LIVE** is reserved for production telemetry and shows as not connected. **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
 
 ## What is modeled
 
@@ -60,7 +71,7 @@ Each chaos card links to its row in `data/infra_candidate_csv.csv` (the infrastr
 | GPU XID 79 | NVIDIA-XID-48-79-94 | cordon + escalate (restart crash-loops) |
 | Thermal → XID cascade | COMPOUND-… | pause batch, then field repair |
 
-Software agents never "fix" cooling, power or hardware. Those clear only through **Field repair** (a human action) in the Incidents panel.
+Software agents never "fix" cooling, power or hardware. Those clear only through **Record field repair** (a human action) in the Recovery panel, or **Field repair** in the classic Incidents panel.
 
 ## API (for the agent's tools)
 
@@ -79,7 +90,9 @@ Software agents never "fix" cooling, power or hardware. Those clear only through
 
 ## Recording the demo video
 
-- Keys: `1–4` views, `B` break the system, `C` orbit, `R` reset to a healthy fleet, `space` pause, `Esc` close panels.
+- Keys: `B` break the system (then `1–9` to pick a failure), `space` play/pause, `O` overview camera, `Esc` close overlays. Reset is in the `⋯` menu.
+- The camera flies to each new fault, stays out of the way of the panels, and returns home after a verified repair. The hall orbits slowly when nothing is happening.
 - The header clock shows twin time as time of day (t = 0 is 01:47:00) for the 2 AM story. Use 4× for the tool-call run (about 2.5 simulated minutes), 10× for cooling incidents.
-- When a doctor engages the UI follows it automatically; a toast offers the proof when the certificate is issued.
-- Suggested beats: silent tool-call failure on autopilot (canary red, dashboards green, raw vs parsed, memory match, policy rejects the single-sided fix, proof) → CRAH trip with autopilot off (shadow-twin branches, Authorize, REQUIRES_APPROVAL) → Architecture.
+- **Replay last incident** (menu or certificate) replays a recorded run for retakes, with its own speed control and a violet frame so it is never mistaken for live.
+- Suggested beats: silent tool-call failure on autopilot (callouts read `200 OK · tool_calls: []`, canary drops, dashboards never alert, proof) → CRAH trip with autopilot off (Authorize in the prompt, "service verified · facility needs a human", record field repair).
+- `window.nexus.twin.get()` exposes camera presets (`preset('top' | 'cold' | 'hot' | 'power' | 'network')`) for scripted shots.
