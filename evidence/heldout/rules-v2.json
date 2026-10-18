@@ -1,0 +1,2615 @@
+[
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:09:02+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 77.4,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "serving_error",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule serving_error: worker a: canary HTTP 400",
+   "hypotheses": [
+    {
+     "id": "serving_error",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: canary HTTP 400"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.038,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "9b671728d700",
+   "started_at": "2026-10-18T05:07:43+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "f6db1d349ee2",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:08:59+00:00",
+   "seconds": 75.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "serving_error",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule serving_error: worker a: canary HTTP 400",
+     "hypotheses": [
+      {
+       "id": "serving_error",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: canary HTTP 400"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "9b671728d700",
+     "started_at": "2026-10-18T05:07:43+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "f6db1d349ee2",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:08:59+00:00",
+     "seconds": 75.9
+    }
+   }
+  ]
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:11:37+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 77.7,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-b",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "92d5778a6bce",
+   "started_at": "2026-10-18T05:10:17+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "0437652b9fa4",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.042,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:11:33+00:00",
+   "seconds": 75.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-b",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "92d5778a6bce",
+     "started_at": "2026-10-18T05:10:17+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "0437652b9fa4",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.042,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:11:33+00:00",
+     "seconds": 75.9
+    }
+   }
+  ]
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:13:34+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 113.3,
+  "action": {
+   "tool": "restart_worker",
+   "service": "target-a"
+  },
+  "rule": "worker_down",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule worker_down: container for worker a is exited",
+   "hypotheses": [
+    {
+     "id": "worker_down",
+     "confidence": 1.0,
+     "supports": [
+      "container for worker a is exited"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "0ffa4d865264",
+   "started_at": "2026-10-18T05:12:19+00:00",
+   "ready_seconds": 69.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:13:31+00:00",
+   "seconds": 72.2
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-a"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker a is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker a is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "0ffa4d865264",
+     "started_at": "2026-10-18T05:12:19+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:13:31+00:00",
+     "seconds": 72.2
+    }
+   }
+  ]
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:17:23+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 150.8,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "ff368274c412",
+   "started_at": "2026-10-18T05:16:03+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "7a8ac8e1d93b",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:17:19+00:00",
+   "seconds": 76.0
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-b"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker b is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker b is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-b",
+     "change_id": "a39eb7fed34e",
+     "started_at": "2026-10-18T05:14:49+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:16:02+00:00",
+     "seconds": 72.1
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "ff368274c412",
+     "started_at": "2026-10-18T05:16:03+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "7a8ac8e1d93b",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:17:19+00:00",
+     "seconds": 76.0
+    }
+   }
+  ]
+ },
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:19:55+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 74.3,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "serving_error",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule serving_error: worker a: canary HTTP 400",
+   "hypotheses": [
+    {
+     "id": "serving_error",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: canary HTTP 400"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.036,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "789ee51e2bb6",
+   "started_at": "2026-10-18T05:18:39+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "8e378ce360db",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.04,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:19:52+00:00",
+   "seconds": 72.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "serving_error",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule serving_error: worker a: canary HTTP 400",
+     "hypotheses": [
+      {
+       "id": "serving_error",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: canary HTTP 400"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "789ee51e2bb6",
+     "started_at": "2026-10-18T05:18:39+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "8e378ce360db",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.04,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:19:52+00:00",
+     "seconds": 72.9
+    }
+   }
+  ]
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:22:30+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 77.6,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-b",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "5b6866d8720a",
+   "started_at": "2026-10-18T05:21:11+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "ba0ac80a32e8",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:22:27+00:00",
+   "seconds": 75.8
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-b",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "5b6866d8720a",
+     "started_at": "2026-10-18T05:21:11+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "ba0ac80a32e8",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:22:27+00:00",
+     "seconds": 75.8
+    }
+   }
+  ]
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:24:25+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 111.4,
+  "action": {
+   "tool": "restart_worker",
+   "service": "target-a"
+  },
+  "rule": "worker_down",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule worker_down: container for worker a is exited",
+   "hypotheses": [
+    {
+     "id": "worker_down",
+     "confidence": 1.0,
+     "supports": [
+      "container for worker a is exited"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "1707a753c86f",
+   "started_at": "2026-10-18T05:23:07+00:00",
+   "ready_seconds": 72.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:24:22+00:00",
+   "seconds": 75.2
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-a"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker a is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker a is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "1707a753c86f",
+     "started_at": "2026-10-18T05:23:07+00:00",
+     "ready_seconds": 72.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:24:22+00:00",
+     "seconds": 75.2
+    }
+   }
+  ]
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:28:14+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 150.7,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "5393a437a2c1",
+   "started_at": "2026-10-18T05:26:54+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "5d0ce6ecfded",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.038,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:28:10+00:00",
+   "seconds": 75.9
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-b"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker b is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker b is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-b",
+     "change_id": "b89d2161325d",
+     "started_at": "2026-10-18T05:25:40+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:26:53+00:00",
+     "seconds": 72.1
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "5393a437a2c1",
+     "started_at": "2026-10-18T05:26:54+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "5d0ce6ecfded",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:28:10+00:00",
+     "seconds": 75.9
+    }
+   }
+  ]
+ },
+ {
+  "fault": "noauto-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:30:49+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 77.3,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "serving_error",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule serving_error: worker a: canary HTTP 400",
+   "hypotheses": [
+    {
+     "id": "serving_error",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: canary HTTP 400"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "5806780d9c86",
+   "started_at": "2026-10-18T05:29:29+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.flags-v2",
+    "enable_auto_tool_choice": false,
+    "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+    "tool_call_parser": "qwen2_5_coder",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--tool-parser-plugin",
+     "/plugins/qwen2_5_coder_tool_parser.py",
+     "--tool-call-parser",
+     "qwen2_5_coder",
+     "--chat-template",
+     "/templates/tool_chat_template_qwen2_5_coder.jinja",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "8c175c317cb7",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:30:45+00:00",
+   "seconds": 75.8
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "serving_error",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule serving_error: worker a: canary HTTP 400",
+     "hypotheses": [
+      {
+       "id": "serving_error",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: canary HTTP 400"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "5806780d9c86",
+     "started_at": "2026-10-18T05:29:29+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.flags-v2",
+      "enable_auto_tool_choice": false,
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py",
+      "tool_call_parser": "qwen2_5_coder",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--tool-parser-plugin",
+       "/plugins/qwen2_5_coder_tool_parser.py",
+       "--tool-call-parser",
+       "qwen2_5_coder",
+       "--chat-template",
+       "/templates/tool_chat_template_qwen2_5_coder.jinja",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "8c175c317cb7",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:30:45+00:00",
+     "seconds": 75.8
+    }
+   }
+  ]
+ },
+ {
+  "fault": "vllm-32926-b",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:33:20+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 74.8,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-b",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-b",
+   "change_id": "9f3949fbc275",
+   "started_at": "2026-10-18T05:32:04+00:00",
+   "before": {
+    "service": "target-b",
+    "container": "nexus-b",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "633b32d5b81c",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.039,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:33:17+00:00",
+   "seconds": 73.0
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-b",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker b: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker b: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-b",
+     "change_id": "9f3949fbc275",
+     "started_at": "2026-10-18T05:32:04+00:00",
+     "before": {
+      "service": "target-b",
+      "container": "nexus-b",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "633b32d5b81c",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.039,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:33:17+00:00",
+     "seconds": 73.0
+    }
+   }
+  ]
+ },
+ {
+  "fault": "kill-a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:35:17+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 113.3,
+  "action": {
+   "tool": "restart_worker",
+   "service": "target-a"
+  },
+  "rule": "worker_down",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule worker_down: container for worker a is exited",
+   "hypotheses": [
+    {
+     "id": "worker_down",
+     "confidence": 1.0,
+     "supports": [
+      "container for worker a is exited"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "restart_worker",
+   "service": "target-a",
+   "change_id": "45eb3b04f24b",
+   "started_at": "2026-10-18T05:34:02+00:00",
+   "ready_seconds": 69.4,
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:35:14+00:00",
+   "seconds": 72.2
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-a"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker a is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker a is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-a",
+     "change_id": "45eb3b04f24b",
+     "started_at": "2026-10-18T05:34:02+00:00",
+     "ready_seconds": 69.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:35:14+00:00",
+     "seconds": 72.2
+    }
+   }
+  ]
+ },
+ {
+  "fault": "compound-killb-32926a",
+  "heldout": true,
+  "set": "v2",
+  "solver": "rules",
+  "at": "2026-10-18T05:39:10+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 153.7,
+  "action": {
+   "tool": "patch_serving_config",
+   "service": "target-a",
+   "approved_profile": "qwen25-coder-7b.tools-template"
+  },
+  "rule": "parser_mismatch",
+  "run_id": null,
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+   "state": "VERIFIED",
+   "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+   "hypotheses": [
+    {
+     "id": "parser_mismatch",
+     "confidence": 1.0,
+     "supports": [
+      "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+     ],
+     "contradicts": []
+    }
+   ],
+   "stop_reason": "executor returned VERIFIED"
+  },
+  "verification": {
+   "users_ok": true,
+   "route": {
+    "a": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "b": {
+     "requests": 15,
+     "p95_s": 0.037,
+     "median_s": 0.037,
+     "error_rate": 0.0,
+     "ok": true
+    }
+   },
+   "hidden_passed": true,
+   "root_fixed": true,
+   "root": {
+    "a": true,
+    "b": true
+   },
+   "faulty_worker_drained": true,
+   "drained": {},
+   "drained_now": []
+  },
+  "executor": {
+   "action": "patch_serving_config",
+   "service": "target-a",
+   "change_id": "2db912e36cf1",
+   "started_at": "2026-10-18T05:37:50+00:00",
+   "before": {
+    "service": "target-a",
+    "container": "nexus-a",
+    "container_state": "running",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+    "profile_label": "qwen25-coder-7b.vllm-32926",
+    "enable_auto_tool_choice": true,
+    "chat_template": "model default",
+    "max_num_seqs": "vllm default",
+    "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "served_model_name": "qwen25-coder",
+    "gpu_memory_utilization": "0.25",
+    "max_model_len": "8192",
+    "tool_call_parser": "hermes",
+    "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "args": [
+     "serve",
+     "--model",
+     "Qwen/Qwen2.5-Coder-7B-Instruct",
+     "--served-model-name",
+     "qwen25-coder",
+     "--gpu-memory-utilization",
+     "0.25",
+     "--max-model-len",
+     "8192",
+     "--enable-auto-tool-choice",
+     "--tool-call-parser",
+     "hermes",
+     "--revision",
+     "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    ],
+    "source": "docker inspect (running container)"
+   },
+   "manager_change_id": "0afb489dfa97",
+   "profile": "qwen25-coder-7b.tools-template",
+   "status": "VERIFIED",
+   "verification": {
+    "passed": true,
+    "health_status": 200,
+    "failed_cases": []
+   },
+   "route_check": {
+    "passed": true,
+    "worker": {
+     "requests": 10,
+     "p95_s": 0.037,
+     "median_s": 0.036,
+     "error_rate": 0.0,
+     "ok": true
+    },
+    "limits": {
+     "max_p95_s": 0.5,
+     "max_error_rate": 0.0
+    }
+   },
+   "ended_at": "2026-10-18T05:39:06+00:00",
+   "seconds": 76.0
+  },
+  "rounds": [
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "restart_worker",
+     "service": "target-b"
+    },
+    "rule": "worker_down",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule worker_down: container for worker b is exited",
+     "hypotheses": [
+      {
+       "id": "worker_down",
+       "confidence": 1.0,
+       "supports": [
+        "container for worker b is exited"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "restart_worker",
+     "service": "target-b",
+     "change_id": "f76ed3d48e7e",
+     "started_at": "2026-10-18T05:36:33+00:00",
+     "ready_seconds": 72.4,
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.038,
+       "median_s": 0.037,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:37:48+00:00",
+     "seconds": 75.1
+    }
+   },
+   {
+    "state": "VERIFIED",
+    "action": {
+     "tool": "patch_serving_config",
+     "service": "target-a",
+     "approved_profile": "qwen25-coder-7b.tools-template"
+    },
+    "rule": "parser_mismatch",
+    "run_id": null,
+    "steps": null,
+    "tool_calls": null,
+    "decision": {
+     "state": "VERIFIED",
+     "summary": "rule parser_mismatch: worker a: HTTP 200, 0 tool calls, call-shaped JSON in content",
+     "hypotheses": [
+      {
+       "id": "parser_mismatch",
+       "confidence": 1.0,
+       "supports": [
+        "worker a: HTTP 200, 0 tool calls, call-shaped JSON in content"
+       ],
+       "contradicts": []
+      }
+     ],
+     "stop_reason": "executor returned VERIFIED"
+    },
+    "executor": {
+     "action": "patch_serving_config",
+     "service": "target-a",
+     "change_id": "2db912e36cf1",
+     "started_at": "2026-10-18T05:37:50+00:00",
+     "before": {
+      "service": "target-a",
+      "container": "nexus-a",
+      "container_state": "running",
+      "image": "vllm/vllm-openai:v0.27.1",
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "enable_auto_tool_choice": true,
+      "chat_template": "model default",
+      "max_num_seqs": "vllm default",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "served_model_name": "qwen25-coder",
+      "gpu_memory_utilization": "0.25",
+      "max_model_len": "8192",
+      "tool_call_parser": "hermes",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "args": [
+       "serve",
+       "--model",
+       "Qwen/Qwen2.5-Coder-7B-Instruct",
+       "--served-model-name",
+       "qwen25-coder",
+       "--gpu-memory-utilization",
+       "0.25",
+       "--max-model-len",
+       "8192",
+       "--enable-auto-tool-choice",
+       "--tool-call-parser",
+       "hermes",
+       "--revision",
+       "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+      ],
+      "source": "docker inspect (running container)"
+     },
+     "manager_change_id": "0afb489dfa97",
+     "profile": "qwen25-coder-7b.tools-template",
+     "status": "VERIFIED",
+     "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+     },
+     "route_check": {
+      "passed": true,
+      "worker": {
+       "requests": 10,
+       "p95_s": 0.037,
+       "median_s": 0.036,
+       "error_rate": 0.0,
+       "ok": true
+      },
+      "limits": {
+       "max_p95_s": 0.5,
+       "max_error_rate": 0.0
+      }
+     },
+     "ended_at": "2026-10-18T05:39:06+00:00",
+     "seconds": 76.0
+    }
+   }
+  ]
+ }
+]

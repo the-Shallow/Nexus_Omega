@@ -33,6 +33,14 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 | Nemotron | Batch 2 round 1 only, **contaminated** (stale metrics; see below) | 0/1 | 0/1 (scored 1/1 by the old referee) | 0/1 (crash) | 0/1 [1] | 0/4 | 1 |
 | Nemotron | Batch 2 rerun, before design changes (incident-scoped evidence, stricter referee; 04:21–05:08 UTC) | 0/3 (130 s) | 0/3 (112 s) | 1/3 (19 s) | 1/3 [1] (50 s) | **2/12** | 1 |
 
+**Held-out v2** (written before the design changes, `60bdd15`; two are label swaps of known faults)
+
+| Solver | Setup | noauto-a | vllm-32926-b | kill-a | compound-killb-32926a | Total | False VERIFIED |
+|---|---|---|---|---|---|---|---|
+| Rule baseline | 2026-10-18 05:06–05:39 UTC | 3/3 (77 s) | 3/3 (78 s) | 3/3 (113 s) | 3/3 (151 s) | **12/12** | 0 |
+| Nemotron | before design changes (old free-form agent) | 3/3 (88 s) | 3/3 (89 s) | 1/3 (56 s) | 3/3 (194 s) | **10/12** | 0 |
+| Nemotron | after design changes (structured) | running | | | | | |
+
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
 | Serving profile | simple | multiple | parallel | irrelevance | Tool-calling score | Call-shaped text in content |
