@@ -182,7 +182,7 @@ Same structured code, fleet and referee as Lightning's 9/12; only `NEMOTRON_BASE
 
 | v1 fault | Lightning 30B-A3B (local, structured) | Super 120B-A12B (hosted, structured) |
 |---|---|---|
-| compound-latb-32926a | 2/3 (152 s) | **3/3 valid** (438 s) |
+| compound-latb-32926a | 2/3 (152 s) | **2/2 valid** (438 s) |
 | capacity-b | 1/3 (105 s) | **3/3** (250 s) |
 | tools-stripped-a | 3/3 (92 s) | 3/3 (202 s) |
 | noop | 3/3 (7 s) | 3/3 (45 s) |
