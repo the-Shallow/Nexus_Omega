@@ -1,5 +1,5 @@
-// Domain modules. The platform loop (detect → investigate → select tools →
-// simulate → repair → verify) and the certificate are shared; a domain supplies
+// Domain modules. The platform loop (detect → diagnose → select tools → shadow
+// test → act → verify) and the certificate are shared; a domain supplies
 // its twin scene, how its failures are grouped, and which doctor answers each.
 // Only the AI datacenter is implemented. Others are listed as concepts so the
 // UI never presents them as operational.
@@ -40,4 +40,5 @@ export const DOMAINS: DomainModule[] = [
   { id: 'healthcare', name: 'Healthcare', status: 'concept' },
   { id: 'agriculture', name: 'Agriculture', status: 'concept' },
   { id: 'education', name: 'Education', status: 'concept' },
+  { id: 'logistics', name: 'Logistics', status: 'concept' },
 ];

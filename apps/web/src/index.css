@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
-/* Dark only. Graphite with a green bias; NVIDIA green is the single accent.
-   Semantic colors (ok / warn / bad / info) carry state and nothing else. */
+/* Dark only. Deep graphite with a green bias; NVIDIA green is the one accent.
+   Semantic colors (ok / warn / bad / info / replay) carry state and nothing else. */
 @theme {
-  --color-bg: #07090a;
-  --color-raised: #0e1214;
-  --color-ink: #e9eef1;
-  --color-ink-2: #a3afb7;
-  --color-ink-3: #6b7880;
-  --color-ink-4: #48535a;
+  --color-bg: #050708;
+  --color-raised: #0c1013;
+  --color-ink: #eaf0f2;
+  --color-ink-2: #a7b2b9;
+  --color-ink-3: #6e7b83;
+  --color-ink-4: #46525a;
   --color-line: rgb(255 255 255 / 0.07);
   --color-line-2: rgb(255 255 255 / 0.12);
   --color-accent: #76b900;
-  --color-accent-hi: #9be22d;
+  --color-accent-hi: #a3e635;
   --color-ok: #76b900;
-  --color-warn: #f59e0b;
+  --color-warn: #f5a524;
   --color-bad: #f43f5e;
   --color-info: #38bdf8;
   --color-replay: #a78bfa;
   --color-xid: #d946ef;
 
   --font-sans: "Instrument Sans Variable", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Unbounded Variable", "Unbounded", "Instrument Sans Variable", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -38,65 +39,107 @@
     overflow: hidden;
   }
   button { cursor: pointer; }
-  :focus-visible { outline: 1.5px solid var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 1.5px solid var(--color-accent); outline-offset: 2px; border-radius: 10px; }
   ::selection { background: rgb(118 185 0 / 0.35); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.08); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 }
 
+/* Glass: thin, cool, barely there. Depth comes from blur and a hairline highlight, not from borders. */
 @utility glass {
-  background: linear-gradient(180deg, rgb(22 27 31 / 0.78), rgb(11 14 16 / 0.74));
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid rgb(255 255 255 / 0.075);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 24px 60px -28px rgb(0 0 0 / 0.9);
+  background: linear-gradient(180deg, rgb(20 26 30 / 0.66), rgb(9 12 14 / 0.62));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 80px -40px rgb(0 0 0 / 0.95);
 }
 
 @utility glass-strong {
-  background: linear-gradient(180deg, rgb(20 25 28 / 0.86), rgb(10 13 15 / 0.84));
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  background: linear-gradient(180deg, rgb(18 23 27 / 0.86), rgb(8 11 13 / 0.84));
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
   border: 1px solid rgb(255 255 255 / 0.08);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 40px 120px -40px rgb(0 0 0 / 0.95);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 50px 140px -50px rgb(0 0 0 / 1);
 }
 
 @utility label {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--color-ink-3);
 }
 
+@utility display { font-family: var(--font-display); letter-spacing: -0.01em; }
 @utility tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- motion */
+
+@keyframes breathe { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes signal-drop { 0% { transform: translateY(-6px); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(calc(var(--len, 28px) - 2px)); opacity: 0; } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes ring-out { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+
+/* BREAK THE SYSTEM: a slow ember travelling around the pill. */
+.break-trigger { position: relative; isolation: isolate; }
+.break-trigger::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; z-index: -1;
+  background: conic-gradient(from var(--angle, 0deg), rgb(244 63 94 / .15), rgb(251 113 133 / .95) 10%, rgb(249 115 22 / .6) 18%, rgb(244 63 94 / .15) 30%, rgb(244 63 94 / .15));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: ember 4.5s linear infinite;
+}
+.break-trigger:disabled::before { animation: none; opacity: .35; }
+@property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ember { to { --angle: 360deg; } }
+
+.signal { animation: signal-drop 1.6s cubic-bezier(.45, 0, .25, 1) infinite; }
 
 /* ---------------------------------------------------------------- 3D labels */
 
 .twin-labels { position: absolute; inset: 0; pointer-events: none; }
 .lbl { font-family: var(--font-mono); white-space: nowrap; pointer-events: none; transition: opacity .4s; }
-.lbl.unit { font-size: 10px; color: var(--color-ink-3); text-align: center; letter-spacing: .04em; }
-.lbl.unit b { display: block; font-weight: 500; color: var(--color-ink-2); }
-.lbl.unit .m { opacity: .8; }
-.lbl.unit.bad b, .lbl.unit.bad .m { color: var(--color-bad); text-shadow: 0 0 12px rgb(244 63 94 / .6); }
+/* Facility names stay quiet; their numbers appear only when something is wrong. */
+.lbl.unit { font-size: 9.5px; color: var(--color-ink-4); text-align: center; letter-spacing: .12em; text-transform: uppercase; }
+.lbl.unit b { display: block; font-weight: 500; }
+.lbl.unit .m { display: none; }
+.lbl.unit.bad { color: var(--color-bad); text-shadow: 0 0 12px rgb(244 63 94 / .6); }
+.lbl.unit.bad .m { display: block; text-transform: none; letter-spacing: .04em; }
 .lbl.wtag {
-  font-size: 10px; padding: 3px 7px 3px 6px; border-radius: 7px; display: flex; gap: 6px; align-items: center;
-  background: rgb(8 10 12 / .72); border: 1px solid rgb(255 255 255 / .08); color: var(--color-ink-2);
+  font-size: 9.5px; padding: 3px 7px 3px 6px; border-radius: 999px; display: flex; gap: 6px; align-items: center;
+  background: rgb(6 8 10 / .7); border: 1px solid rgb(255 255 255 / .08); color: var(--color-ink-2);
   backdrop-filter: blur(6px);
 }
 .lbl.wtag b { font-weight: 600; color: var(--color-ink); }
 .lbl.wtag em { font-style: normal; }
 .lbl.wtag.bad { border-color: rgb(244 63 94 / .5); } .lbl.wtag.bad em { color: var(--color-bad); }
-.lbl.wtag.warn { border-color: rgb(245 158 11 / .45); } .lbl.wtag.warn em { color: var(--color-warn); }
+.lbl.wtag.warn { border-color: rgb(245 165 36 / .45); } .lbl.wtag.warn em { color: var(--color-warn); }
 .lbl.wtag.restart { border-color: rgb(56 189 248 / .4); } .lbl.wtag.restart em { color: var(--color-info); }
 .lbl.wtag.off em { color: var(--color-ink-3); }
-.lbl.callout {
-  font-size: 11px; padding: 6px 10px; border-radius: 10px; text-align: left;
-  background: rgb(30 8 14 / .78); border: 1px solid rgb(244 63 94 / .55); color: #ffe4e8;
-  box-shadow: 0 0 24px -6px rgb(244 63 94 / .6); backdrop-filter: blur(6px);
-  animation: callout-in .6s var(--ease-out-expo) both;
+/* The warning tag over a failed component: small, precise, unmissable. */
+.lbl.alert {
+  display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 8px; border-radius: 999px;
+  font-size: 10px; color: #ffe4e8; letter-spacing: .02em;
+  background: rgb(28 6 12 / .72); border: 1px solid rgb(244 63 94 / .45);
+  box-shadow: 0 0 30px -8px rgb(244 63 94 / .7); backdrop-filter: blur(8px);
+  animation: alert-in .9s var(--ease-out-expo) both;
 }
-.lbl.callout b { display: block; font-family: var(--font-sans); font-weight: 600; font-size: 12.5px; letter-spacing: 0; }
-.lbl.callout span { color: #fda4af; font-size: 10px; letter-spacing: .06em; }
-@keyframes callout-in { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+.lbl.alert i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-bad); box-shadow: 0 0 10px var(--color-bad); animation: breathe 1.3s ease-in-out infinite; }
+.lbl.alert b { font-family: var(--font-sans); font-weight: 600; font-size: 11.5px; }
+.lbl.alert span { color: #fda4af; opacity: .85; }
+.lbl.alert.warn { color: #fff1d6; background: rgb(30 18 4 / .72); border-color: rgb(245 165 36 / .5); box-shadow: 0 0 30px -8px rgb(245 165 36 / .6); }
+.lbl.alert.warn i { background: var(--color-warn); box-shadow: 0 0 10px var(--color-warn); }
+.lbl.alert.warn span { color: #fcd38d; }
+@keyframes alert-in { from { opacity: 0; transform: translateY(8px) scale(.94); filter: blur(4px); } }
+/* Where a failure would land, while choosing one. */
+.lbl.ptag {
+  font-size: 10px; padding: 4px 9px; border-radius: 999px; color: #d9f3ff; letter-spacing: .04em;
+  background: rgb(6 16 22 / .75); border: 1px solid rgb(125 211 252 / .45); backdrop-filter: blur(6px);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

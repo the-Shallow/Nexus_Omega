@@ -1,20 +1,136 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { twin, useToasts } from '../lib/bus';
-import { clock, ms, pct } from '../lib/format';
+import { ms, pct } from '../lib/format';
 import { store, useStore } from '../lib/store';
-import type { Entity, HoverEvent } from '../twin/scene';
-import type { Frame, Kpi } from '../lib/types';
+import type { Entity } from '../twin/scene';
+import type { Frame, Kpi, Topology } from '../lib/types';
+import { OmegaMark, Wordmark } from './Logo';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-// ------------------------------------------------------------------ vitals
+// ------------------------------------------------------------------ capsule
 
-interface Vital { key: string; label: string; value: (k: Kpi) => number | null; fmt: (v: number | null) => string; tone: (v: number | null) => string; max: number }
+type Health = { word: string; tone: 'ok' | 'warn' | 'bad' | 'info' | 'muted' };
+interface CapsuleData { name: string; kind: string; health: Health; metrics: [string, string, string?][] }
 
-/** Four signals that matter, with a 3-minute trace. Bottom-left, out of the twin's way. */
-export function Vitals() {
+function describe(e: Entity, f: Frame, topo: Topology): CapsuleData | null {
+  if (e.type === 'worker') {
+    const w = f.workers.find((x) => x.id === e.id);
+    if (!w) return null;
+    const health: Health = w.state === 'crashed' ? { word: 'Crashed', tone: 'bad' } : w.state === 'hung' ? { word: 'Hung · health still 200', tone: 'warn' }
+      : w.draining ? { word: 'Draining', tone: 'info' } : w.state === 'restarting' ? { word: 'Restarting', tone: 'info' }
+      : !w.canary ? { word: 'Silent failure · canary failing', tone: 'warn' } : { word: 'Healthy', tone: 'ok' };
+    return { name: w.id, kind: 'vLLM replica', health, metrics: [['TTFT p95', ms(w.ttft_p95)], ['Tokens / s', w.tps.toLocaleString()], ['Tool-call canary', w.canary ? 'pass' : 'fail', w.canary ? 'text-ok' : 'text-warn']] };
+  }
+  if (e.type === 'node') {
+    const nd = topo.nodes.find((n) => n.id === e.id);
+    if (!nd) return null;
+    const temps = nd.gpus.map((g) => f.gpu.temp[g]);
+    const hot = Math.max(...temps);
+    const xid = nd.gpus.some((g) => f.gpu.flag[g] === 3);
+    const cordoned = !!f.nodes[nd.id]?.[0];
+    const health: Health = xid ? { word: 'GPU fell off the bus (XID)', tone: 'bad' } : cordoned ? { word: 'Cordoned', tone: 'muted' } : hot > topo.gpu.slowdown_c ? { word: 'Thermal throttling', tone: 'warn' } : { word: 'Healthy', tone: 'ok' };
+    return { name: nd.id, kind: `${nd.role} node`, health, metrics: [['GPUs', `${nd.gpus.length} × ${topo.gpu.model.split(' ')[0]}`], ['Hottest GPU', `${hot.toFixed(0)} °C`, hot > 87 ? 'text-bad' : undefined], ['Power', `${(nd.gpus.reduce((a, g) => a + f.gpu.power[g], 0) / 1000).toFixed(1)} kW`]] };
+  }
+  if (e.type === 'rack') {
+    const r = f.racks.find((x) => x.id === e.id);
+    if (!r) return null;
+    const health: Health = r.net ? { word: 'Top-of-rack link degraded', tone: 'bad' } : r.capped ? { word: 'Power capped', tone: 'warn' } : r.exhaust > 50 ? { word: 'Running hot', tone: 'warn' } : { word: 'Healthy', tone: 'ok' };
+    return { name: r.id, kind: 'rack', health, metrics: [['Inlet', `${r.inlet.toFixed(1)} °C`], ['Exhaust', `${r.exhaust.toFixed(1)} °C`, r.exhaust > 50 ? 'text-warn' : undefined], ['Power', `${r.power_kw.toFixed(1)} kW`]] };
+  }
+  if (e.type === 'crah') {
+    const c = f.hall.crahs.find((x) => x.id === e.id);
+    return { name: e.id, kind: 'cooling unit', health: c?.running ? { word: 'Running', tone: 'ok' } : { word: 'Tripped', tone: 'bad' }, metrics: [['Supply air', `${f.hall.supply_c.toFixed(1)} °C`], ['Return air', `${f.hall.return_c.toFixed(1)} °C`], ['PUE', f.hall.pue.toFixed(2)]] };
+  }
+  if (e.type === 'ups') {
+    const on = f.hall.ups[e.id];
+    const live = Object.values(f.hall.ups).filter(Boolean).length || 1;
+    return { name: e.id, kind: 'power feed', health: on ? { word: 'Online', tone: 'ok' } : { word: 'Feed lost', tone: 'bad' }, metrics: [['Load', on ? `${(f.hall.it_kw / live).toFixed(0)} kW` : '0 kW'], ['IT load, hall', `${f.hall.it_kw.toFixed(0)} kW`]] };
+  }
+  const q = f.kpi.queue + f.gateway.queue;
+  return {
+    name: 'Gateway', kind: 'edge gateway',
+    health: f.gateway.shed > 0 ? { word: 'Shedding load', tone: 'warn' } : f.gateway.throttle_rps != null ? { word: 'Throttling', tone: 'info' } : { word: 'Healthy', tone: 'ok' },
+    metrics: [['Ingress', `${f.kpi.rps_in.toFixed(1)} rps`], ['Queue', String(q), q > 500 ? 'text-bad' : undefined], ['Limit', f.gateway.throttle_rps != null ? `${f.gateway.throttle_rps.toFixed(0)} rps` : 'off']],
+  };
+}
+
+const HEALTH_DOT = { ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', info: 'bg-info', muted: 'bg-ink-3' };
+const HEALTH_TXT = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', info: 'text-info', muted: 'text-ink-3' };
+
+/** Click anything in the twin: a small glass capsule anchored to it. */
+export function Capsule({ disabled }: { disabled: boolean }) {
+  const [sel, setSel] = useState<Entity | null>(null);
+  const frame = useStore((s) => (sel ? s.frame : null));
   const topo = useStore((s) => s.topo);
+  const el = useRef<HTMLDivElement>(null);
+
+  useEffect(() => twin.subscribe((scene) => { scene?.on('select', (e) => setSel(e)); }), []);
+  useEffect(() => { if (disabled) setSel(null); }, [disabled]);
+  useEffect(() => {
+    if (!sel) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
+    window.addEventListener('keydown', esc);
+    let raf = 0;
+    const place = () => {
+      const p = twin.get()?.screenPos(sel);
+      if (el.current && p) {
+        el.current.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, calc(-100% - 16px))`;
+        el.current.style.opacity = p.visible ? '1' : '0';
+      }
+      raf = requestAnimationFrame(place);
+    };
+    place();
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', esc); };
+  }, [sel]);
+
+  const data = sel && frame && topo ? describe(sel, frame, topo) : null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30">
+      <AnimatePresence>
+        {data && (
+          <motion.div key={`${sel!.type}:${sel!.id}`} ref={el} className="absolute left-0 top-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+            <motion.div
+              initial={{ y: 8, scale: 0.94, filter: 'blur(6px)' }}
+              animate={{ y: 0, scale: 1, filter: 'blur(0px)' }}
+              transition={{ duration: 0.4, ease }}
+              className="glass-strong pointer-events-auto relative w-[232px] rounded-[20px] px-3.5 pb-3 pt-2.5"
+              role="dialog"
+              aria-label={`${data.name} details`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-[14px] font-medium text-ink">{data.name}</span>
+                <span className="label !text-[8.5px]">{data.kind}</span>
+              </div>
+              <div className={`mt-1 flex items-center gap-1.5 text-[11.5px] ${HEALTH_TXT[data.health.tone]}`}>
+                <span className={`size-1.5 rounded-full ${HEALTH_DOT[data.health.tone]}`} />{data.health.word}
+              </div>
+              <dl className="mt-2.5 space-y-1">
+                {data.metrics.slice(0, 3).map(([k, v, tone]) => (
+                  <div key={k} className="flex justify-between gap-3 text-[11.5px]"><dt className="text-ink-3">{k}</dt><dd className={`tnum font-mono text-[11px] ${tone ?? 'text-ink'}`}>{v}</dd></div>
+                ))}
+              </dl>
+              <button onClick={() => setSel(null)} aria-label="Close details" className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full text-ink-4 opacity-0 transition hover:bg-white/5 hover:text-ink focus:opacity-100 [div:hover>&]:opacity-100">
+                <svg viewBox="0 0 24 24" className="size-3 stroke-current" fill="none" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+              </button>
+              <span className="absolute -bottom-[5px] left-1/2 size-2.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.07] bg-[#0b0f11]" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ telemetry
+
+interface Readout { key: string; label: string; value: (k: Kpi) => number | null; fmt: (v: number | null) => string; warn: (v: number | null) => boolean; max: number }
+
+/** Four quiet numbers in the corner. They brighten when they matter. */
+export function Telemetry({ hidden }: { hidden: boolean }) {
+  const topo = useStore((s) => s.topo);
+  const mode = useStore((s) => s.mode);
   const [hist, setHist] = useState<Kpi[]>([]);
   const buf = useRef<Kpi[]>([]);
   useEffect(() => {
@@ -32,186 +148,49 @@ export function Vitals() {
   }, []);
   if (!topo || !hist.length) return null;
   const slo = topo.slo;
-  const vitals: Vital[] = [
-    { key: 'ttft', label: 'TTFT p95', value: (k) => k.ttft_p95, fmt: ms, tone: (v) => (v != null && v > slo.ttft_p95_s ? 'text-bad' : 'text-ink'), max: slo.ttft_p95_s * 2 },
-    { key: 'err', label: 'Errors', value: (k) => k.error_rate, fmt: (v) => pct(v ?? 0, 2), tone: (v) => ((v ?? 0) > slo.error_rate ? 'text-bad' : 'text-ink'), max: 0.1 },
-    { key: 'canary', label: 'Tool-call canary', value: (k) => k.canary, fmt: (v) => pct(v ?? 0, 0), tone: (v) => ((v ?? 1) < 0.999 ? 'text-warn' : 'text-ink'), max: 1 },
-    { key: 'gpu', label: 'Hottest GPU', value: (k) => k.max_gpu_c, fmt: (v) => `${(v ?? 0).toFixed(0)}°C`, tone: (v) => ((v ?? 0) > 87 ? 'text-bad' : (v ?? 0) > 80 ? 'text-warn' : 'text-ink'), max: 100 },
+  const items: Readout[] = [
+    { key: 'ttft', label: 'TTFT p95', value: (k) => k.ttft_p95, fmt: ms, warn: (v) => v != null && v > slo.ttft_p95_s, max: slo.ttft_p95_s * 2 },
+    { key: 'err', label: 'Errors', value: (k) => k.error_rate, fmt: (v) => pct(v ?? 0, 2), warn: (v) => (v ?? 0) > slo.error_rate, max: 0.1 },
+    { key: 'canary', label: 'Tool-call canary', value: (k) => k.canary, fmt: (v) => pct(v ?? 0, 0), warn: (v) => (v ?? 1) < 0.999, max: 1 },
+    { key: 'gpu', label: 'Hottest GPU', value: (k) => k.max_gpu_c, fmt: (v) => `${(v ?? 0).toFixed(0)}°C`, warn: (v) => (v ?? 0) > 85, max: 100 },
   ];
   const last = hist[hist.length - 1];
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, delay: 0.8, ease }}
-      className="glass pointer-events-auto absolute bottom-5 left-6 z-10 hidden w-[248px] rounded-2xl p-3 2xl:block"
-    >
-      <div className="mb-2 flex items-center justify-between px-0.5">
-        <span className="label !text-[9.5px]">Vital signs</span>
-        <span className="font-mono text-[10px] text-ink-4">{last.rps_in.toFixed(0)} rps</span>
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {vitals.map((v) => {
-          const val = v.value(last);
-          return (
-            <div key={v.key} className="rounded-xl bg-white/[0.025] px-2.5 py-2">
-              <div className="text-[10.5px] text-ink-3">{v.label}</div>
-              <div className={`tnum text-[15px] font-medium transition-colors duration-500 ${v.tone(val)}`}>{v.fmt(val)}</div>
-              <Spark data={hist.map((k) => v.value(k))} max={v.max} />
-            </div>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-}
-
-function Spark({ data, max }: { data: (number | null)[]; max: number }) {
-  const w = 96, h = 18;
-  const pts = data.map((d, i) => `${((i / Math.max(1, data.length - 1)) * w).toFixed(1)},${(h - Math.min(1, (d ?? 0) / max) * (h - 2) - 1).toFixed(1)}`);
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mt-1 h-[18px] w-full" preserveAspectRatio="none">
-      <polyline points={pts.join(' ')} fill="none" stroke="currentColor" className="text-ink-3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
-// ------------------------------------------------------------------ inspector
-
-/** Hover card for anything in the twin: live values from the current frame. */
-export function Inspector() {
-  const [hover, setHover] = useState<HoverEvent | null>(null);
-  const frame = useStore((s) => (hover?.entity ? s.frame : null));
-  const topo = useStore((s) => s.topo);
-  useEffect(() => twin.subscribe((scene) => scene?.on('hover', (e) => setHover(e.entity ? e : null))), []);
-  return (
     <AnimatePresence>
-      {hover?.entity && frame && topo && (
+      {!hidden && (
         <motion.div
-          key={`${hover.entity.type}:${hover.entity.id}`}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.12 } }}
-          transition={{ duration: 0.18 }}
-          className="glass pointer-events-none absolute z-40 w-56 rounded-xl px-3 py-2.5 text-[12px]"
-          style={{ left: Math.min(hover.x + 18, window.innerWidth - 240), top: Math.min(hover.y + 18, window.innerHeight - 200) }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.8, delay: 0.6, ease }}
+          className="pointer-events-auto absolute bottom-5 left-6 z-10 hidden items-end gap-5 md:flex"
+          aria-label="Twin telemetry"
         >
-          <EntityCard e={hover.entity} f={frame} topo={topo} />
+          {items.map((it) => {
+            const v = it.value(last);
+            const warn = it.warn(v);
+            return (
+              <div key={it.key} className={`transition-opacity duration-500 ${warn ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}>
+                <div className="label !text-[8.5px]">{it.label}</div>
+                <div className={`tnum font-mono text-[14px] transition-colors duration-500 ${warn ? 'text-warn' : 'text-ink'}`}>{it.fmt(v)}</div>
+                <Spark data={hist.map((k) => it.value(k))} max={it.max} warn={warn} />
+              </div>
+            );
+          })}
+          <span className="mb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">{mode === 'replay' ? 'replay' : 'simulated'}</span>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-function Row({ k, v, tone }: { k: string; v: string; tone?: string }) {
-  return <div className="flex justify-between gap-3"><span className="text-ink-3">{k}</span><span className={`tnum font-mono text-[11.5px] ${tone ?? 'text-ink'}`}>{v}</span></div>;
-}
-
-function EntityCard({ e, f, topo }: { e: Entity; f: Frame; topo: NonNullable<ReturnType<typeof store.get>['topo']> }) {
-  const head = (type: string, id: string) => <div className="mb-1.5 flex items-baseline justify-between"><span className="font-medium text-ink">{id}</span><span className="label !text-[9px]">{type}</span></div>;
-  if (e.type === 'worker') {
-    const w = f.workers.find((x) => x.id === e.id);
-    if (!w) return null;
-    return (
-      <>{head('vLLM replica', w.id)}
-        <Row k="State" v={w.draining ? 'draining' : w.state} tone={w.state === 'crashed' ? 'text-bad' : w.state === 'hung' ? 'text-warn' : undefined} />
-        <Row k="Tool-call canary" v={w.canary ? 'pass' : 'fail'} tone={w.canary ? 'text-ok' : 'text-warn'} />
-        <Row k="TTFT p95" v={ms(w.ttft_p95)} />
-        <Row k="Tokens / s" v={w.tps.toLocaleString()} />
-        <Row k="KV cache" v={pct(w.kv, 0)} />
-        <Row k="Parser" v={w.config.tool_parser} />
-        <Row k="Template" v={w.config.chat_template} />
-      </>
-    );
-  }
-  if (e.type === 'node') {
-    const nd = topo.nodes.find((n) => n.id === e.id);
-    if (!nd) return null;
-    const temps = nd.gpus.map((g) => f.gpu.temp[g]);
-    const xid = nd.gpus.some((g) => f.gpu.flag[g] === 3);
-    return (
-      <>{head(`${nd.role} node`, nd.id)}
-        <Row k="GPUs" v={`${nd.gpus.length} × ${topo.gpu.model.split(' ')[0]}`} />
-        <Row k="Hottest GPU" v={`${Math.max(...temps).toFixed(0)}°C`} tone={Math.max(...temps) > 87 ? 'text-bad' : undefined} />
-        <Row k="Power" v={`${(nd.gpus.reduce((a, g) => a + f.gpu.power[g], 0) / 1000).toFixed(1)} kW`} />
-        <Row k="XID" v={xid ? 'fallen off the bus' : 'none'} tone={xid ? 'text-xid' : undefined} />
-        <Row k="Cordoned" v={f.nodes[nd.id]?.[0] ? 'yes' : 'no'} />
-      </>
-    );
-  }
-  if (e.type === 'rack') {
-    const r = f.racks.find((x) => x.id === e.id);
-    if (!r) return null;
-    return (
-      <>{head('rack', r.id)}
-        <Row k="Inlet" v={`${r.inlet.toFixed(1)}°C`} />
-        <Row k="Exhaust" v={`${r.exhaust.toFixed(1)}°C`} tone={r.exhaust > 50 ? 'text-warn' : undefined} />
-        <Row k="Power" v={`${r.power_kw.toFixed(1)} kW${r.capped ? ' · capped' : ''}`} tone={r.capped ? 'text-warn' : undefined} />
-        <Row k="ToR link" v={r.net ? 'degraded' : 'healthy'} tone={r.net ? 'text-bad' : undefined} />
-      </>
-    );
-  }
-  if (e.type === 'crah') {
-    const c = f.hall.crahs.find((x) => x.id === e.id);
-    return (
-      <>{head('cooling unit', e.id)}
-        <Row k="State" v={c?.running ? 'running' : 'tripped'} tone={c?.running ? 'text-ok' : 'text-bad'} />
-        <Row k="Supply air" v={`${f.hall.supply_c.toFixed(1)}°C`} />
-        <Row k="Return air" v={`${f.hall.return_c.toFixed(1)}°C`} />
-        <Row k="PUE" v={f.hall.pue.toFixed(2)} />
-      </>
-    );
-  }
-  if (e.type === 'ups') {
-    const on = f.hall.ups[e.id];
-    return (
-      <>{head('power feed', e.id)}
-        <Row k="State" v={on ? 'online' : 'feed lost'} tone={on ? 'text-ok' : 'text-bad'} />
-        <Row k="IT load" v={`${f.hall.it_kw.toFixed(0)} kW total`} />
-      </>
-    );
-  }
+function Spark({ data, max, warn }: { data: (number | null)[]; max: number; warn: boolean }) {
+  const w = 76, h = 14;
+  const pts = data.map((d, i) => `${((i / Math.max(1, data.length - 1)) * w).toFixed(1)},${(h - Math.min(1, (d ?? 0) / max) * (h - 2) - 1).toFixed(1)}`);
   return (
-    <>{head('edge gateway', 'Gateway')}
-      <Row k="Ingress" v={`${f.kpi.rps_in.toFixed(1)} rps`} />
-      <Row k="Queue" v={`${f.kpi.queue + f.gateway.queue}`} />
-      <Row k="Throttle" v={f.gateway.throttle_rps != null ? `${f.gateway.throttle_rps.toFixed(0)} rps` : 'off'} />
-    </>
-  );
-}
-
-// ------------------------------------------------------------------ replay
-
-export function ReplayBar() {
-  const replay = useStore((s) => s.replay);
-  const t = useStore((s) => s.frame?.t ?? 0);
-  return (
-    <AnimatePresence>
-      {replay && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_0_2px_rgba(167,139,250,0.35),inset_0_0_120px_rgba(167,139,250,0.08)]" />
-          <motion.div
-            initial={{ y: -12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -12, opacity: 0 }}
-            transition={{ duration: 0.45, ease }}
-            className="glass pointer-events-auto absolute left-1/2 top-[88px] z-30 flex w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-2xl px-3 py-2"
-          >
-            <span className="rounded-md bg-replay/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-replay">Replay</span>
-            <button onClick={() => store.setReplay({ playing: !replay.playing })} aria-label={replay.playing ? 'Pause replay' : 'Play replay'} className="grid size-7 place-items-center rounded-lg text-ink-2 hover:bg-white/5 hover:text-ink">
-              {replay.playing ? <svg viewBox="0 0 24 24" className="size-3 fill-current"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg> : <svg viewBox="0 0 24 24" className="size-3 fill-current"><path d="M7 4.5v15l12.5-7.5z" /></svg>}
-            </button>
-            <input
-              type="range" min={0} max={replay.recording.frames.length - 1} value={replay.index}
-              onChange={(e) => store.setReplay({ index: Number(e.target.value), playing: false })}
-              className="h-1 flex-1 cursor-pointer accent-[#a78bfa]" aria-label="Replay position"
-            />
-            <span className="tnum font-mono text-[11px] text-ink-2">{clock(t)}</span>
-            <button onClick={() => store.exitReplay()} className="rounded-lg px-2.5 py-1 text-[12px] text-ink-2 hover:bg-white/5 hover:text-ink">Back to live</button>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    <svg viewBox={`0 0 ${w} ${h}`} className="mt-0.5 h-[14px] w-[76px]" preserveAspectRatio="none">
+      <polyline points={pts.join(' ')} fill="none" stroke={warn ? '#f5a524' : '#6e7b83'} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }
 
@@ -220,16 +199,16 @@ export function ReplayBar() {
 export function Toasts() {
   const toasts = useToasts();
   return (
-    <div className="pointer-events-none absolute left-1/2 top-[88px] z-40 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div className="pointer-events-none absolute left-1/2 top-[86px] z-[45] flex -translate-x-1/2 flex-col items-center gap-2" aria-live="polite">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div
             key={t.id}
             layout
-            initial={{ opacity: 0, y: -8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{ opacity: 0, y: -8, scale: 0.96, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
-            className={`glass rounded-xl px-3.5 py-2 text-[12.5px] ${t.tone === 'bad' ? 'text-[#ffd1d8]' : t.tone === 'ok' ? 'text-ok' : 'text-ink-2'}`}
+            className={`glass rounded-full px-4 py-1.5 text-[12px] ${t.tone === 'bad' ? 'text-[#ffd1d8]' : t.tone === 'ok' ? 'text-ok' : 'text-ink-2'}`}
           >
             {t.tone === 'bad' && <span className="mr-2 inline-block size-1.5 rounded-full bg-bad align-middle shadow-[0_0_8px_#f43f5e]" />}
             {t.text}
@@ -237,5 +216,116 @@ export function Toasts() {
         ))}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ boot
+
+/** First impression: the mark draws itself, then the hall fades up behind it. */
+export function Boot() {
+  const connected = useStore((s) => s.connected);
+  const ready = useStore((s) => s.frame !== null && s.topo !== null);
+  const [minDone, setMinDone] = useState(false);
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const a = setTimeout(() => setMinDone(true), 1900);
+    const b = setTimeout(() => setSlow(true), 3200);
+    return () => { clearTimeout(a); clearTimeout(b); };
+  }, []);
+  const show = !(ready && minDone);
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div className="absolute inset-0 z-[80] grid place-items-center bg-bg" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 1.2, ease } }}>
+          <motion.div className="flex flex-col items-center" exit={{ scale: 1.06, opacity: 0, filter: 'blur(6px)', transition: { duration: 0.9, ease } }}>
+            <OmegaMark size={84} draw />
+            <motion.div initial={{ opacity: 0, y: 8, letterSpacing: '0.5em' }} animate={{ opacity: 1, y: 0, letterSpacing: '0.28em' }} transition={{ duration: 1.4, delay: 0.5, ease }} className="mt-6">
+              <Wordmark className="!text-[22px]" />
+            </motion.div>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1, duration: 0.8 }} className="mt-3 font-mono text-[10.5px] uppercase tracking-[0.3em] text-ink-3">
+              Autonomous AI operations
+            </motion.p>
+            <AnimatePresence>
+              {slow && !connected && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-10 text-center">
+                  <p className="text-[13px] text-ink-2">Connecting to the digital twin…</p>
+                  <p className="mt-1 font-mono text-[11px] text-ink-4">./scripts/twin.sh serves it on :8765</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** Lost the twin after the first load. */
+export function Disconnected() {
+  const connected = useStore((s) => s.connected);
+  const loaded = useStore((s) => s.topo !== null);
+  return (
+    <AnimatePresence>
+      {loaded && !connected && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="glass absolute bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-warn">
+          Twin connection lost · showing the last frame · reconnecting…
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ------------------------------------------------------------------ incident beats
+
+/** Between the hit and the first detection: say plainly that nobody has noticed yet. */
+export function IncidentHint({ show, title, since }: { show: boolean; title: string; since: number }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.7, ease, delay: 0.6 }}
+          className="glass pointer-events-none absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full py-2 pl-3 pr-4 text-[12px]"
+        >
+          <span className="relative flex size-2"><span className="absolute inset-0 animate-ping rounded-full bg-bad opacity-70" /><span className="relative size-2 rounded-full bg-bad" /></span>
+          <span className="text-ink">{title}</span>
+          <span className="text-ink-3">· injected {Math.max(0, Math.round(since))} s ago · the doctors see only what monitoring sees</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** After the certificate: what to do next, without leaving the page. */
+export function ContinueBar({ show, right, actions }: { show: boolean; right: number; actions: { key: string; label: string; icon: ReactNode; onClick: () => void; disabled?: string | null; primary?: boolean }[] }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, y: 14, transition: { duration: 0.3 } }}
+          transition={{ duration: 0.7, ease }}
+          style={{ right }}
+          className="pointer-events-none absolute bottom-6 left-6 z-30 flex justify-center"
+        >
+          <div className="glass pointer-events-auto flex flex-wrap items-center justify-center gap-1 rounded-full p-1.5">
+            {actions.map((a) => (
+              <button
+                key={a.key}
+                onClick={a.onClick}
+                disabled={!!a.disabled}
+                title={a.disabled ?? undefined}
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[12.5px] transition disabled:cursor-not-allowed disabled:opacity-35 ${a.primary ? 'bg-[radial-gradient(120%_140%_at_50%_0%,rgba(244,63,94,0.3),rgba(60,8,18,0.5))] font-medium text-[#ffe1e6] shadow-[inset_0_0_0_1px_rgba(244,63,94,0.45)] hover:brightness-125' : 'text-ink-2 hover:bg-white/[0.06] hover:text-ink'}`}
+              >
+                {a.icon}{a.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

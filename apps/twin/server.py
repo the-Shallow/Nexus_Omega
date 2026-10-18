@@ -19,11 +19,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from nexus import recordings
 from nexus.certificate import morning_summary, notification_preview
+from nexus.certificate.pdf import render_certificate_pdf, render_recording_pdf
 from nexus.doctors import DoctorManager
 from nexus.simulator import Twin, actions, faults, telemetry, whatif
 
@@ -323,6 +325,47 @@ def certificate_summary(cert_id: str) -> dict:
     if cert is None:
         raise HTTPException(404, f"unknown certificate: {cert_id}")
     return {"certificate": cert, "notification": notification_preview(cert), "morning": morning_summary(cert)}
+
+
+@app.get("/api/certificates/{cert_id}/pdf")
+def certificate_pdf(cert_id: str) -> Response:
+    cert = rt.doctors.store.get(cert_id)
+    if cert is None:
+        raise HTTPException(404, f"unknown certificate: {cert_id}")
+    headers = {"Content-Disposition": f'attachment; filename="{cert_id}.pdf"'}
+    return Response(render_certificate_pdf(cert), media_type="application/pdf", headers=headers)
+
+
+# Recorded runs of the Nemotron agent on the live Brev fleet (evidence/agent), each
+# paired with its referee-scored episode. These only read files.
+def _recording(run_id: str) -> dict:
+    detail = recordings.get_recording(run_id)
+    if detail is None:
+        raise HTTPException(404, f"unknown recording: {run_id}")
+    return detail
+
+
+@app.get("/api/recordings")
+def list_recordings() -> list[dict]:
+    return recordings.list_recordings()
+
+
+@app.get("/api/recordings/{run_id}")
+def get_recording(run_id: str) -> dict:
+    return _recording(run_id)
+
+
+@app.get("/api/recordings/{run_id}/record.json")
+def recording_record(run_id: str, download: bool = False):
+    headers = {"Content-Disposition": f'attachment; filename="{run_id}.json"'} if download else None
+    return JSONResponse(_recording(run_id), headers=headers)
+
+
+@app.get("/api/recordings/{run_id}/certificate.pdf")
+def recording_pdf(run_id: str) -> Response:
+    pdf = render_recording_pdf(_recording(run_id))
+    headers = {"Content-Disposition": f'attachment; filename="{run_id}-certificate.pdf"'}
+    return Response(pdf, media_type="application/pdf", headers=headers)
 
 
 @app.get("/metrics")

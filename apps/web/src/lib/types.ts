@@ -228,3 +228,69 @@ export interface CertificateSummary {
 
 /** Where the pixels on screen come from. Never shown as anything it is not. */
 export type DataMode = 'live' | 'simulated' | 'replay';
+
+// ------------------------------------------------------------------ real fleet
+// Recorded runs of the Nemotron agent on the live Brev fleet (evidence/agent in git),
+// served by apps/twin/server.py under /api/recordings. Played back as REPLAY only.
+
+export interface RecordingSummary {
+  id: string;
+  fault: string | null;
+  title: string;
+  target: string | null;
+  solver: string | null;
+  controller: string;
+  environment: string | null;
+  serving_image: string | null;
+  started_at: string;
+  agent_ended_at: string;
+  ended_at: string | null;
+  agent_outcome: 'completed' | 'failed';
+  failure: string | null;
+  /** The run's terminal state: the executor's verdict on the agent's plan, or ABSTAIN when the agent failed. */
+  terminal_state: Terminal | null;
+  /** The independent referee's score (users served and root cause fixed). The agent never grades itself. */
+  success: boolean | null;
+  false_verified: boolean | null;
+  solve_seconds: number | null;
+  tool_calls: number;
+  evidence_count: number;
+  summary: string | null;
+  action: Record<string, unknown> | null;
+}
+
+export interface AgentEvent {
+  event_type: string;
+  payload: Record<string, any>;
+  run_id: string;
+  sequence: number;
+  timestamp: string;
+}
+
+export interface RouteStats { requests: number; p95_s: number; median_s: number; error_rate: number; ok: boolean }
+
+export interface Episode {
+  fault: string;
+  solver: string;
+  at: string;
+  terminal_state: Terminal;
+  success: boolean;
+  false_verified: boolean;
+  solve_seconds: number;
+  action: Record<string, unknown> | null;
+  decision: { state: string; summary: string; hypotheses: { id: string; confidence: number; supports: string[]; contradicts: string[] }[]; stop_reason: string | null; repair_plan?: Record<string, any> };
+  verification: { users_ok: boolean; route: Record<string, RouteStats>; hidden_passed: boolean; root_fixed: boolean; faulty_worker_drained: boolean } | null;
+  executor: {
+    action: string; service: string; change_id: string; started_at: string; ended_at: string; seconds: number;
+    status: string; profile?: string; before?: Record<string, any>;
+    verification?: { passed: boolean; health_status: number; failed_cases: unknown[] };
+  } | null;
+}
+
+export interface RecordingDetail {
+  summary: RecordingSummary;
+  events: AgentEvent[];
+  evidence: Record<string, any>;
+  evidence_index: { evidence_id: string; finding: string; source: string; source_type: string; collected_at: string }[];
+  episode: Episode | null;
+}

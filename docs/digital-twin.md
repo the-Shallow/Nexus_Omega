@@ -26,20 +26,24 @@ Each terminal run writes a certificate to `artifacts/certificates/` (git-ignored
 
 ## Platform UI (`apps/web`)
 
-One dark, single-page view (React, TypeScript, Tailwind, Framer Motion, a WebSocket store, and a Three.js twin with bloom). The digital twin fills the screen; everything else floats over it in glass.
+One dark, single-page War Room: React, TypeScript, Tailwind, Framer Motion, a WebSocket store, and a Three.js twin with bloom. The twin is always on screen. Everything else floats over it in glass, and every transition is driven by a real state change: a fault in the twin's frames, a doctor run's events, or the timeline of a recorded run.
 
 | Element | What it shows |
 |---|---|
-| Header | Data source (LIVE / SIMULATED / REPLAY), system status, simulation time with play, pause and 1× / 4× / 10×, a menu (autopilot, overview camera, replay last incident, reset), **Break the system** |
-| Break the system | Glass overlay of the 9 failure scenarios grouped by category, each with its known-issue id, whether a real episode exists on Brev, and which doctor answers |
-| Twin | Racks, GPUs (heat-colored), replicas, fibre routes lit by replica state, cooling, power, airflow, request and response packets. Faults add a shockwave, a marker and a callout; rack outlines take the worst state of their nodes; a verified repair sends a green wave through the hall |
-| Recovery timeline | Detect → Investigate → Select tools → Simulate → Repair → Verify, mapped from the doctor states, with the latest step's real event below |
-| Panels (collapsed by default) | Incident (signal, class, hypotheses, memory, evidence), Tool calls (every call with arguments, reason and raw result), Recovery (shadow-twin race, applied actions, independent checks, field repair) |
-| Outcome | Opens when the run ends: the path the run took through the system, then the recovery certificate (outcome seal, time to detect and close, dashboards alerted, prediction error, checks, evidence, repair, sha256, JSON download, replay) |
+| Floating dock | The NEXUS Ω mark, system status (only signals monitoring can see), the one data mode in effect (SIMULATED / REPLAY / LIVE), simulation or replay time with play, pause and speed, a menu (autopilot, architecture, domains, classic views, reset), and **Break the system** |
+| Twin | Fixed isometric camera with slight pointer parallax. It never flies to a failure. A fault gets concentric alarm rings on the floor beneath the affected racks or units, a red or amber pulse on their outlines and a small warning tag; everything else stays calm. Click any component for a glass capsule with its health and 2–3 metrics |
+| Break the system | A glass panel on the right. **Digital twin** lists the 9 simulated failures (hover outlines where each would land). **Real fleet** replays recorded Nemotron runs, failed attempts included |
+| Recovery workflow | Grows on the right one module at a time as the run's events arrive: Detect → Diagnose → Select Tools → Shadow Test (twin only) → Act → Verify → Certificate. A connector grows first, then the module materializes. The active module pulses. Click a module for its tool calls, arguments, results and timestamps. As the workflow appears, the hall shrinks slightly and moves left |
+| Certificate | Revealed when the run ends, never opened automatically. Shows the actual terminal state, before → after measurements, independent checks, actions, evidence and diagnosis. **Download JSON** and **Download PDF** both come from the same stored record |
+| After the certificate | Replay simulation (or recording), Start new failure, Run again (a fresh twin and a genuinely new execution, never a replay), Architecture |
+| Architecture | Incident → controller → tool runtime → Tool-Calling / Infrastructure Doctor → shadow twin / recovery tools → independent verification → certificate. Nodes this run used are lit; technologies are named only where they are integrated |
 
-The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor. A recovery shows as verified only when the certificate says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
+The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor, both driven by one controller. Twin runs are labelled "rule-based stand-in · Nemotron not connected". A run shows as verified only when its record says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
 
-Data modes: **SIMULATED** is the SimPy twin (the only source today). **LIVE** is reserved for production telemetry and shows as not connected. **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
+Data modes:
+- **SIMULATED**: the SimPy twin. Shadow-test results are labelled *predicted · simulated*.
+- **REPLAY**: either an incident recorded in the browser from the twin, or a **real-fleet recording**, i.e. a run of Nemotron 3.5 Lightning on the Brev fleet loaded from `evidence/agent/`. During a fleet replay the twin recedes and a diagram of the fleet (HAProxy, `target-a`, `target-b`, the agent, the referee) shows only recorded state. The clock shows recorded UTC time. Long silent gaps, such as the executor's ~75 s restart, are skipped faster, and the UI says so whenever it happens.
+- **LIVE**: reserved for production telemetry. It is not connected in this build.
 
 ## What is modeled
 
@@ -87,12 +91,17 @@ Software agents never "fix" cooling, power or hardware. Those clear only through
 | `GET /api/doctors` · `POST /api/doctors/config {autopilot}` | Doctor status; autopilot off stops runs at PRECHECK |
 | `POST /api/doctors/runs/{id}/approve {choice}` | Authorize a candidate (`recommended` or an id) or `reject` |
 | `GET /api/certificates` · `GET /api/certificates/{id}[?download=1]` · `GET /api/certificates/{id}/summary` | Certificate list, JSON, and the notification and morning-summary renderings |
+| `GET /api/certificates/{id}/pdf` | The same certificate as a PDF (`nexus/certificate/pdf.py`, standard library only) |
+| `GET /api/recordings` · `GET /api/recordings/{run_id}` | Recorded Nemotron runs on the real fleet (`nexus/recordings.py`): each agent trail, its evidence, and its referee-scored episode, paired by `run_id` or by time. `NEXUS_RECORDINGS_DIR` overrides `evidence/agent` |
+| `GET /api/recordings/{run_id}/record.json[?download=1]` · `GET /api/recordings/{run_id}/certificate.pdf` | The recording as one JSON record, and its certificate as a PDF |
 
 ## Recording the demo video
 
-- Keys: `B` break the system (then `1–9` to pick a failure), `space` play/pause, `O` overview camera, `Esc` close overlays. Reset is in the `⋯` menu.
-- The camera flies to each new fault, stays out of the way of the panels, and returns home after a verified repair. The hall orbits slowly when nothing is happening.
-- The header clock shows twin time as time of day (t = 0 is 01:47:00) for the 2 AM story. Use 4× for the tool-call run (about 2.5 simulated minutes), 10× for cooling incidents.
-- **Replay last incident** (menu or certificate) replays a recorded run for retakes, with its own speed control and a violet frame so it is never mistaken for live.
-- Suggested beats: silent tool-call failure on autopilot (callouts read `200 OK · tool_calls: []`, canary drops, dashboards never alert, proof) → CRAH trip with autopilot off (Authorize in the prompt, "service verified · facility needs a human", record field repair).
-- `window.nexus.twin.get()` exposes camera presets (`preset('top' | 'cold' | 'hot' | 'power' | 'network')`) for scripted shots.
+- Keys: `B` opens Break the system (`↑ ↓` and `Enter` or `1–9` to pick, `Esc` to close), `space` plays or pauses the simulation or the replay. Reset is in the `⋯` menu.
+- The camera is fixed. The hall shrinks and moves left when the workflow appears, and recenters when you close the workflow or start a new failure.
+- The dock clock shows twin time as time of day (t = 0 is 01:47:00) for the 2 AM story. Use 4× for the tool-call run (about 2.5 simulated minutes) and 10× for cooling incidents.
+- Suggested beats:
+  1. Silent tool-call failure on autopilot. The warning tags read `200 OK · tool_calls: []`, the canary drops, dashboards never alert, the workflow grows, then the certificate.
+  2. Real fleet: in Break the system → Real fleet, replay the latest verified run. Nemotron's actual tool calls appear, the executor repairs `target-a` and the referee confirms the fix.
+  3. CRAH trip with autopilot off. Authorize in the Shadow Test module; the run ends "service verified · facility needs a human"; then record the field repair.
+- `window.nexus.fleet.start('run-8bf1324b')` starts a fleet replay from the console for scripted shots.

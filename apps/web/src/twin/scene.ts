@@ -5,8 +5,11 @@
 // Written as an imperative scene instead of React Three Fiber: the twin redraws
 // hundreds of instanced GPUs and thousands of particles every frame from a 10 Hz
 // stream, which is simpler and cheaper without per-frame reconciliation.
+//
+// The camera is a fixed isometric rig. It never flies to a failure: incidents are
+// shown in place (alarm rings, pulses, a warning tag) and the whole picture eases
+// smaller and to the left when the recovery workflow needs the right side.
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -19,26 +22,24 @@ import { airColor, exhaustColor, FLOW, heatColor, STATUS, WARM_GLSL } from './pa
 export type EntityType = 'worker' | 'node' | 'rack' | 'crah' | 'ups' | 'gateway';
 export interface Entity { type: EntityType; id: string }
 export interface HoverEvent { entity: Entity | null; x: number; y: number }
+export interface ScreenPos { x: number; y: number; visible: boolean }
 
 const RW = 0.8, RD = 1.2, RH = 2.2;
 const NODE_H = 0.4;
 const TRAY_Y = 2.9, BUS_Y = 3.2, CEIL_Y = 3.15;
 const BG = 0x07090a;
 const nodeY = (slot: number) => 0.52 + slot * 0.47;
-const ORBIT_TARGET = new THREE.Vector3(0, 0.6, 0);
+// Fixed isometric framing: azimuth from the gateway side, ~33° elevation, long lens.
+const ISO_TARGET = new THREE.Vector3(0, 0.55, 0.15);
+const ISO_AZ = THREE.MathUtils.degToRad(-47);
+const ISO_EL = THREE.MathUtils.degToRad(37);
+const ISO_DIST = 31;
+const ISO_FOV = 26;
 
 const _c = new THREE.Color(), _c2 = new THREE.Color(), _m = new THREE.Matrix4(), _v = new THREE.Vector3();
 let _segF = 0;
 
 type V3 = [number, number, number];
-export const PRESETS: Record<string, { pos: V3; target: V3 }> = {
-  overview: { pos: [9.2, 6.6, -10.4], target: [0, 0.6, 0.2] },
-  cold: { pos: [-5.2, 1.4, 0.05], target: [2.5, 1.2, 0] },
-  hot: { pos: [-5.0, 1.8, -2.4], target: [2.0, 1.4, -2.4] },
-  top: { pos: [0.01, 15.5, 0.6], target: [0, 0, 0] },
-  power: { pos: [-5.5, 4.4, 9.6], target: [0, 1.4, 3.0] },
-  network: { pos: [3.4, 3.4, -8.4], target: [0, 1.7, -3.2] },
-};
 
 interface Route { pts: THREE.Vector3[]; cum: number[]; len: number }
 interface AirRoute extends Route { rack: string; row: string; d: number; speed: number }
@@ -165,13 +166,14 @@ void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; g
 const FLOOR_FS = `
 uniform float uTime; uniform sampler2D uHeat; uniform float uHeatGain;
 uniform vec4 uWaves[6]; uniform vec3 uWaveCol[6];
+uniform vec4 uAlarm[6]; uniform vec3 uAlarmCol[6];
 varying vec2 vUv; varying vec3 vW;
 void main(){
   vec2 q = vW.xz / 0.6;
   vec2 g = abs(fract(q - 0.5) - 0.5) / fwidth(q);
   float line = 1.0 - min(min(g.x, g.y), 1.0);
   float fade = 1.0 - smoothstep(5.0, 15.0, length(vW.xz));
-  vec3 col = vec3(0.22, 0.42, 0.10) * line * 0.16 * fade;
+  vec3 col = vec3(0.22, 0.42, 0.10) * line * 0.085 * fade;
   vec4 h = texture2D(uHeat, vUv);
   col += h.rgb * h.a * uHeatGain;
   for (int i = 0; i < 6; i++) {
@@ -185,6 +187,24 @@ void main(){
     float core = exp(-dot(vW.xz - w.xy, vW.xz - w.xy) * 1.5) * (1.0 - k) * 0.5;
     col += uWaveCol[i] * (ring * 1.4 + core);
   }
+  // Alarm: three concentric rings expanding forever beneath a failed component.
+  // x, z = centre; z = start time (< 0: off); w = radius scale.
+  for (int i = 0; i < 6; i++) {
+    vec4 a = uAlarm[i];
+    if (a.z < 0.0) continue;
+    float age = uTime - a.z;
+    if (age < 0.0) continue;
+    float dist = length(vW.xz - a.xy);
+    float on = smoothstep(0.0, 0.8, age);
+    for (int k = 0; k < 3; k++) {
+      float ph = fract(age / 2.6 + float(k) / 3.0);
+      float r = 0.18 + ph * 2.4 * a.w;
+      float dd = abs(dist - r);
+      float fall = (1.0 - ph) * (1.0 - ph) * on;
+      col += uAlarmCol[i] * (exp(-dd * dd * 220.0) * 1.5 + exp(-dd * dd * 18.0) * 0.22) * fall;
+    }
+    col += uAlarmCol[i] * exp(-dist * dist * 3.0) * on * (0.22 + 0.1 * sin(uTime * 3.4));
+  }
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -193,8 +213,6 @@ export class TwinScene {
   container: HTMLElement;
   frame: Frame | null = null;
   time = 0;
-  idleOrbit = true;
-  incident = false;
   disposed = false;
 
   private renderer: THREE.WebGLRenderer;
@@ -203,13 +221,15 @@ export class TwinScene {
   private labelRenderer: CSS2DRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
-  private controls: OrbitControls;
   private lastTick = performance.now();
   private ro: ResizeObserver;
-  private listeners: { hover: ((e: HoverEvent) => void)[]; select: ((e: Entity | null) => void)[] } = { hover: [], select: [] };
-  private tween: { t: number; dur: number; p0: THREE.Vector3; p1: THREE.Vector3; t0: THREE.Vector3; t1: THREE.Vector3 } | null = null;
-  private orbitAngle = 0;
-  private lastInteraction = -999;
+  private listeners: { hover: ((e: HoverEvent) => void)[]; select: ((e: Entity | null, at: ScreenPos) => void)[] } = { hover: [], select: [] };
+  private reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  // Camera rig: pointer parallax (a few degrees), layout zoom and leftward shift, all eased.
+  private parallax = { x: 0, y: 0, tx: 0, ty: 0 };
+  private zoom = { cur: 0.94, target: 1 };
+  private shift = { cur: 0, target: 0 };
+  private lift = { cur: 0, target: 0 };
 
   // layout
   private halfLen = 0;
@@ -257,10 +277,12 @@ export class TwinScene {
   private rackColor = new Map<string, { inlet: THREE.Color; exhaust: THREE.Color }>();
   private returnColor: Record<string, THREE.Color> = {};
   private hoverBox!: THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>;
-  private markers = new Map<string, { group: THREE.Group; ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>; beam: THREE.Mesh; callout: CSS2DObject }>();
+  private markers = new Map<string, { callout: CSS2DObject; racks: string[]; units: string[]; tone: number }>();
+  private alarmSlots: (string | null)[] = [null, null, null, null, null, null];
+  private unitEdges = new Map<string, { mat: THREE.LineBasicMaterial; base: THREE.Color }>();
+  private previewBoxes: THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>[] = [];
+  private previewTag!: CSS2DObject;
   private flashUntil = -1;
-  private viewShift = 0;
-  private viewShiftTarget = 0;
 
   constructor(container: HTMLElement, topo: Topology) {
     this.topo = topo;
@@ -271,7 +293,7 @@ export class TwinScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.12;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(renderer.domElement);
@@ -290,19 +312,8 @@ export class TwinScene {
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.18;
 
-    this.camera = new THREE.PerspectiveCamera(36, w / h, 0.05, 200);
-    this.camera.position.set(...PRESETS.overview.pos);
-
-    const controls = new OrbitControls(this.camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.07;
-    controls.target.set(...PRESETS.overview.target);
-    controls.maxDistance = 34;
-    controls.minDistance = 1.2;
-    controls.maxPolarAngle = Math.PI * 0.48;
-    controls.addEventListener('start', () => { this.tween = null; this.idleOrbit = false; this.lastInteraction = this.time; });
-    this.controls = controls;
-    this.orbitAngle = Math.atan2(this.camera.position.z, this.camera.position.x);
+    this.camera = new THREE.PerspectiveCamera(ISO_FOV, w / h, 0.5, 200);
+    this.placeCamera();
 
     scene.add(new THREE.HemisphereLight(0xa9bccb, 0x07090a, 0.75));
     const key = new THREE.DirectionalLight(0xe4ecf2, 1.6);
@@ -331,6 +342,16 @@ export class TwinScene {
     this.hoverBox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
     this.hoverBox.visible = false;
     scene.add(this.hoverBox);
+    for (let i = 0; i < 6; i++) {
+      const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0, depthTest: false }));
+      box.visible = false;
+      box.renderOrder = 10;
+      scene.add(box);
+      this.previewBoxes.push(box);
+    }
+    this.previewTag = this.label('', 'lbl ptag');
+    this.previewTag.visible = false;
+    scene.add(this.previewTag);
 
     this.composer = new EffectComposer(renderer);
     this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -369,15 +390,39 @@ export class TwinScene {
   }
 
   entityPos(e: Entity): THREE.Vector3 {
-    if (e.type === 'worker') return this.nodePos(this.workerNode.get(e.id)!);
-    if (e.type === 'node') return this.nodePos(e.id);
-    if (e.type === 'rack') {
+    if (e.type === 'worker' && this.workerNode.has(e.id)) return this.nodePos(this.workerNode.get(e.id)!);
+    if (e.type === 'node' && this.nodeById.has(e.id)) return this.nodePos(e.id);
+    if (e.type === 'rack' && this.rackById.has(e.id)) {
       const r = this.rackById.get(e.id)!;
       return new THREE.Vector3(this.rackX(r.index), 1.1, this.row[r.row].z);
     }
-    if (e.type === 'crah') return this.crahPos.get(e.id)!.clone().setY(1.1);
-    if (e.type === 'ups') return this.upsPos.get(e.id)!.clone().setY(1.0);
+    if (e.type === 'crah' && this.crahPos.has(e.id)) return this.crahPos.get(e.id)!.clone().setY(1.1);
+    if (e.type === 'ups' && this.upsPos.has(e.id)) return this.upsPos.get(e.id)!.clone().setY(1.0);
     return this.gatewayPos.clone().setY(1.3);
+  }
+
+  /** Any id the backend uses (worker, node, rack, CRAH, UPS, "gateway") as a scene entity. */
+  resolve(id: string): Entity | null {
+    if (this.workerNode.has(id)) return { type: 'worker', id };
+    if (this.nodeById.has(id)) return { type: 'node', id };
+    if (this.rackById.has(id)) return { type: 'rack', id };
+    if (this.crahPos.has(id)) return { type: 'crah', id };
+    if (this.upsPos.has(id)) return { type: 'ups', id };
+    if (id === 'gateway') return { type: 'gateway', id };
+    return null;
+  }
+
+  private rackOf(e: Entity): string | null {
+    if (e.type === 'rack') return e.id;
+    const nodeId = e.type === 'worker' ? this.workerNode.get(e.id) : e.type === 'node' ? e.id : undefined;
+    return nodeId ? this.nodeById.get(nodeId)?.rack ?? null : null;
+  }
+
+  private topOf(e: Entity): number {
+    if (e.type === 'crah') return 2.4;
+    if (e.type === 'ups') return 2.0;
+    if (e.type === 'gateway') return 2.7;
+    return RH;
   }
 
   // ------------------------------------------------------------------- build
@@ -432,6 +477,8 @@ export class TwinScene {
         uTime: { value: 0 }, uHeat: { value: this.heatTex }, uHeatGain: { value: 0.55 },
         uWaves: { value: Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, -1, 1)) },
         uWaveCol: { value: Array.from({ length: 6 }, () => new THREE.Color()) },
+        uAlarm: { value: Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, -1, 1)) },
+        uAlarmCol: { value: Array.from({ length: 6 }, () => new THREE.Color()) },
       },
       vertexShader: FLOOR_VS, fragmentShader: FLOOR_FS,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -540,7 +587,7 @@ export class TwinScene {
       body.userData = { type: 'crah', id: c.id };
       s.add(body);
       this.pickables.push(body);
-      this.edges(body.geometry, 0x27313a, body.position);
+      this.unitEdges.set(c.id, { mat: this.edges(body.geometry, 0x27313a, body.position), base: new THREE.Color(0x27313a) });
       for (let k = 0; k < 14; k++) {
         const slat = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.035, 1.6), new THREE.MeshStandardMaterial({ color: 0x232c34 }));
         slat.position.set(pos.x + inward * 0.452, 0.35 + k * 0.11, pos.z);
@@ -583,7 +630,7 @@ export class TwinScene {
       body.userData = { type: 'ups', id };
       s.add(body);
       this.pickables.push(body);
-      this.edges(body.geometry, 0x27313a, body.position);
+      this.unitEdges.set(id, { mat: this.edges(body.geometry, 0x27313a, body.position), base: new THREE.Color(0x27313a) });
       const bars: THREE.MeshBasicMaterial[] = [];
       for (let k = 0; k < 6; k++) {
         const mat = new THREE.MeshBasicMaterial({ color: 0xf5a623 });
@@ -624,7 +671,7 @@ export class TwinScene {
     body.userData = { type: 'gateway', id: 'gateway' };
     s.add(body);
     this.pickables.push(body);
-    this.edges(body.geometry, 0x2a343c, body.position);
+    this.unitEdges.set('gateway', { mat: this.edges(body.geometry, 0x2a343c, body.position), base: new THREE.Color(0x2a343c) });
     const portMat = new THREE.MeshBasicMaterial({ color: 0x76b900 });
     for (let k = 0; k < 10; k++) {
       const port = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.02, 0.01), portMat);
@@ -632,7 +679,7 @@ export class TwinScene {
       s.add(port);
     }
     this.gatewayPorts = portMat;
-    this.queueCol = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1, 24), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 1.2 }));
+    this.queueCol = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1, 24), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.55 }));
     this.queueCol.position.set(gp.x + 0.75, 0.01, gp.z);
     s.add(this.queueCol);
     const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 2.4, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x3a4650, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
@@ -689,7 +736,7 @@ export class TwinScene {
     this.packets = new Travelers(1800, px);
     this.scene.add(this.packets.p.points);
     const gp = this.gatewayPos;
-    this.ingressRoute = this.packets.addRoute([[0, 4.6, -11], [0, 3.4, -7.5], [gp.x, 2.62, gp.z]]);
+    this.ingressRoute = this.packets.addRoute([[0, 3.9, -8.6], [0, 3.2, -6.6], [gp.x, 2.62, gp.z]]);
     for (const w of this.topo.workers) {
       const nd = this.nodeById.get(w.node)!;
       const rack = this.rackById.get(nd.rack)!;
@@ -740,7 +787,7 @@ export class TwinScene {
 
   private pointScale() {
     const h = (this.container.clientHeight || 1) * Math.min(window.devicePixelRatio, 2);
-    return h / 2 / Math.tan(THREE.MathUtils.degToRad(36 / 2));
+    return h / 2 / Math.tan(THREE.MathUtils.degToRad(ISO_FOV / 2));
   }
 
   // ----------------------------------------------------------------- pointer
@@ -760,10 +807,16 @@ export class TwinScene {
     return hit.object.userData as Entity;
   }
 
+  private onWindowPointer = (e: PointerEvent) => {
+    this.parallax.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    this.parallax.ty = (e.clientY / window.innerHeight) * 2 - 1;
+  };
+
   private bindPointer() {
     const el = this.renderer.domElement;
     let down: [number, number] | null = null;
     let last = 0;
+    window.addEventListener('pointermove', this.onWindowPointer);
     el.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
     el.addEventListener('pointermove', (e) => {
       const now = performance.now();
@@ -772,26 +825,24 @@ export class TwinScene {
       const entity = this.pick(e.clientX, e.clientY);
       this.showHover(entity);
       const rect = this.container.getBoundingClientRect();
-      el.style.cursor = entity ? 'pointer' : 'grab';
+      el.style.cursor = entity ? 'pointer' : 'default';
       this.listeners.hover.forEach((cb) => cb({ entity, x: e.clientX - rect.left, y: e.clientY - rect.top }));
     });
     el.addEventListener('pointerleave', () => { this.showHover(null); this.listeners.hover.forEach((cb) => cb({ entity: null, x: 0, y: 0 })); });
     el.addEventListener('pointerup', (e) => {
       if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
       const entity = this.pick(e.clientX, e.clientY);
-      if (entity) this.focus(entity);
-      this.listeners.select.forEach((cb) => cb(entity));
+      const rect = this.container.getBoundingClientRect();
+      this.listeners.select.forEach((cb) => cb(entity, { x: e.clientX - rect.left, y: e.clientY - rect.top, visible: true }));
     });
   }
 
-  private showHover(e: Entity | null) {
-    this.hoverBox.visible = !!e;
-    if (!e) return;
+  /** Fits a unit wireframe box around an entity. */
+  private boxFor(e: Entity, b: THREE.Object3D) {
     const p = this.entityPos(e);
-    const b = this.hoverBox;
-    if (e.type === 'worker' || e.type === 'node') {
-      const id = e.type === 'worker' ? this.workerNode.get(e.id)! : e.id;
-      const dir = this.row[this.rackById.get(this.nodeById.get(id)!.rack)!.row].dir;
+    const rack = this.rackOf(e);
+    if ((e.type === 'worker' || e.type === 'node') && rack) {
+      const dir = this.row[this.rackById.get(rack)!.row].dir;
       b.position.set(p.x, p.y, p.z - dir * RD * 0.47);
       b.scale.set(RW * 0.95, NODE_H + 0.05, RD * 0.98);
     } else if (e.type === 'rack') { b.position.copy(p).setY(RH / 2); b.scale.set(RW + 0.04, RH + 0.04, RD + 0.04); }
@@ -800,56 +851,66 @@ export class TwinScene {
     else { b.position.copy(p).setY(1.3); b.scale.set(0.98, 2.68, 0.98); }
   }
 
-  on(event: 'hover', cb: (e: HoverEvent) => void): void;
-  on(event: 'select', cb: (e: Entity | null) => void): void;
-  on(event: 'hover' | 'select', cb: any) { (this.listeners[event] as any[]).push(cb); }
+  private showHover(e: Entity | null) {
+    this.hoverBox.visible = !!e;
+    if (e) this.boxFor(e, this.hoverBox);
+  }
+
+  on(event: 'hover', cb: (e: HoverEvent) => void): () => void;
+  on(event: 'select', cb: (e: Entity | null, at: ScreenPos) => void): () => void;
+  on(event: 'hover' | 'select', cb: any) {
+    const list = this.listeners[event] as any[];
+    list.push(cb);
+    return () => { const i = list.indexOf(cb); if (i >= 0) list.splice(i, 1); };
+  }
 
   // ------------------------------------------------------------------ camera
 
-  flyTo(pos: V3, target: V3, dur = 2.2) {
-    this.idleOrbit = false;
-    this.tween = { t: 0, dur, p0: this.camera.position.clone(), p1: new THREE.Vector3(...pos), t0: this.controls.target.clone(), t1: new THREE.Vector3(...target) };
+  /** The isometric rig: fixed angle plus a few degrees of pointer parallax, then layout zoom and shift. */
+  private placeCamera() {
+    const drift = this.reduceMotion ? 0 : Math.sin(this.time * 0.05) * 0.012;
+    const yaw = ISO_AZ + this.parallax.x * 0.045 + drift;
+    const el = ISO_EL - this.parallax.y * 0.022;
+    const c = this.camera;
+    c.position.set(Math.cos(el) * Math.cos(yaw), Math.sin(el), Math.cos(el) * Math.sin(yaw)).multiplyScalar(ISO_DIST).add(ISO_TARGET);
+    c.lookAt(ISO_TARGET);
+    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    // Narrow (portrait) views get a wider lens so the whole hall still fits across.
+    c.zoom = this.zoom.cur * Math.min(1, w / h / 1.25);
+    if (Math.abs(this.shift.cur) > 1e-4 || Math.abs(this.lift.cur) > 1e-4) c.setViewOffset(w, h, this.shift.cur * w, this.lift.cur * h, w, h);
+    else c.clearViewOffset();
+    c.updateProjectionMatrix();
   }
 
-  preset(name: keyof typeof PRESETS) {
-    const p = PRESETS[name];
-    if (p) this.flyTo(p.pos, p.target);
+  /** zoom < 1 draws the hall smaller; shift moves it left and lift moves it up, as fractions of the view. Eased in tick(). */
+  setLayout({ zoom, shift, lift = 0 }: { zoom: number; shift: number; lift?: number }) {
+    this.zoom.target = zoom;
+    this.shift.target = shift;
+    this.lift.target = lift;
   }
 
-  focus(e: Entity) {
+  /** Where an entity is on screen right now, in container pixels. */
+  screenPos(e: Entity): ScreenPos {
     const p = this.entityPos(e);
-    if (e.type === 'worker' || e.type === 'node' || e.type === 'rack') {
-      const rackId = e.type === 'rack' ? e.id : this.nodeById.get(e.type === 'worker' ? this.workerNode.get(e.id)! : e.id)!.rack;
-      const row = this.row[this.rackById.get(rackId)!.row];
-      // The cold aisle is only 1.2 m wide: look down into it from above the opposite row.
-      const along = p.x > 0 ? -1 : 1;
-      return this.flyTo([p.x + along * 3.2, Math.max(4.6, p.y + 3.4), row.front + row.dir * 3.0], [p.x, p.y, row.front]);
+    if (e.type === 'rack' || e.type === 'crah' || e.type === 'ups' || e.type === 'gateway') p.y = this.topOf(e);
+    p.project(this.camera);
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, visible: p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 };
+  }
+
+  /** Outlines where a failure would land, while it is being chosen. */
+  setPreview(ids: string[] | null, label?: string) {
+    const ents = (ids ?? []).map((id) => this.resolve(id)).filter((e): e is Entity => !!e).slice(0, this.previewBoxes.length);
+    this.previewBoxes.forEach((b, i) => {
+      b.visible = i < ents.length;
+      if (b.visible) this.boxFor(ents[i], b);
+    });
+    this.previewTag.visible = ents.length > 0 && !!label;
+    if (this.previewTag.visible) {
+      this.previewTag.element.textContent = label!;
+      const p = this.entityPos(ents[0]);
+      this.previewTag.position.set(p.x, this.topOf(ents[0]) + 0.55, p.z);
     }
-    if (e.type === 'crah') return this.flyTo([p.x + Math.sign(p.x) * 2.8, 4.2, p.z - Math.sign(p.z) * 5.2], [p.x * 0.6, 1.0, p.z * 0.5]);
-    if (e.type === 'ups') return this.flyTo([p.x * 0.6, 2.8, p.z + 4.6], [p.x, 1.0, p.z]);
-    return this.flyTo([3.2, 3.4, -9.0], [0, 1.4, -4.7]);
-  }
-
-  /** Frame the blast radius of a fault. */
-  focusFault(f: { kind: string; target?: string | null; targets?: string[] }) {
-    const t = f.targets?.[0] ?? f.target ?? '';
-    if (f.kind === 'tool_parser') return this.flyTo([7.6, 4.2, -7.8], [0, 1.0, -0.4]);
-    if (f.kind === 'traffic_burst') return this.preset('network');
-    if (f.kind === 'power_feed_loss') return this.preset('power');
-    if (f.kind === 'compound') return this.focus({ type: 'crah', id: this.topo.crahs[0].id });
-    if (this.crahPos.has(t)) return this.focus({ type: 'crah', id: t });
-    if (this.workerNode.has(t)) return this.focus({ type: 'worker', id: t });
-    if (this.nodeById.has(t)) return this.focus({ type: 'node', id: t });
-    if (this.rackById.has(t)) return this.focus({ type: 'rack', id: t });
-    this.preset('overview');
-  }
-
-  /** Shift the picture left by a fraction of the width, to keep incidents clear of side panels. */
-  setFocusInset(fraction: number) { this.viewShiftTarget = fraction; }
-
-  home() {
-    this.preset('overview');
-    this.lastInteraction = this.time;
   }
 
   // ----------------------------------------------------------------- effects
@@ -867,13 +928,30 @@ export class TwinScene {
     this.flashUntil = this.time + 1.8;
   }
 
+  private alarm(owner: string, at: THREE.Vector3, fresh: boolean) {
+    const i = this.alarmSlots.indexOf(null);
+    if (i < 0) return;
+    this.alarmSlots[i] = owner;
+    // An incident first seen mid-way (a replay scrubbed forward) starts mid-cycle, without the fade-in.
+    (this.floorFx.uniforms.uAlarm.value as THREE.Vector4[])[i].set(at.x, at.z, fresh ? this.time : this.time - 6, 1);
+    (this.floorFx.uniforms.uAlarmCol.value as THREE.Color[])[i].set(STATUS.bad);
+  }
+
+  private clearAlarm(owner: string) {
+    this.alarmSlots.forEach((slot, i) => {
+      if (slot !== owner) return;
+      this.alarmSlots[i] = null;
+      (this.floorFx.uniforms.uAlarm.value as THREE.Vector4[])[i].z = -1;
+    });
+  }
+
   // ------------------------------------------------------------------ update
 
   update(frame: Frame) {
     this.frame = frame;
     const P = this.packets;
     const cap = (n: number, m: number) => Math.min(n, m);
-    for (let k = 0; k < cap(frame.gateway.in, 14); k++) P.spawn(this.ingressRoute, FLOW.ingress, { dur: 0.9, delay: Math.random() * 0.1, size: 0.035, gain: 0.45 });
+    for (let k = 0; k < cap(frame.gateway.in, 10); k++) P.spawn(this.ingressRoute, FLOW.ingress, { dur: 0.9, delay: Math.random() * 0.1, size: 0.028, gain: 0.3 });
     for (let k = 0; k < cap(frame.gateway.shed, 10); k++) P.spawn(this.ingressRoute, FLOW.shed, { reverse: true, dur: 0.9, delay: Math.random() * 0.1, size: 0.085, gain: 1.4 });
     for (const [wid, f] of Object.entries(frame.flows)) {
       const r = this.workerRoute.get(wid);
@@ -922,6 +1000,7 @@ export class TwinScene {
     }
     const q = frame.kpi.queue + frame.gateway.queue;
     const hq = q > 0 ? Math.max(0.03, (Math.log10(q + 1) / Math.log10(5000)) * 2.4) : 0.001;
+    this.queueCol.visible = q > 0;
     this.queueCol.scale.y = hq;
     this.queueCol.position.y = hq / 2;
     this.queueCol.material.color.set(q > 500 ? STATUS.bad : STATUS.warn);
@@ -1030,55 +1109,48 @@ export class TwinScene {
     }
   }
 
+  /** Entities a fault lands on. */
+  private faultEntities(f: FaultRecord): Entity[] {
+    const ids = f.targets?.length ? f.targets : f.target ? [f.target] : [];
+    const ents = ids.map((id) => this.resolve(id)).filter((e): e is Entity => !!e);
+    if (ents.length) return ents;
+    if (f.kind === 'compound') return [{ type: 'crah', id: this.topo.crahs[0].id }];
+    return [{ type: 'gateway', id: 'gateway' }];
+  }
+
   private syncMarkers(frame: Frame) {
     const active = new Set<string>();
     for (const f of frame.faults) {
       if (f.resolved_at != null) continue;
       active.add(f.id);
       if (this.markers.has(f.id)) continue;
-      const pos = this.faultPos(f);
-      const group = new THREE.Group();
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.47, 64), new THREE.MeshBasicMaterial({ color: STATUS.bad, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(pos.x, 0.02, pos.z);
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 3.4, 8), new THREE.MeshBasicMaterial({ color: STATUS.bad, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending }));
-      beam.position.set(pos.x, 1.9, pos.z);
-      beam.visible = f.kind !== 'tool_parser';
-      const callout = this.label(`<b>${f.title}</b>${f.candidate_id ? `<span>${f.candidate_id}</span>` : ''}`, 'lbl callout');
-      callout.position.set(pos.x, 3.75, pos.z);
-      group.add(ring, beam, callout);
-      this.scene.add(group);
-      this.markers.set(f.id, { group, ring, beam, callout });
-      // A fault that just happened gets a shockwave and the camera; one that is already
-      // old (a replay scrubbed into the middle of an incident) only gets its marker.
-      if (frame.t - f.t < 3) {
-        this.wave(pos, STATUS.bad, 2.6);
-        this.incident = true;
-        this.focusFault(f);
+      const ents = this.faultEntities(f);
+      const racks: string[] = [], units: string[] = [], centers: THREE.Vector3[] = [];
+      for (const e of ents) {
+        const rack = this.rackOf(e);
+        if (rack) {
+          if (!racks.includes(rack)) { racks.push(rack); centers.push(this.entityPos({ type: 'rack', id: rack }).setY(0)); }
+        } else if (!units.includes(e.id)) { units.push(e.id); centers.push(this.entityPos(e).setY(0)); }
       }
+      // Silent and load failures read amber; anything that breaks hardware or links reads red.
+      const tone = f.kind === 'tool_parser' || f.kind === 'worker_hang' || f.kind === 'traffic_burst' ? STATUS.warn : STATUS.bad;
+      const fresh = frame.t - f.t < 3;
+      for (const c of centers) this.alarm(f.id, c, fresh);
+      const anchor = centers[0] ?? new THREE.Vector3();
+      const where = (f.targets?.length ?? 0) > 1 ? `${f.targets!.length} replicas` : f.target ?? '';
+      const callout = this.label(`<i></i><b>${f.title}</b>${where ? `<span>${where}</span>` : ''}`, `lbl alert${tone === STATUS.warn ? ' warn' : ''}`);
+      callout.position.set(anchor.x, this.topOf(ents[0]) + 1.05, anchor.z);
+      this.scene.add(callout);
+      this.markers.set(f.id, { callout, racks, units, tone });
+      if (fresh) this.wave(anchor, STATUS.bad, 2.6);
     }
     for (const [id, m] of this.markers) {
       if (active.has(id)) continue;
-      m.group.remove(m.callout);
+      this.scene.remove(m.callout);
       m.callout.element.remove();
-      this.scene.remove(m.group);
+      this.clearAlarm(id);
       this.markers.delete(id);
     }
-  }
-
-  private faultPos(f: FaultRecord): THREE.Vector3 {
-    const t = f.targets?.[0] ?? f.target ?? '';
-    if (f.kind === 'tool_parser' && f.targets?.length) {
-      const ps = f.targets.filter((w) => this.workerNode.has(w)).map((w) => this.nodePos(this.workerNode.get(w)!));
-      return ps.reduce((a, b) => a.add(b), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, ps.length)).setZ(0);
-    }
-    if (this.workerNode.has(t)) return this.nodePos(this.workerNode.get(t)!);
-    if (this.nodeById.has(t)) return this.nodePos(t);
-    if (this.rackById.has(t)) return this.entityPos({ type: 'rack', id: t });
-    if (this.crahPos.has(t)) return this.crahPos.get(t)!.clone();
-    if (this.upsPos.has(t)) return this.upsPos.get(t)!.clone();
-    if (f.kind === 'compound') return this.crahPos.get(this.topo.crahs[0].id)!.clone();
-    return this.gatewayPos.clone();
   }
 
   /** Drop transient particles, e.g. when switching between live and replay. */
@@ -1095,43 +1167,39 @@ export class TwinScene {
     if (!this.container.clientWidth) return;
     const f = this.frame;
 
-    if (this.tween) {
-      const tw = this.tween;
-      tw.t += dt / tw.dur;
-      const e = tw.t >= 1 ? 1 : tw.t < 0.5 ? 4 * tw.t ** 3 : 1 - (-2 * tw.t + 2) ** 3 / 2;
-      this.camera.position.lerpVectors(tw.p0, tw.p1, e);
-      this.controls.target.lerpVectors(tw.t0, tw.t1, e);
-      if (tw.t >= 1) { this.tween = null; this.lastInteraction = this.time; }
-    } else {
-      // Ambient: a slow orbit while the hall is calm and nobody is driving the camera.
-      if (!this.idleOrbit && !this.incident && this.time - this.lastInteraction > 28) {
-        this.idleOrbit = true;
-        this.orbitAngle = Math.atan2(this.camera.position.z - this.controls.target.z, this.camera.position.x - this.controls.target.x);
-      }
-      if (this.idleOrbit && !this.incident) {
-        this.orbitAngle += dt * 0.045;
-        const r = 14.2;
-        _v.set(Math.cos(this.orbitAngle) * r, 6.4 + Math.sin(this.time * 0.17) * 0.6, Math.sin(this.orbitAngle) * r);
-        this.camera.position.lerp(_v, 0.02);
-        this.controls.target.lerp(ORBIT_TARGET, 0.02);
-      }
+    // Camera rig: parallax, zoom and shift ease toward their targets. The camera never flies anywhere.
+    const follow = this.reduceMotion ? 1 : 1 - Math.exp(-dt * 1.6);
+    if (!this.reduceMotion) {
+      this.parallax.x += (this.parallax.tx - this.parallax.x) * follow;
+      this.parallax.y += (this.parallax.ty - this.parallax.y) * follow;
     }
-    this.controls.update();
+    const lay = this.reduceMotion ? 1 : 1 - Math.exp(-dt * 2.4);
+    this.zoom.cur += (this.zoom.target - this.zoom.cur) * lay;
+    this.shift.cur += (this.shift.target - this.shift.cur) * lay;
+    this.lift.cur += (this.lift.target - this.lift.cur) * lay;
+    this.placeCamera();
     this.floorFx.uniforms.uTime.value = this.time;
-    if (Math.abs(this.viewShiftTarget - this.viewShift) > 0.0005) {
-      this.viewShift += (this.viewShiftTarget - this.viewShift) * (1 - Math.exp(-dt * 3));
-      const w = this.container.clientWidth, h = this.container.clientHeight;
-      this.camera.setViewOffset(w, h, this.viewShift * w, 0, w, h);
-    }
 
-    // Rack outlines and fibres ease toward their state colors.
+    // Rack outlines and fibres ease toward their state colors; failed components pulse.
     const flash = this.time < this.flashUntil ? Math.sin(((this.flashUntil - this.time) / 1.8) * Math.PI) : 0;
     const k = 1 - Math.exp(-dt * 5);
-    for (const [, m] of this.rackMeshes) {
+    const beat = 0.5 + 0.5 * Math.sin(this.time * 4.2);
+    const alarmed = new Map<string, number>();
+    for (const m of this.markers.values()) for (const id of [...m.racks, ...m.units]) alarmed.set(id, m.tone);
+    for (const [id, m] of this.rackMeshes) {
       _c.copy(m.target);
       if (flash > 0) _c.lerp(_c2.set(STATUS.ok).multiplyScalar(2), flash);
-      m.outline.color.lerp(_c, k);
+      const tone = alarmed.get(id);
+      if (tone != null) m.outline.color.copy(_c.lerp(_c2.set(tone).multiplyScalar(2.8), 0.3 + 0.7 * beat));
+      else m.outline.color.lerp(_c, k);
     }
+    for (const [id, u] of this.unitEdges) {
+      const tone = alarmed.get(id);
+      if (tone != null) u.mat.color.copy(_c.copy(u.base).lerp(_c2.set(tone).multiplyScalar(2.8), 0.3 + 0.7 * beat));
+      else u.mat.color.lerp(u.base, k);
+    }
+    const glow = 0.5 + 0.3 * Math.sin(this.time * 3.2);
+    for (const b of this.previewBoxes) if (b.visible) b.material.opacity = glow;
     for (const [, l] of this.workerLine) {
       l.mat.color.lerp(l.target, k);
       l.mat.opacity += (l.opacity - l.mat.opacity) * k;
@@ -1142,11 +1210,6 @@ export class TwinScene {
       this.updateAir(dt, f);
       for (const [, u] of this.crahs) if (u.on) u.fans.forEach((fan) => (fan.rotation.y += dt * 9));
       for (const [, u] of this.ups) if (!u.on) u.bars.forEach((b) => b.color.set(Math.sin(this.time * 6) > 0 ? STATUS.bad : 0x2a1016).multiplyScalar(Math.sin(this.time * 6) > 0 ? 1.8 : 1));
-      for (const [, m] of this.markers) {
-        const q = (this.time * 0.7) % 1;
-        m.ring.scale.setScalar(1 + q * 1.8);
-        m.ring.material.color.set(STATUS.bad).multiplyScalar(2.2 * (1 - q));
-      }
       this.throttleRing.rotation.z += dt * 1.5;
       this.gatewayPorts.color.setHSL(0.24, 1, 0.32 + 0.06 * Math.sin(this.time * 9));
       for (const m of Object.values(this.containment)) m.uniforms.uTime.value = this.time;
@@ -1216,8 +1279,7 @@ export class TwinScene {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     if (!w || !h) return;
     this.camera.aspect = w / h;
-    if (this.viewShift) this.camera.setViewOffset(w, h, this.viewShift * w, 0, w, h);
-    this.camera.updateProjectionMatrix();
+    this.placeCamera();
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
     this.bloom.setSize(w, h);
@@ -1230,7 +1292,7 @@ export class TwinScene {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
     this.ro.disconnect();
-    this.controls.dispose();
+    window.removeEventListener('pointermove', this.onWindowPointer);
     this.composer.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
