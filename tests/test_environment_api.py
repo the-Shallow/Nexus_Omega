@@ -39,13 +39,20 @@ class EnvironmentApiTests(unittest.TestCase):
     def test_undeclared_things_are_rejected(self):
         self.assertEqual(self.client.post("/resources/target-agent/state", json={"fields": ["ready"]},
                                           headers=READ).status_code, 404)
-        self.assertEqual(self.client.post("/resources/target-a/configuration", json={"keys": ["environment"]},
-                                          headers=READ).status_code, 400)
         self.assertEqual(self.client.post("/probes/shell/run", json={"inputs": {}}, headers=READ).status_code, 404)
         self.assertEqual(self.client.post("/metrics/query", json={"resource_id": "target-a", "metric": "cpu",
                                                                   "window": "1m"}, headers=READ).status_code, 404)
         self.assertEqual(self.client.post("/artifacts/read", json={"artifact_id": "x", "section": "env"},
                                           headers=READ).status_code, 404)
+
+    def test_unknown_config_keys_are_named_not_fatal(self):
+        with mock.patch.object(main, "effective_launch_config",
+                               return_value={"source": "docker inspect", "tool_call_parser": "hermes", "environment": "x"}):
+            resp = self.client.post("/resources/target-a/configuration", headers=READ,
+                                    json={"keys": ["tool_call_parser", "environment"]})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["configuration"], {"tool_call_parser": "hermes"})
+        self.assertEqual(resp.json()["unavailable_keys"], ["environment"])
 
     def test_apply_rejects_unapproved_profile(self):
         with mock.patch.object(main.executor, "patch_serving_config") as patch:

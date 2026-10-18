@@ -37,7 +37,12 @@ FAULTS = {
     "net-blackhole-b": {"worker": "b", "fixable": False, "inject": lambda: network.apply("b", "blackhole")},
     "kill-b": {"worker": "b", "fixable": True, "inject": lambda: process.apply("b", "kill")},
 }
-SOLVERS = {"rules": rules.solve}
+def agent_solver() -> dict:
+    from nexus.harness import agent_run  # imported lazily: needs the NEMOTRON_* / NEXUS_ENVIRONMENT_* settings
+    return agent_run.run_agent()
+
+
+SOLVERS = {"rules": rules.solve, "agent": agent_solver}
 
 
 def reset() -> None:

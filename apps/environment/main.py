@@ -35,7 +35,8 @@ RESOURCES = tuple(f"target-{w}" for w in TARGET_WORKERS)
 CONFIG_KEYS = ("tool_call_parser", "chat_template", "enable_auto_tool_choice", "tool_parser_plugin",
                "reasoning_parser", "model", "model_revision", "image_digest", "profile_label",
                "container_state")
-STATE_FIELDS = ("container", "ready", "drained", "weight", "active_requests", "queued_requests", "port")
+STATE_FIELDS = ("container", "ready", "drained", "weight", "active_requests", "queued_requests", "port",
+                "container_state", "profile_label")
 WINDOW_RE = re.compile(r"^([1-9][0-9]?)([sm])$")
 # metric -> (PromQL with {window} and {label}, label name, label value pattern, unit)
 METRICS = {
@@ -177,10 +178,9 @@ class FieldsBody(BaseModel):
 
 @app.post("/resources/{resource_id}/state", dependencies=[Depends(require_read)])
 def get_resource_state(resource_id: str, body: FieldsBody):
+    # The manifest format has no list of state fields, so the agent may guess
+    # names. Answer what is known and name the rest rather than failing the call.
     worker = resource(resource_id)
-    unknown = set(body.fields) - set(STATE_FIELDS)
-    if unknown:
-        raise HTTPException(400, f"undeclared state fields: {sorted(unknown)}")
     row = next((r for r in manager.status() if r["worker"] == worker), {})
     routes = executor.gateway("GET", "/admin/workers").get(worker, {})
     try:
@@ -189,8 +189,11 @@ def get_resource_state(resource_id: str, body: FieldsBody):
         ready = False
     full = {"container": row.get("container", "missing"), "ready": ready, "drained": routes.get("drained"),
             "weight": routes.get("weight"), "active_requests": routes.get("active"),
-            "queued_requests": routes.get("queued"), "port": row.get("port")}
-    return {"resource_id": resource_id, "state": {k: full[k] for k in body.fields}}
+            "queued_requests": routes.get("queued"), "port": row.get("port"),
+            "container_state": row.get("container", "missing"), "profile_label": row.get("profile")}
+    unknown = [f for f in body.fields if f not in full]
+    return {"resource_id": resource_id, "state": {k: full[k] for k in body.fields if k in full},
+            "unavailable_fields": unknown, "available_fields": list(STATE_FIELDS) if unknown else None}
 
 
 class KeysBody(BaseModel):
@@ -200,15 +203,14 @@ class KeysBody(BaseModel):
 @app.post("/resources/{resource_id}/configuration", dependencies=[Depends(require_read)])
 def get_configuration(resource_id: str, body: KeysBody):
     resource(resource_id)
-    unknown = set(body.keys) - set(CONFIG_KEYS)
-    if unknown:
-        raise HTTPException(400, f"undeclared configuration keys: {sorted(unknown)}")
+    unknown = [k for k in body.keys if k not in CONFIG_KEYS]
     try:
         config = effective_launch_config(resource_id)
     except HarnessError as exc:
         raise HTTPException(409, str(exc)) from exc
     return {"resource_id": resource_id, "source": config["source"],
-            "configuration": {k: config.get(k) for k in body.keys}}
+            "configuration": {k: config.get(k) for k in body.keys if k in CONFIG_KEYS},
+            "unavailable_keys": unknown, "available_keys": list(CONFIG_KEYS) if unknown else None}
 
 
 class LogsBody(BaseModel):
