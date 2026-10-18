@@ -5,8 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nexus-omega"
 version = "0.1.0"
-description = "Bounded diagnostic and repair-planning agent"
+description = "A small-model agent that repairs a live vLLM fleet, with policy-checked actions and an independent referee"
 requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
 dependencies = []
 
 [project.optional-dependencies]

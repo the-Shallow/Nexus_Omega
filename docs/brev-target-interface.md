@@ -36,10 +36,10 @@ This is real model output for the same input, but it comes from a **second reque
 | Need | Module | Notes |
 |---|---|---|
 | Effective launch config | `nexus.harness.inspect.effective_launch_config(service)` | Read from `docker inspect` of the running container. Returns parser, template, plugin, revision, auto-tool-choice and image digest. No environment; arguments are redacted. |
-| Bounded logs | `nexus.harness.inspect.bounded_logs(service, since, pattern, limit)` | `since` must look like `30s`/`10m`/`2h`; `limit` ≤ 200; lines are redacted and capped at 500 characters; returns a `truncated` flag. |
+| Bounded logs | `nexus.harness.inspect.bounded_logs(service, since, pattern, limit)` | `since` is a duration (`30s`/`10m`/`2h`) or an ISO timestamp; `limit` ≤ 200; lines are redacted and capped at 500 characters; returns a `truncated` flag. |
 | Visible canary | `nexus.verifier.canary.BUILTIN_CASES["single_call"]` + `run_case(..., raw=True)` | Only this case may be exposed as `visible_tool_call`. |
 | Applying a repair | `nexus.harness.executor.patch_serving_config(service, approved_profile)` | Call this after `PRECHECK`. It takes the lock, checks that another worker is still serving, drains, applies, runs the **hidden** canary (`runtime/canaries/hidden.jsonl`), then undrains or rolls back. Returns `VERIFIED`, `ROLLED_BACK`, `REQUIRES_APPROVAL` or `REJECTED`, and appends to `artifacts/harness/audit.jsonl`. |
-| Other actions | `restart_worker`, `drain_worker`, `undrain_worker` in the same module | The rule baseline uses these. Add them to `RepairPolicy` if Nemotron should have them too. |
+| Other actions | `restart_worker`, `drain_worker`, `undrain_worker` in the same module | The rule baseline uses these. Nemotron reaches them as manifest actions (`restart-worker`, `drain-worker`, and `undrain-worker` with approval). |
 
 Hidden canaries are never reachable through the inspect module or the visible canary.
 

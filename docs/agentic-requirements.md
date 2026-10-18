@@ -1,5 +1,7 @@
 # Nexus Ω agentic requirements and delivery checkpoints
 
+> **Historical plan**, written before the build. Parts of it (NeMo Gym, Nemotron Embed, the SimPy precheck in the agent loop, the Red Hat image) were not built. What shipped and what it scored is in the [README](../README.md).
+
 Status: implementation contract
 
 Date: October 17, 2026

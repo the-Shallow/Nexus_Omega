@@ -54,7 +54,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 
 Run 2026-10-18 03:18–03:25 UTC with `scripts/bfcl_arms.sh` (records in `../bfcl/`). Tool-calling score = simple + multiple + parallel. Both broken profiles still return HTTP 200 with `/health` 200, and 0 HTTP errors in 600 requests: users lose all tool calling and no alert fires. The one-step repair restores 0.83. This is our own pinned measurement of the effect the paper reports as 0.00 → 0.96 (arXiv 2609.03966); different model and case subset, so the numbers are not directly comparable. Irrelevance at 50/50 on the broken profiles is not a strength: a server that never produces a tool call trivially "declines" every irrelevant request. The last column is what the rule baseline's regex sees: 32926 leaks call-shaped text, the stripped template leaks none (the model answers in prose), which is why the rules can catch one and not the other.
 
-## Results so far
+## Results by fault
 
 ### VLLM-32926 (silent tool-call fault on `target-a`)
 
@@ -223,8 +223,8 @@ Each change has a detailed commit message addressed to E1 for review:
 
 ## Still to do
 
-- Fixes from Batch 1, each rerun and logged as an "after fix" row: the executor also verifies the route through HAProxy (E2); the environment API accepts timestamps for log `since` (E2); a malformed tool call goes back to the model as an error instead of aborting the run (E1's controller, needs Khush).
-- Held-out faults (built in `0d6f318`): compound-latb-32926a, capacity-b, tools-stripped-a, noop, for both solvers.
-- BFCL hidden canaries (add held-out BFCL cases to `runtime/canaries/hidden.jsonl` after Batch 2).
-- Large reference model on the same episodes (needs an endpoint).
-- Record `run_id` in each episode, so episodes and trails link directly rather than by time (added to `nexus.eval.episode` with this log).
+- [x] Batch 1 fixes, each rerun as an "after" row: the executor verifies the route through HAProxy; log `since` accepts timestamps; a malformed tool call goes back to the model as an error (known faults after: 11/12, 0 false VERIFIED).
+- [x] Held-out faults for both solvers (v1 and v2, before and after).
+- [x] Large reference model on the same episodes (Nemotron 3 Super on held-out v1, above).
+- [x] `run_id` recorded in each episode (`nexus.eval.episode`).
+- [ ] BFCL hidden canaries: add held-out BFCL cases to `runtime/canaries/hidden.jsonl` (still 4 hand-written cases).

@@ -1,5 +1,7 @@
 # Nexus Ω — final hackathon plan
 
+> **Historical plan**, written before the build. Parts of it (NeMo Gym, Nemotron Embed, the SimPy precheck in the agent loop, the Red Hat image) were not built. What shipped and what it scored is in the [README](../README.md).
+
 Date: October 17, 2026  
 Deadline: October 18, 2026 at 11:00 AM ET  
 Team: three engineers

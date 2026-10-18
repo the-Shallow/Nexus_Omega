@@ -1,6 +1,6 @@
 # Digital twin, doctors and the operations UI
 
-A SimPy model of a GPU inference pod, the two doctors that diagnose and repair it, and the NEXUS Ω platform UI used for the demo. The twin powers the PRECHECK step (`simulate_action`) and covers the failure categories that are simulation-only on the live target (thermal, power, compound).
+A SimPy model of a GPU inference pod, the two doctors that diagnose and repair it, and the NEXUS Ω platform UI used for the demo. The twin powers the PRECHECK step (`simulate_action`) for its own rule-based doctors and covers the failure categories that are simulation-only on the live target (thermal, power, compound). The live Nemotron agent on the Brev fleet does not consult it.
 
 ```bash
 ./scripts/twin.sh          # http://127.0.0.1:8765 (builds apps/web once if npm is available)
@@ -39,7 +39,7 @@ One dark, single-page view (React, TypeScript, Tailwind, Framer Motion, a WebSoc
 
 The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor. A recovery shows as verified only when the certificate says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
 
-Data modes: **SIMULATED** is the SimPy twin (the only source today). **LIVE** is reserved for production telemetry and shows as not connected. **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
+Data modes: **SIMULATED** is the SimPy twin. **LIVE** (`/ws?source=live`) reads the Brev fleet's gateway, Prometheus and operator app when they are tunnelled (web/README.md). **REPLAY** plays back a recorded incident (pre-roll, fault, run, a few seconds after), recorded in the browser.
 
 ## What is modeled
 

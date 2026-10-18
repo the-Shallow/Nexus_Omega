@@ -27,7 +27,8 @@ If `ssh nexus-omega` hangs or is refused, the instance is probably stopped or st
 None of the service ports are open to the internet. To use them from your laptop, tunnel them over SSH:
 
 ```bash
-ssh -N -L 8100:localhost:8100 -L 8101:localhost:8101 -L 9090:localhost:9090 nexus-omega
+ssh -N -L 8100:localhost:8100 -L 8101:localhost:8101 -L 9090:localhost:9090 \
+    -L 8110:localhost:8110 -L 8120:localhost:8120 -L 8130:localhost:8130 nexus-omega   # gateway admin, environment API, operator app
 ```
 
 Then `http://localhost:8100` on your laptop is the gateway, and so on.
@@ -47,7 +48,7 @@ Where things live:
 |---|---|
 | `/ephemeral/work/Nexus_Omega/` | **The checkout the running stack uses.** Compose, profiles and scripts are run from here. |
 | `/ephemeral/work/*.log` | Bring-up and gate logs (`bringup.log`, `gate1-noauto.log`, `lightning.log`, `qwen.log`, `pull.log`) |
-| `/ephemeral/hf/hub/` | Hugging Face model cache (~28 GB): Qwen3-4B and Nemotron-3.5-Lightning-30B-A3B-NVFP4 |
+| `/ephemeral/hf/hub/` | Hugging Face model cache: Qwen2.5-Coder-7B-Instruct (the fleet), Nemotron-3.5-Lightning-30B-A3B-NVFP4 (the agent), and Qwen3-4B (early gates) |
 | `~/.cache` | A link to `/ephemeral/cache` (pip and uv caches) |
 | `~/workspace/Nexus_Omega/` | A second, older clone. It isn't used by anything running. |
 | `~/.venv/` | The Python environment Brev set up |
