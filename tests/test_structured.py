@@ -129,6 +129,7 @@ class StructuredControllerTests(unittest.TestCase):
         result, client = run([
             ModelTurn(content="target-a's parser differs."),
             ModelTurn(content=json.dumps(assessment(row("failed", "misconfigured"), row("healthy", "none")))),
+            ModelTurn(content=json.dumps({"status": "failed", "fault_class": "misconfigured"})),
             ModelTurn(content=json.dumps({"reasoning": "Repair a.", "move": "apply-profile target-a reviewed",
                                           "expected_effect": "Tool calls work.", "risk": "Brief restart."})),
         ], serving={"target-a": True, "target-b": True})
@@ -143,22 +144,29 @@ class StructuredControllerTests(unittest.TestCase):
         result, _ = run([
             ModelTurn(content="Something is off on b."),
             ModelTurn(content=json.dumps(assessment(row("healthy", "none"), row("degraded", "unknown")))),
+            ModelTurn(content=json.dumps({"status": "degraded", "fault_class": "unknown"})),
         ])
         # unknown has no fitting action, so there is nothing to choose: a human is needed.
         self.assertEqual(result.state, "ABSTAIN")
         self.assertIn("requires a human", result.decision.stop_reason)
 
-    def test_healthy_verdict_against_flagged_evidence_gets_one_named_retry(self):
+    def test_flagged_resource_is_relabelled_from_its_own_finding(self):
         flagged = {"flags": {"target-a": ["visible tool-call canary failed: HTTP 400"]}}
+        draft = assessment(row("healthy", "none"), row("healthy", "none"))
+        draft["assessments"]["target-a"]["finding"] = "HTTP 400; auto tool choice is off, unlike the reviewed config."
         result, client = run([
             ModelTurn(content="a returns HTTP 400."),
-            ModelTurn(content=json.dumps(assessment(row("healthy", "none"), row("healthy", "none")))),
-            ModelTurn(content=json.dumps(assessment(row("failed", "misconfigured"), row("healthy", "none")))),
+            ModelTurn(content=json.dumps(draft)),
+            ModelTurn(content=json.dumps({"status": "failed", "fault_class": "misconfigured"})),
             ModelTurn(content=json.dumps({"reasoning": "Repair a.", "move": "apply-profile target-a reviewed",
                                           "expected_effect": "Tool calls work.", "risk": "Brief restart."})),
         ], serving={"target-a": True, "target-b": True}, snapshot=flagged)
-        rejected = json.loads(client.requests[2]["messages"][-1]["content"])["rejected"]
-        self.assertIn("ev-001: visible tool-call canary failed: HTTP 400", rejected[0])
+        label_request = client.requests[2]
+        self.assertEqual(len(label_request["messages"]), 2)  # a short, separate context
+        asked = json.loads(label_request["messages"][1]["content"])
+        self.assertEqual(asked["resource"], "target-a")
+        self.assertIn("auto tool choice is off", asked["finding"])
+        self.assertIn("ev-001: visible tool-call canary failed: HTTP 400", asked["abnormal_signals"])
         self.assertEqual(result.decision.repair_plan.action.arguments["target"], "target-a")
 
     def test_unparseable_assessment_twice_abstains_instead_of_crashing(self):

@@ -81,6 +81,34 @@ def assess_request(manifest: EnvironmentManifest) -> str:
     })
 
 
+def relabel_format(manifest: EnvironmentManifest) -> dict[str, Any]:
+    schema = {"type": "object", "additionalProperties": False, "required": ["status", "fault_class"],
+              "properties": {"status": {"enum": list(STATUSES)},
+                             "fault_class": {"enum": list(fault_classes(manifest))}}}
+    return {"type": "json_schema", "json_schema": {"name": "label", "schema": schema, "strict": True}}
+
+
+def relabel_messages(manifest: EnvironmentManifest, resource_id: str, row: dict[str, Any],
+                     flags: list[str]) -> list[dict[str, Any]]:
+    """A short, separate context that labels one finding.
+
+    Seen live: the written findings were right ("this misconfiguration is the
+    identified cause") while the labels chosen at the end of the long
+    assessment were not (healthy/none, or degraded/unknown). Small models
+    classify better in a short, focused context, so each flagged or
+    non-healthy resource is labelled again from its own finding alone.
+    """
+    return [
+        {"role": "system", "content": ("You label one finding about one resource of an inference fleet. "
+                                       "Choose the status and the fault class that the finding itself "
+                                       "states or directly supports.")},
+        {"role": "user", "content": json.dumps({
+            "resource": resource_id, "finding": row["finding"], "abnormal_signals": flags,
+            "statuses": {"healthy": "no problem", "degraded": "works but impaired", "failed": "not working"},
+            "fault_classes": fault_classes(manifest)})},
+    ]
+
+
 def assessment_errors(assessment: dict[str, Any]) -> list[str]:
     """Contradictions code can see; each message names the exact mismatch."""
     errors = []

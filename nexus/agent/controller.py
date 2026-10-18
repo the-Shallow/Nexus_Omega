@@ -109,11 +109,13 @@ class AgentController:
         self.event_log = event_log
         # Sized for ContextBudget.max_rounds = 8: each round is one model step
         # plus up to three tool calls, plus the final answer and one format retry.
+        # Structured mode adds the assessment, one short label call per flagged
+        # resource and the choice, each with one retry.
         self.run_budget = run_budget or RunBudget(
-            max_steps=16,
+            max_steps=24 if structured else 16,
             max_tool_calls=20,
-            max_total_operations=32,
-            timeout_seconds=120,
+            max_total_operations=44 if structured else 32,
+            timeout_seconds=150 if structured else 120,
         )
         self.context_budget = context_budget or ContextBudget()
         self.repair_precheck = repair_precheck
@@ -492,11 +494,15 @@ class AgentController:
         errors = flow.assessment_errors(assessment) + flow.flag_errors(assessment, self.flags)
         if errors:
             self.event_log.append("assessment_inconsistent", {"errors": errors})
-            messages.append({"role": "user", "content": json.dumps({
-                "step": "assess", "rejected": errors,
-                "instructions": "Fix exactly these contradictions and return the full assessment again."})})
-            retried = self._constrained(messages, flow.assess_format(manifest, evidence_ids), "assessment")
-            assessment = flow.coerce(retried or assessment, self.flags)
+        self.event_log.append("assessment_draft", assessment)
+        for resource_id, row in assessment["assessments"].items():
+            if row["status"] != "healthy" or self.flags.get(resource_id):
+                label = self._constrained(flow.relabel_messages(manifest, resource_id, row, self.flags.get(resource_id, [])),
+                                          flow.relabel_format(manifest), "label", keep=False)
+                if (label and label.get("status") in flow.STATUSES
+                        and label.get("fault_class") in flow.fault_classes(manifest)):
+                    row["status"], row["fault_class"] = label["status"], label["fault_class"]
+        assessment = flow.coerce(assessment, self.flags)
         self.event_log.append("assessment", assessment)
         rows = assessment["assessments"]
         if all(row["status"] == "healthy" for row in rows.values()):
@@ -521,15 +527,19 @@ class AgentController:
         return flow.plan(manifest, assessment, move, choice)
 
     def _constrained(self, messages: list[dict[str, Any]], response_format: dict[str, Any],
-                     label: str) -> dict[str, Any] | None:
-        """One schema-constrained answer, with one retry on unparseable output; None if both fail."""
+                     label: str, *, keep: bool = True) -> dict[str, Any] | None:
+        """One schema-constrained answer, with one retry on unparseable output; None if both fail.
+
+        keep=False is for a separate short context whose answer is not part of the conversation.
+        """
         for attempt in range(2):
             self.run_budget.consume_step()
             reply = self.client.complete(messages, [], response_format=response_format)
             try:
                 payload = json.loads(reply.content or "")
                 if isinstance(payload, dict):
-                    messages.append({"role": "assistant", "content": reply.content})
+                    if keep:
+                        messages.append({"role": "assistant", "content": reply.content})
                     return payload
             except json.JSONDecodeError:
                 pass
