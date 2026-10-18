@@ -16,6 +16,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 from nexus.target import manager
 
@@ -25,6 +26,19 @@ TARGET_WORKERS = ("a", "b")
 MAX_LOG_LINES = 200
 MAX_LINE_CHARS = 500
 SINCE_RE = re.compile(r"^([1-9][0-9]{0,3})([smh])$")
+
+
+def docker_since(since: str) -> str:
+    """A relative window (30s, 10m, 2h) or an ISO 8601 timestamp, as docker logs --since takes it."""
+    if SINCE_RE.match(since):
+        return since
+    try:
+        moment = datetime.fromisoformat(since)
+    except ValueError:
+        raise HarnessError("since must be a window like 30s, 10m or 2h, or an ISO 8601 timestamp") from None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 SECRET_PATTERNS = [
     re.compile(r"hf_[A-Za-z0-9]{8,}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]+"),
@@ -99,8 +113,7 @@ def effective_launch_config(service: str) -> dict:
 
 def bounded_logs(service: str, since: str, pattern: str, limit: int) -> dict:
     worker = worker_for(service)
-    if not SINCE_RE.match(since):
-        raise HarnessError("since must look like 30s, 10m or 2h")
+    since = docker_since(since)
     if not 1 <= limit <= MAX_LOG_LINES:
         raise HarnessError(f"limit must be between 1 and {MAX_LOG_LINES}")
     if len(pattern) > 200:

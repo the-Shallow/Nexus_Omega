@@ -8,6 +8,9 @@ actions. Each one:
   - accepts only approved profiles (kind "healthy"), never fault profiles;
   - drains the worker, changes it, checks it with the hidden canary set
     (never shown to the agent), then undrains it or rolls back;
+  - after undraining, probes the worker's route through HAProxy: a worker
+    that passes on its own port but not on the users' path (a link fault)
+    is drained again and handed to a human, never reported VERIFIED;
   - appends an audit record to artifacts/harness/audit.jsonl.
 
 Usage:
@@ -32,7 +35,7 @@ import httpx
 
 from nexus.harness.inspect import TARGET_WORKERS, HarnessError, effective_launch_config, worker_for
 from nexus.target import manager
-from nexus.verifier import canary
+from nexus.verifier import canary, route
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCK_PATH = ROOT / "runtime" / "state" / "executor.lock"
@@ -40,6 +43,7 @@ AUDIT_PATH = ROOT / "artifacts" / "harness" / "audit.jsonl"
 HIDDEN_CASES = ROOT / "runtime" / "canaries" / "hidden.jsonl"
 GATEWAY = os.environ.get("NEXUS_GATEWAY_URL", "http://localhost:8100")  # inference (HAProxy)
 ADMIN = os.environ.get("NEXUS_ADMIN_URL", "http://localhost:8110")      # drain / weight
+ROUTE_CHECK = {"requests": 20, "max_p95_s": 0.5, "max_error_rate": 0.0}
 
 
 class Busy(RuntimeError):
@@ -104,6 +108,16 @@ def hidden_check(worker: str) -> dict:
     return {"passed": result["passed"], "health_status": result["health_status"], "failed_cases": failed}
 
 
+def route_check(worker: str) -> dict:
+    """The users' path: this worker's p95 and errors on probes sent through HAProxy."""
+    profile = manager.load_profile(manager.read_state(worker)["profile"])
+    result = route.run(GATEWAY, profile.get("served_model_name", profile["model"]), ROUTE_CHECK["requests"],
+                       ROUTE_CHECK["max_p95_s"], ROUTE_CHECK["max_error_rate"])
+    mine = result["workers"].get(worker)
+    # No probe reached the worker (e.g. HAProxy marked it down): not shown to serve users.
+    return {"passed": bool(mine and mine["ok"]), "worker": mine, "limits": result["limits"]}
+
+
 def run_action(action: str, service: str, removes_capacity: bool, body) -> dict:
     """Shared envelope: validation, lock, capacity guard, audit."""
     record = {"action": action, "service": service, "change_id": uuid.uuid4().hex[:12],
@@ -134,7 +148,13 @@ def verify_or_rollback(worker: str, undo) -> dict:
     check = hidden_check(worker)
     if check["passed"]:
         gateway("POST", f"/admin/workers/{worker}/undrain")
-        return {"status": "VERIFIED", "verification": check}
+        users = route_check(worker)
+        if users["passed"]:
+            return {"status": "VERIFIED", "verification": check, "route_check": users}
+        gateway("POST", f"/admin/workers/{worker}/drain")
+        return {"status": "REQUIRES_APPROVAL", "verification": check, "route_check": users,
+                "reason": "worker passes on its own port but not through HAProxy; drained again, "
+                          "the path to it needs a human"}
     undo()
     recheck = hidden_check(worker)
     if recheck["passed"]:

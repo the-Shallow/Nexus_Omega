@@ -45,6 +45,14 @@ class InspectTests(unittest.TestCase):
             with self.assertRaises(inspect.HarnessError):
                 inspect.bounded_logs("target-a", **args)
 
+    def test_since_accepts_windows_and_iso_timestamps(self):
+        self.assertEqual(inspect.docker_since("10m"), "10m")
+        self.assertEqual(inspect.docker_since("2026-10-17T02:51:26+00:00"), "2026-10-17T02:51:26Z")
+        self.assertEqual(inspect.docker_since("2026-10-17T22:51:26-04:00"), "2026-10-18T02:51:26Z")
+        self.assertEqual(inspect.docker_since("2026-10-17T02:51:26"), "2026-10-17T02:51:26Z")
+        with self.assertRaises(inspect.HarnessError):
+            inspect.docker_since("yesterday")
+
     @mock.patch.object(inspect.manager, "read_state", return_value={"port": 8101})
     @mock.patch.object(inspect.subprocess, "run")
     def test_bounded_logs_caps_filters_and_redacts(self, run, _state):
@@ -103,6 +111,36 @@ class ExecutorTests(unittest.TestCase):
             out = executor.patch_serving_config("target-a", "qwen25-coder-7b.tools-template")
         self.assertEqual(out["status"], "ROLLED_BACK")
         rollback.assert_called_once_with("a", "c1")
+
+    def test_restart_behind_a_bad_link_is_not_verified(self):
+        """Passing on its own port is not enough: the users' path through HAProxy must pass too."""
+        bad_route = {"passed": False, "worker": {"p95_s": 1.7, "error_rate": 0.0, "ok": False}}
+        with mock.patch.object(executor, "other_serving_workers", return_value=["a"]), \
+             mock.patch.object(executor.manager, "read_state", return_value={"port": 8102, "profile": "p"}), \
+             mock.patch.object(executor.manager, "load_profile", return_value={"kind": "healthy"}), \
+             mock.patch.object(executor.manager, "launch", return_value=70.0), \
+             mock.patch.object(executor, "hidden_check", return_value={"passed": True, "failed_cases": []}), \
+             mock.patch.object(executor, "route_check", return_value=bad_route):
+            out = executor.restart_worker("target-b")
+        self.assertEqual(out["status"], "REQUIRES_APPROVAL")
+        self.assertIn("HAProxy", out["reason"])
+        self.assertEqual(executor.gateway.call_args_list[-1], mock.call("POST", "/admin/workers/b/drain"))
+
+    def test_verified_needs_a_passing_route(self):
+        with mock.patch.object(executor, "other_serving_workers", return_value=["b"]), \
+             mock.patch.object(executor.manager, "load_profile", return_value={"kind": "healthy"}), \
+             mock.patch.object(executor.manager, "apply", return_value={"change_id": "c1"}), \
+             mock.patch.object(executor, "hidden_check", return_value={"passed": True, "failed_cases": []}), \
+             mock.patch.object(executor, "route_check", return_value={"passed": True}):
+            out = executor.patch_serving_config("target-a", "qwen25-coder-7b.tools-template")
+        self.assertEqual(out["status"], "VERIFIED")
+
+    @mock.patch.object(executor.manager, "read_state", return_value={"profile": "p"})
+    @mock.patch.object(executor.manager, "load_profile", return_value={"served_model_name": "m", "model": "x"})
+    def test_route_check_fails_when_no_probe_reaches_the_worker(self, _profile, _state):
+        with mock.patch.object(executor.route, "run", return_value={"workers": {"a": {"ok": True}}, "limits": {}}):
+            self.assertFalse(executor.route_check("b")["passed"])
+            self.assertTrue(executor.route_check("a")["passed"])
 
     def test_every_action_is_audited(self):
         with mock.patch.object(executor, "other_serving_workers", return_value=["b"]):
