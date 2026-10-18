@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nexus-omega"
 version = "0.1.0"
-description = "Bounded self-healing inference-service agent"
+description = "Bounded diagnostic and repair-planning agent"
 requires-python = ">=3.11"
 dependencies = []
 

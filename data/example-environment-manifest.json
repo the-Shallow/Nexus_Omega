@@ -1,0 +1,65 @@
+{
+  "id": "tool-call-incident-lab",
+  "description": "Example environment for diagnosing a structured tool-call failure.",
+  "resources": [
+    {
+      "id": "target-a",
+      "kind": "inference-service",
+      "description": "The target service under diagnosis.",
+      "configuration_keys": [
+        "enable_auto_tool_choice",
+        "tool_call_parser",
+        "chat_template"
+      ],
+      "metrics": ["request_rate", "error_rate"]
+    }
+  ],
+  "probes": [
+    {
+      "id": "tool-call-visible",
+      "description": "Send a visible request that should produce a structured tool call.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "case": {
+            "type": "string",
+            "enum": ["visible_tool_call"]
+          }
+        },
+        "required": ["case"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "apply-serving-profile",
+      "description": "Apply a reviewed, internally defined serving profile.",
+      "allowed_targets": ["target-a"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "string",
+            "enum": ["qwen-tools-matched-v1"]
+          }
+        },
+        "required": ["profile"],
+        "additionalProperties": false
+      },
+      "before_state_keys": [
+        "enable_auto_tool_choice",
+        "tool_call_parser",
+        "chat_template"
+      ],
+      "automatic": false,
+      "requires_rollback": true
+    }
+  ],
+  "artifact_sections": [
+    "request_trace",
+    "raw_generation",
+    "structured_response"
+  ],
+  "verifiers": ["tool-call-visible"]
+}

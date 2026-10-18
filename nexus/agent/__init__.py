@@ -1,11 +1,4 @@
-"""Bounded agent controller and typed runtime contracts."""
+"""Reasoning loop, contracts, evidence, budgets, and repair policy."""
 
-from .client import NemotronClient, VLLMNemotronClient
-from .runtime import CheckpointZeroController, RunResult
-
-__all__ = [
-    "CheckpointZeroController",
-    "NemotronClient",
-    "VLLMNemotronClient",
-    "RunResult",
-]
+# Keep this initializer free of eager imports. Infrastructure and tools reuse
+# the agent contracts, while the controller consumes their interfaces.

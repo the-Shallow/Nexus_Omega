@@ -1,4 +1,4 @@
-"""Checkpoint 0 controller: one bounded read-tool round trip."""
+"""Generic bounded controller for model-directed tool round trips."""
 
 from __future__ import annotations
 
@@ -7,15 +7,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from .budgets import RunBudget
-from .client import NemotronClient
+from ..infrastructure.events import JsonlEventLog
+from ..infrastructure.nemotron import NemotronClient
+from ..tools.registry import ToolRegistry
 from .contracts import AgentDecision, ModelTurn
-from .events import JsonlEventLog
-from .tools import ToolRegistry
 
 
 SYSTEM_PROMPT = """You are the Nexus Omega diagnostic agent.
-Use only the tools provided by the controller. For this checkpoint, call
-get_topology before returning a decision. After receiving its result, respond
+Use only the tools provided by the controller. Call describe_environment before
+returning a decision. After receiving its result, respond
 with only a JSON object containing exactly: state, summary, hypotheses, and
 stop_reason. Use state DIAGNOSE, hypotheses as an array, and null stop_reason.
 Do not claim that an incident has been diagnosed or repaired.
@@ -23,14 +23,14 @@ Do not claim that an incident has been diagnosed or repaired.
 
 
 @dataclass(frozen=True)
-class RunResult:
+class ToolLoopResult:
     run_id: str
     decision: AgentDecision
     steps: int
     tool_calls: int
 
 
-class CheckpointZeroController:
+class ToolLoopController:
     def __init__(
         self,
         *,
@@ -46,7 +46,7 @@ class CheckpointZeroController:
         self.event_log = event_log
         self.budget = budget or RunBudget()
 
-    def run(self, prompt: str) -> RunResult:
+    def run(self, prompt: str) -> ToolLoopResult:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -107,7 +107,7 @@ class CheckpointZeroController:
                         "tool_calls": self.budget.tool_calls,
                     },
                 )
-                return RunResult(
+                return ToolLoopResult(
                     run_id=self.run_id,
                     decision=decision,
                     steps=self.budget.steps,

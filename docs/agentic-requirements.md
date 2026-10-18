@@ -144,7 +144,7 @@ One repair prompt may be issued after a rejected model response. A second consec
 The agent should begin with a small standardized bundle rather than the entire repository or complete logs:
 
 - incident ID, symptom, and reproduction objective;
-- service topology and health state;
+- the environment manifest and a bounded resource inventory;
 - pinned container, model, and source revisions;
 - relevant startup command with secrets redacted;
 - the failing request and structured response;
@@ -165,18 +165,19 @@ Each request for more context MUST contain:
 - the hypothesis it will test;
 - the expected information gain.
 
-Required read-only tools:
+Core read-only tools are environment-neutral. Their valid identifiers and fields
+are constrained by the environment manifest:
 
-- `get_topology()`
-- `read_serving_config(service)`
-- `read_logs(service, since, pattern, limit)`
-- `get_request_trace(request_id)`
-- `read_raw_generation(request_id)`
-- `query_metrics(metric, window, labels)`
+- `describe_environment()`
+- `list_resources()`
+- `get_resource_state(resource_id, fields)`
+- `get_configuration(resource_id, keys)`
+- `query_logs(resource_id, since, query, limit)`
+- `query_metrics(resource_id, metric, window)`
+- `run_probe(probe_id, inputs)`
+- `read_artifact(artifact_id, section)`
 - `search_repository(query, paths, limit)`
 - `read_file(path, start_line, end_line)`
-- `find_references(symbol, paths, limit)`
-- `retrieve_incident_context(incident_id)`
 
 Default context budgets:
 
@@ -321,10 +322,11 @@ Before any mutation, Nemotron MUST produce:
   "confidence": 0.91,
   "evidence": ["ev-004", "ev-017", "ev-021"],
   "action": {
-    "tool": "patch_serving_config",
+    "tool": "apply_action",
     "arguments": {
-      "service": "target-vllm",
-      "approved_profile": "qwen25-coder-tools-v1"
+      "action_id": "apply-serving-profile",
+      "target": "target-vllm",
+      "parameters": {"profile": "qwen25-coder-tools-v1"}
     }
   },
   "expected_effect": "Plain JSON calls become structured tool_calls.",
@@ -384,7 +386,7 @@ Deliverables:
 
 - Nemotron client behind one interface;
 - JSON response schema and validator;
-- one harmless typed tool such as `get_topology`;
+- one harmless typed tool such as `describe_environment`;
 - append-only event log;
 - fixed step and timeout budgets.
 

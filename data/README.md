@@ -2,6 +2,17 @@
 
 `issue-candidates.csv` is the single canonical machine-readable candidate list. Every row includes exactly one `incident_class`: `Tool-call correctness`, `Process health`, `Capacity`, `Network`, `Serving-code defects`, or `Abstain`.
 
+The catalog is loaded through `nexus.evaluation.IssueCandidateCatalog`, which
+validates the exact columns, allowed classifications, URLs, execution modes,
+and unique candidate IDs.
+
+The catalog controls scenario selection and evaluation; it is not copied into
+the agent prompt. The reproduction harness selects a candidate, configures the
+pinned environment, produces live observations, and constructs a
+`DiagnosticInput`. Only those observed symptoms and evidence are shown to the
+agent. The candidate's expected verifier and likely cause remain outside the
+inner loop so the test measures diagnosis instead of prompt recall.
+
 `infra_candidate_csv.csv` preserves the previous infrastructure-oriented candidate taxonomy for the simulation and infrastructure workstream. It is a reference list; `issue-candidates.csv` remains the active agent benchmark shortlist.
 
 `failure-category-candidates.md` provides the accompanying environment gates, scenario mapping, and recommended eight-episode release set.

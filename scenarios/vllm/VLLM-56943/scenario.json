@@ -1,0 +1,18 @@
+{
+  "id": "vllm-shared-engine-error-traceback",
+  "candidate_id": "VLLM-56943",
+  "repository": "https://github.com/vllm-project/vllm",
+  "revision": "f94666b",
+  "allowed_roots": ["vllm", "tests"],
+  "environment": {
+    "id": "pinned-vllm-source",
+    "description": "Pinned vLLM source checkout with a CPU regression probe and bounded source reads.",
+    "resources": [{"id": "vllm-source", "kind": "source-repository", "description": "The pinned vLLM worktree", "configuration_keys": ["revision", "branch", "dirty", "python_version"], "metrics": []}],
+    "probes": [{"id": "reproduce", "description": "Run a focused CPU regression observation and capture its result.", "inputs": {"type": "object", "properties": {}, "additionalProperties": false}}],
+    "actions": [{"id": "prepare-source-patch", "description": "Propose source files and a focused regression strategy for operator review.", "allowed_targets": ["vllm-source"], "parameters": {"type": "object", "properties": {"files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 3}, "test_strategy": {"type": "string", "enum": ["focused-regression"]}}, "required": ["files", "test_strategy"], "additionalProperties": false}, "before_state_keys": ["revision", "dirty"], "automatic": false, "requires_rollback": true}],
+    "artifact_sections": ["result", "stdout", "stderr"],
+    "verifiers": ["diagnosis-contract"]
+  },
+  "probe_commands": {"reproduce": {"argv": ["{python}", "{nexus_root}/scenarios/vllm/VLLM-56943/reproduce.py"], "timeout_seconds": 120}},
+  "diagnosis_expectation": {"action_id": "prepare-source-patch", "target": "vllm-source", "expected_paths": ["vllm/v1/engine/output_processor.py"], "require_initial_evidence": true, "require_source_evidence": true}
+}
