@@ -73,25 +73,47 @@ docker image prune                     # removes images no container uses
 
 | Container | Port | What it is | Started by |
 |---|---|---|---|
-| `nexus-a` | 8101 | vLLM v0.27.1 target worker serving `Qwen/Qwen3-4B` as `qwen3-4b` (15% of GPU memory, 8k context, hermes tool parser) | `python3 -m nexus.target.manager up a qwen3-4b.healthy --port 8101` |
-| `nexus-gateway-1` | 8100 | Team gateway (`apps/gateway`) in front of the workers | `runtime/compose/docker-compose.yml` |
+| `nexus-a` | 8101 | vLLM v0.27.1 target worker `qwen25-coder` (Qwen2.5-Coder-7B-Instruct @ c03e6d3), 25% of GPU memory | `python -m nexus.target.manager up a qwen25-coder-7b.tools-template --port 8101` |
+| `nexus-b` | 8102 | Second identical target worker (fault isolation; the gateway reaches it through Toxiproxy) | same, with `b` and `--port 8102` |
+| `nexus-agent` | 8103 | Nemotron 3.5 Lightning NVFP4 as `nemotron-lightning`, 35% of GPU memory, `--max-num-seqs 64` | `python -m nexus.target.manager up agent lightning-nvfp4.agent --port 8103` |
+| `nexus-haproxy-1` | 8100 | Inference entry point (leastconn over a and b); metrics on 127.0.0.1:8405 | `runtime/compose/docker-compose.yml` |
+| `nexus-gateway-1` | 127.0.0.1:8110 | Admin API: drain / undrain / weight through HAProxy's runtime API; bearer `NEXUS_ADMIN_TOKEN` | same compose file |
+| `nexus-toxiproxy-1` | 127.0.0.1:8474 | Network-fault point on the path to b | same compose file |
 | `nexus-prometheus-1` | 9090 | Prometheus | same compose file |
 | `nexus-dcgm-exporter-1` | 9400 | GPU telemetry | same compose file |
 
-Grafana, grafana-agent and telegraf also run directly on the host. Those belong to Brev, not to us.
+Grafana, grafana-agent and telegraf also run directly on the host. Those belong to Brev, not to us. GPU memory in use with all three models: about 65 GB of 80.
 
-The Nemotron Lightning model has been downloaded, but **nothing is serving it right now**. Only the Qwen target is up, using ~14 GB of the 80 GB of GPU memory.
+## Python: one 3.11 environment for everything
+
+The host's system `python3` is Ubuntu's 3.10. Leave it alone, because `apt` depends on it. All project code runs from one Python 3.11 virtualenv made with `uv`:
+
+```bash
+export PATH=/ephemeral/venvs/nexus/bin:/ephemeral/bin:$PATH    # python = 3.11.13
+python -m unittest discover -s tests
+```
+
+Recreate it if needed:
+
+```bash
+export UV_PYTHON_INSTALL_DIR=/ephemeral/uv-python UV_CACHE_DIR=/ephemeral/uv-cache
+/ephemeral/bin/uv venv --python 3.11 /ephemeral/venvs/nexus
+cd /ephemeral/work/Nexus_Omega
+VIRTUAL_ENV=/ephemeral/venvs/nexus /ephemeral/bin/uv pip install -r requirements.txt -e .
+```
+
+`uv` 0.8.0 is a single binary at `/ephemeral/bin/uv`. Its Python build and cache also live on `/ephemeral`, not on the small root disk.
 
 ## Bringing it up and running Gate 1
 
-> The runtime code below (`runtime/`, `scripts/bring_up.sh`, `scripts/gate1.sh`, `nexus/target/`, `apps/gateway/`) is not on `main` yet. It lives on Samarth's `samE2` branch and in the Brev checkout.
+> The runtime code below lives on the `samE2` branch and in the Brev checkout. The checkout is synced with rsync and has no `.git`; the old one is kept as `.git.stale-f4b2ee9`.
 
 From the checkout the stack runs out of:
 
 ```bash
 cd /ephemeral/work/Nexus_Omega
-scripts/bring_up.sh                    # compose infra + one healthy worker "a" on :8101
-python3 -m nexus.target.manager status
+scripts/bring_up.sh                    # compose infra + healthy workers a (:8101) and b (:8102)
+python -m nexus.target.manager status
 scripts/gate1.sh                       # healthy canary → inject fault → canary fails → rollback → passes
 ```
 
