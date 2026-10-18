@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
-/* Dark only. Deep graphite with a green bias; NVIDIA green is the one accent.
-   Semantic colors (ok / warn / bad / info / replay) carry state and nothing else. */
+/* Dark only. Deep midnight navy, never pure black; NVIDIA green is the one accent,
+   cool cyan is the hologram's light. Semantic colors (ok / warn / bad / info / replay)
+   carry state and nothing else. */
 @theme {
-  --color-bg: #050708;
-  --color-raised: #0c1013;
-  --color-ink: #eaf0f2;
-  --color-ink-2: #a7b2b9;
-  --color-ink-3: #6e7b83;
-  --color-ink-4: #46525a;
+  --color-bg: #050a12;
+  --color-raised: #0b1320;
+  --color-ink: #ecf3f8;
+  --color-ink-2: #aab8c3;
+  --color-ink-3: #748593;
+  --color-ink-4: #4a5a6a;
   --color-line: rgb(255 255 255 / 0.07);
   --color-line-2: rgb(255 255 255 / 0.12);
   --color-accent: #76b900;
@@ -49,19 +50,19 @@
 
 /* Glass: thin, cool, barely there. Depth comes from blur and a hairline highlight, not from borders. */
 @utility glass {
-  background: linear-gradient(180deg, rgb(20 26 30 / 0.66), rgb(9 12 14 / 0.62));
+  background: linear-gradient(180deg, rgb(17 28 42 / 0.64), rgb(7 13 22 / 0.62));
   backdrop-filter: blur(22px) saturate(150%);
   -webkit-backdrop-filter: blur(22px) saturate(150%);
-  border: 1px solid rgb(255 255 255 / 0.07);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 80px -40px rgb(0 0 0 / 0.95);
+  border: 1px solid rgb(180 225 255 / 0.09);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 30px 80px -40px rgb(0 0 0 / 0.95);
 }
 
 @utility glass-strong {
-  background: linear-gradient(180deg, rgb(18 23 27 / 0.86), rgb(8 11 13 / 0.84));
+  background: linear-gradient(180deg, rgb(15 25 38 / 0.88), rgb(6 11 19 / 0.86));
   backdrop-filter: blur(30px) saturate(160%);
   -webkit-backdrop-filter: blur(30px) saturate(160%);
-  border: 1px solid rgb(255 255 255 / 0.08);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 50px 140px -50px rgb(0 0 0 / 1);
+  border: 1px solid rgb(180 225 255 / 0.1);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 50px 140px -50px rgb(0 0 0 / 1);
 }
 
 @utility label {
@@ -97,6 +98,86 @@
 @keyframes ember { to { --angle: 360deg; } }
 
 .signal { animation: signal-drop 1.6s cubic-bezier(.45, 0, .25, 1) infinite; }
+
+/* ---------------------------------------------------------------- War Room hologram */
+
+/* The screen is light, not a panel: a cool tint, a hairline edge, an inner glow. */
+.holo-screen {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(90 180 240 / 0.14), transparent 62%),
+    linear-gradient(180deg, rgb(110 200 255 / 0.09), rgb(40 110 170 / 0.035) 45%, rgb(30 90 150 / 0.08));
+  border: 1px solid rgb(158 234 255 / 0.24);
+  box-shadow:
+    inset 0 0 90px rgb(56 189 248 / 0.07), inset 0 1px 0 rgb(200 245 255 / 0.18),
+    0 0 70px -18px rgb(56 189 248 / 0.38), 0 50px 120px -50px rgb(0 0 0 / 0.9);
+  backdrop-filter: blur(5px) saturate(140%);
+  -webkit-backdrop-filter: blur(5px) saturate(140%);
+  animation: holo-on 1.6s var(--ease-out-expo) both;
+}
+.holo-scan { background: repeating-linear-gradient(180deg, rgb(158 234 255 / 0.04) 0 1px, transparent 1px 3px); mix-blend-mode: screen; }
+.holo-sweep { background: linear-gradient(180deg, transparent, rgb(158 234 255 / 0.075), transparent) no-repeat; background-size: 100% 36%; animation: holo-sweep 8s linear infinite; }
+.holo-beam {
+  background: radial-gradient(55% 100% at 50% 0%, rgb(120 210 255 / 0.16), transparent 72%);
+  clip-path: polygon(4% 0, 96% 0, 72% 100%, 28% 100%);
+  filter: blur(8px);
+  mix-blend-mode: screen;
+}
+.holo-break {
+  background: radial-gradient(120% 150% at 50% 0%, rgb(244 63 94 / 0.34), rgb(48 6 16 / 0.88));
+  box-shadow: 0 0 50px -10px rgb(244 63 94 / 0.95), 0 0 0 6px rgb(5 10 18 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.15);
+  backdrop-filter: blur(12px);
+}
+.holo-sheet {
+  background: linear-gradient(180deg, rgb(15 25 38 / 0.9), rgb(6 11 19 / 0.9));
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid rgb(180 225 255 / 0.12);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 0 80px -30px rgb(244 63 94 / 0.35), 0 50px 140px -50px rgb(0 0 0 / 1);
+}
+@keyframes holo-on { 0% { opacity: 0; filter: brightness(2.2) blur(6px); } 35% { opacity: .7; } 45% { opacity: .35; } 60% { opacity: 1; filter: none; } }
+@keyframes holo-sweep { from { background-position: 0 -40%; } to { background-position: 0 140%; } }
+
+/* Topology drawn on the screen. */
+.wr-t { font-family: var(--font-mono); font-size: 8.4px; fill: #93adc0; letter-spacing: .04em; }
+.wr-dim { fill: #536b7e; }
+.wr-flow { offset-rotate: 0deg; animation-name: wr-flow; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes wr-flow { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+.wr-ping { transform-box: fill-box; transform-origin: center; animation: wr-ping 2.2s cubic-bezier(.2,.6,.3,1) infinite; }
+@keyframes wr-ping { from { transform: scale(.7); opacity: .9; } to { transform: scale(2.3); opacity: 0; } }
+.wr-blink { animation: breathe 1.2s ease-in-out infinite; }
+
+/* ---------------------------------------------------------------- architecture labels */
+
+.arch-labels { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.anode { pointer-events: auto; cursor: pointer; }
+.anode .in {
+  transform: translateY(calc(50% + 5px)); display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center;
+  opacity: 0; filter: blur(3px); transition: opacity .6s, filter .6s;
+}
+.anode.in-view .in { opacity: 1; filter: none; }
+.anode.side-right .in { transform: translate(calc(50% + 8px), 0); align-items: flex-start; text-align: left; }
+.anode.side-left .in { transform: translate(calc(-50% - 8px), 0); align-items: flex-end; text-align: right; }
+.anode.side-above .in { transform: translateY(calc(-50% - 4px)); }
+.anode b { font-weight: 500; font-size: 11.5px; color: #dbe9f3; white-space: nowrap; text-shadow: 0 1px 10px rgb(2 6 12 / .95), 0 0 2px rgb(2 6 12 / .9); }
+.anode .v:empty { display: none; }
+.anode .v { font-family: var(--font-mono); font-size: 9.5px; color: #7f95a7; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 8px rgb(2 6 12 / .95); }
+.anode .g { font-style: normal; font-family: var(--font-mono); font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; color: #6d8496; }
+.anode .g:empty { display: none; }
+.anode.s-active b { color: #fff; }
+.anode.s-active .v { color: #9eeaff; }
+.anode.s-active .v::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 5px; border-radius: 50%; vertical-align: 1px; background: #9eeaff; box-shadow: 0 0 8px #9eeaff; animation: breathe 1.2s ease-in-out infinite; }
+.anode.s-done .v { color: #95c552; }
+.anode.s-failed .v, .anode.s-fault .v { color: #fb7185; }
+.anode.s-fault b, .anode.s-failed b { color: #ffd4db; }
+.anode.s-waiting .v { color: #f5b347; }
+.anode.s-context b { color: #aebfcc; }
+.anode.s-ghost.in-view .in { opacity: .4; }
+.anode.k-leaf b { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; }
+.anode.k-leaf .v, .anode.k-slab .v { display: none; }
+.anode.k-slab b { font-size: 10px; }
+.anode:hover b { color: #fff; }
+.anode:focus-visible { outline: none; }
+.anode:focus-visible b { color: #fff; text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 3px; }
 
 /* ---------------------------------------------------------------- 3D labels */
 

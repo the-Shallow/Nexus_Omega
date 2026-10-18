@@ -107,9 +107,18 @@ function Body({ p, replay }: { p: Proof; replay: boolean }) {
           </div>
         </motion.div>
 
-        <motion.dl variants={item} className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-line bg-line md:grid-cols-4">
+        <motion.dl variants={item} className="mt-6 grid gap-x-6 gap-y-1.5 rounded-3xl border border-line bg-white/[0.015] px-4 py-3.5 md:grid-cols-[auto_1fr]">
+          {p.facts.map((f) => (
+            <div key={f.k} className="contents">
+              <dt className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-ink-4 md:pt-[2px]">{f.k}</dt>
+              <dd className="mb-1.5 font-mono text-[11px] leading-relaxed text-ink-2 [overflow-wrap:anywhere] md:mb-0">{f.v}</dd>
+            </div>
+          ))}
+        </motion.dl>
+
+        <motion.dl variants={item} className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-line bg-line md:grid-cols-4">
           {p.stats.map((s) => (
-            <div key={s.k} className="bg-[#0a0e10]/95 px-4 py-3.5">
+            <div key={s.k} className="bg-[#08101a]/95 px-4 py-3.5">
               <dt className="label !text-[9px]">{s.k}</dt>
               <dd className={`tnum mt-1 text-[21px] font-medium tracking-tight ${s.tone === 'warn' ? 'text-warn' : 'text-ink'}`}>{s.v}</dd>
               {s.sub && <dd className="truncate font-mono text-[10px] text-ink-3">{s.sub}</dd>}

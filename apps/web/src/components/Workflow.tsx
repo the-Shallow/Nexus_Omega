@@ -18,7 +18,7 @@ const OUT_HEX: Record<Tone, string> = { ok: '#76b900', bad: '#f43f5e', warn: '#f
  * arrive. A module exists only once its stage has begun; a connector grows from the
  * previous module first, then the module materializes.
  */
-export function Workflow({ flow, top, onCertificate, onArchitecture, onDismiss }: { flow: FlowRun | null; top: number; onCertificate: () => void; onArchitecture: () => void; onDismiss: () => void }) {
+export function Workflow({ flow, top, onCertificate, onDismiss }: { flow: FlowRun | null; top: number; onCertificate: () => void; onDismiss: () => void }) {
   return (
     <AnimatePresence>
       {flow && (
@@ -34,7 +34,7 @@ export function Workflow({ flow, top, onCertificate, onArchitecture, onDismiss }
         >
           <Header flow={flow} onDismiss={onDismiss} />
           <Stages flow={flow} onCertificate={onCertificate} />
-          <Footer flow={flow} onArchitecture={onArchitecture} />
+          <Footer flow={flow} />
         </motion.aside>
       )}
     </AnimatePresence>
@@ -182,7 +182,7 @@ function Node({ stage, hex }: { stage: FlowStage; hex: string }) {
   );
 }
 
-function Item({ it }: { it: FlowItem }) {
+export function Item({ it }: { it: FlowItem }) {
   const [open, setOpen] = useState(false);
   const can = it.payload !== undefined && it.payload !== null;
   const json = can ? JSON.stringify(it.payload, null, 2) : '';
@@ -213,7 +213,7 @@ function Item({ it }: { it: FlowItem }) {
   );
 }
 
-function Candidates({ list, chosen }: { list: Candidate[]; chosen: string | null }) {
+export function Candidates({ list, chosen }: { list: Candidate[]; chosen: string | null }) {
   return (
     <div className="mb-2.5 rounded-xl border border-info/15 bg-info/[0.03] p-2.5">
       <div className="mb-2 flex items-center justify-between">
@@ -244,7 +244,7 @@ function Candidates({ list, chosen }: { list: Candidate[]; chosen: string | null
   );
 }
 
-function Approval({ flow }: { flow: FlowRun }) {
+export function Approval({ flow }: { flow: FlowRun }) {
   const replay = useStore((s) => s.mode === 'replay');
   const a = flow.approval!;
   const send = (choice: string) => api.approve(a.runId, choice)
@@ -298,11 +298,10 @@ function CertificateActions({ flow, hex, onCertificate }: { flow: FlowRun; hex: 
   );
 }
 
-function Footer({ flow, onArchitecture }: { flow: FlowRun; onArchitecture: () => void }) {
+function Footer({ flow }: { flow: FlowRun }) {
   return (
-    <div className="pointer-events-auto mt-1 flex items-center justify-between px-2 pt-1 font-mono text-[10px] text-ink-4">
+    <div className="pointer-events-auto mt-1 flex items-center px-2 pt-1 font-mono text-[10px] text-ink-4">
       <span>{flow.counts.tools} tool calls · {flow.counts.evidence} evidence{flow.startedAt ? ` · since ${flow.startedAt}` : ''}</span>
-      <button onClick={onArchitecture} className="rounded-full px-2 py-1 text-ink-3 transition hover:bg-white/5 hover:text-ink">Architecture ↗</button>
     </div>
   );
 }

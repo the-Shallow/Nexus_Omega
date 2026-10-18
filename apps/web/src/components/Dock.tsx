@@ -13,16 +13,16 @@ import { OmegaMark, Wordmark } from './Logo';
 const ease = [0.16, 1, 0.3, 1] as const;
 
 /** The floating dock: identity, what is true right now, time, and the one big trigger. */
-export function Dock({ onBreak, breakDisabled, onArchitecture, onReset }: { onBreak: () => void; breakDisabled: string | null; onArchitecture: () => void; onReset: () => void }) {
+export function Dock({ onBreak, breakDisabled, onReset }: { onBreak: (origin: { x: number; y: number }) => void; breakDisabled: string | null; onReset: () => void }) {
   return (
     <motion.header
       initial={{ y: -40, opacity: 0, filter: 'blur(8px)' }}
       animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
       transition={{ duration: 1.1, delay: 0.25, ease }}
       className="glass pointer-events-auto absolute left-1/2 top-4 z-40 flex h-[58px] w-max max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-1 rounded-full pl-4 pr-1.5"
-      aria-label="NEXUS Ω controls"
+      aria-label="NEXUS controls"
     >
-      <a href="/" className="mr-2 flex items-center gap-2.5 rounded-full" aria-label="NEXUS Ω home">
+      <a href="/" className="mr-2 flex items-center gap-2.5 rounded-full" aria-label="NEXUS home">
         <OmegaMark size={30} />
         <Wordmark className="hidden md:inline" />
       </a>
@@ -32,7 +32,7 @@ export function Dock({ onBreak, breakDisabled, onArchitecture, onReset }: { onBr
       <ModeChip />
       <Sep className="hidden sm:block" />
       <Clock />
-      <Menu onArchitecture={onArchitecture} onReset={onReset} />
+      <Menu onReset={onReset} />
       <BreakTrigger onClick={onBreak} disabled={breakDisabled} />
     </motion.header>
   );
@@ -112,10 +112,11 @@ function Clock() {
   const fleetSec = useFleet((s) => Math.floor(s.cursor / 1000));
   const fast = useFleet((s) => s.fast);
 
+  const live = useStore((s) => s.mode === 'live');
   const kind = fleetOn ? 'fleet' : replay ? 'replay' : 'sim';
   const playing = kind === 'fleet' ? fleetPlaying : kind === 'replay' ? replay!.playing : !paused;
   const speed = kind === 'fleet' ? fleetSpeed : kind === 'replay' ? replay!.speed : simSpeed;
-  const speeds = kind === 'sim' ? [1, 4, 10] : [1, 2, 4];
+  const speeds = [1, 4, 10];
   const time = kind === 'fleet' ? `${utc(fleetSec * 1000)}` : clock(t);
   const toggle = () => {
     if (kind === 'fleet') fleet.setPlaying(!fleetPlaying);
@@ -127,13 +128,14 @@ function Clock() {
     else if (kind === 'replay') store.setReplay({ speed: s, playing: true });
     else api.control({ speed: s, paused: false });
   };
-  const label = kind === 'fleet' ? 'Recorded · UTC' : kind === 'replay' ? 'Replay time' : 'Simulation';
+  const label = kind === 'fleet' ? 'Recorded · UTC' : kind === 'replay' ? 'Replay time' : live ? 'Live · wall clock' : 'Simulation';
   return (
     <div className="flex items-center gap-0.5">
       <div className="mr-1 hidden flex-col leading-tight sm:flex">
         <span className={`label !text-[8.5px] ${kind !== 'sim' ? '!text-replay' : ''}`}>{label}{fast && kind === 'fleet' ? ` · ×${12 * speed}` : ''}</span>
         <span className="tnum font-mono text-[13px] text-ink">{time}</span>
       </div>
+      {!(live && kind === 'sim') && <>
       <button onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title={kind === 'sim' ? 'Pause or resume the simulation' : 'Pause or resume the replay'} className="grid size-9 place-items-center rounded-full text-ink-2 transition hover:bg-white/[0.06] hover:text-ink">
         {playing ? (
           <svg viewBox="0 0 24 24" className="size-3.5 fill-current"><rect x="6.5" y="5" width="3.6" height="14" rx="1" /><rect x="13.9" y="5" width="3.6" height="14" rx="1" /></svg>
@@ -149,11 +151,12 @@ function Clock() {
           </button>
         ))}
       </div>
+      </>}
     </div>
   );
 }
 
-function Menu({ onArchitecture, onReset }: { onArchitecture: () => void; onReset: () => void }) {
+function Menu({ onReset }: { onReset: () => void }) {
   const [open, setOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const autopilot = useStore((s) => s.autopilot);
@@ -198,10 +201,6 @@ function Menu({ onArchitecture, onReset }: { onArchitecture: () => void; onReset
                 <motion.span layout className={`absolute top-0.5 size-4 rounded-full bg-white ${autopilot ? 'right-0.5' : 'left-0.5'}`} />
               </span>
             </button>
-            <button role="menuitem" onClick={() => { setOpen(false); onArchitecture(); }} className="flex w-full flex-col rounded-2xl px-3 py-2.5 text-left hover:bg-white/5">
-              <span className="text-ink">Architecture</span>
-              <span className="text-[11.5px] text-ink-3">One controller, two tool collections, independent proof</span>
-            </button>
             <div className="mx-3 my-1.5 h-px bg-line" />
             <div className="px-3 pb-1 pt-1.5">
               <span className="label !text-[9px]">Domains</span>
@@ -209,15 +208,15 @@ function Menu({ onArchitecture, onReset }: { onArchitecture: () => void; onReset
                 {DOMAINS.map((d) => (
                   <li key={d.id} className="flex items-center justify-between text-[12.5px]">
                     <span className={d.status === 'operational' ? 'text-ink' : 'text-ink-4'}>{d.name}</span>
-                    <span className={`font-mono text-[9.5px] uppercase tracking-[0.12em] ${d.status === 'operational' ? 'text-ok' : 'text-ink-4'}`}>{d.status === 'operational' ? 'operational' : 'future'}</span>
+                    <span className={`rounded-full border px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${d.status === 'operational' ? 'border-ok/30 text-ok' : 'border-line-2 text-ink-4'}`}>{d.status === 'operational' ? 'operational' : 'future · unavailable'}</span>
                   </li>
                 ))}
               </ul>
             </div>
             <div className="mx-3 my-1.5 h-px bg-line" />
-            <a role="menuitem" href="/classic" className="flex w-full rounded-2xl px-3 py-2.5 text-left text-ink-2 hover:bg-white/5 hover:text-ink">Classic views</a>
-            <button role="menuitem" onClick={reset} className={`flex w-full rounded-2xl px-3 py-2.5 text-left hover:bg-white/5 ${confirmReset ? 'text-bad' : 'text-ink-2 hover:text-ink'}`}>
-              {confirmReset ? 'Click again to reset the twin' : 'Reset twin to a healthy fleet'}
+            <button role="menuitem" onClick={reset} className={`flex w-full flex-col rounded-2xl px-3 py-2.5 text-left hover:bg-white/5 ${confirmReset ? 'text-bad' : 'text-ink-2 hover:text-ink'}`}>
+              <span>{confirmReset ? 'Click again to reset the twin' : 'Reset twin to a healthy fleet'}</span>
+              <span className="text-[11.5px] text-ink-4">Clears every fault and run in the simulated twin</span>
             </button>
           </motion.div>
         )}
@@ -226,20 +225,20 @@ function Menu({ onArchitecture, onReset }: { onArchitecture: () => void; onReset
   );
 }
 
-function BreakTrigger({ onClick, disabled }: { onClick: () => void; disabled: string | null }) {
+function BreakTrigger({ onClick, disabled }: { onClick: (origin: { x: number; y: number }) => void; disabled: string | null }) {
   return (
     <motion.button
-      onClick={onClick}
+      onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); onClick({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); }}
       disabled={!!disabled}
       title={disabled ?? 'Choose a failure to inject (B)'}
       whileHover={disabled ? undefined : { scale: 1.025 }}
       whileTap={disabled ? undefined : { scale: 0.965 }}
-      className="break-trigger group ml-1.5 flex h-[46px] items-center gap-2.5 overflow-hidden rounded-full bg-[radial-gradient(120%_140%_at_50%_0%,rgba(244,63,94,0.28),rgba(60,8,18,0.55))] pl-4 pr-5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-[#ffe1e6] shadow-[0_0_34px_-10px_rgba(244,63,94,0.85),inset_0_1px_0_rgba(255,255,255,0.12)] transition-[filter,opacity] hover:brightness-125 disabled:opacity-45 disabled:hover:brightness-100"
+      aria-label="Break the system"
+      className="break-trigger group ml-1.5 flex h-[42px] items-center gap-2 overflow-hidden rounded-full bg-[radial-gradient(120%_140%_at_50%_0%,rgba(244,63,94,0.24),rgba(60,8,18,0.5))] pl-3.5 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-[#ffe1e6] shadow-[0_0_26px_-12px_rgba(244,63,94,0.85),inset_0_1px_0_rgba(255,255,255,0.1)] transition-[filter,opacity] hover:brightness-125 disabled:opacity-45 disabled:hover:brightness-100"
     >
       <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
       <svg viewBox="0 0 24 24" className="relative size-4 fill-[#ff6b81] drop-shadow-[0_0_7px_rgba(244,63,94,1)]"><path d="M13.4 2 4.6 13.5h6.2L9.8 22l8.8-11.6h-6.1z" /></svg>
-      <span className="relative hidden whitespace-nowrap sm:inline">Break the system</span>
-      <span className="relative sm:hidden">Break</span>
+      <span className="relative">Break</span>
     </motion.button>
   );
 }
@@ -247,7 +246,7 @@ function BreakTrigger({ onClick, disabled }: { onClick: () => void; disabled: st
 // ------------------------------------------------------------------ replay strip
 
 /** Under the dock while replaying: source, position and the way back. */
-export function ReplayStrip() {
+export function ReplayStrip({ right }: { right: number }) {
   const replay = useStore((s) => s.replay);
   const fleetRec = useFleet((s) => s.detail?.summary ?? null);
   const start = useFleet((s) => s.start);
@@ -260,12 +259,14 @@ export function ReplayStrip() {
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ y: -10, opacity: 0 }}
+          initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -10, opacity: 0 }}
+          exit={{ y: 10, opacity: 0 }}
           transition={{ duration: 0.5, ease }}
-          className="glass pointer-events-auto absolute left-1/2 top-[84px] z-30 flex w-[min(620px,calc(100vw-24px))] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5"
+          style={{ right }}
+          className="pointer-events-none absolute bottom-4 left-3 z-30 flex justify-center"
         >
+          <div className="glass pointer-events-auto flex w-[min(620px,100%)] items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5">
           <span className="rounded-full bg-replay/15 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.16em] text-replay">Replay</span>
           <span className="hidden max-w-[190px] truncate text-[11.5px] text-ink-2 sm:block">
             {fleetRec ? `${fleetRec.title} · real fleet · ${fleetRec.started_at.slice(0, 10)}` : replay?.recording.label}
@@ -294,6 +295,7 @@ export function ReplayStrip() {
           >
             {fleetRec ? 'Close replay' : 'Back to simulation'}
           </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

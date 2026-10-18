@@ -16,11 +16,13 @@ export interface DomainModule {
   doctorFor?: (fault: FaultSpec) => 'tool' | 'infra';
   /** Order of failure groups in Break the system. */
   categories?: { match: string; label: string }[];
+  /** Scenarios worth having that neither the twin nor a recorded run covers yet: listed, never selectable. */
+  planned?: { title: string; summary: string; doctor: 'tool' | 'infra'; category: string }[];
 }
 
 export const datacenter: DomainModule = {
   id: 'datacenter',
-  name: 'AI datacenter',
+  name: 'AI Datacenter',
   status: 'operational',
   createScene: (el, topo) => new TwinScene(el, topo),
   doctorFor: (f) => (f.kind === 'tool_parser' ? 'tool' : 'infra'),
@@ -32,6 +34,11 @@ export const datacenter: DomainModule = {
     { match: 'GPU & Hardware Failures', label: 'GPU & hardware' },
     { match: 'Power Cooling & Thermal Failures', label: 'Power & cooling' },
     { match: 'Cascading & Compound Failures', label: 'Cascading' },
+  ],
+  planned: [
+    { title: 'Broken chat template', summary: 'The template drops the tools block; calls come back as prose', doctor: 'tool', category: 'Tool calling' },
+    { title: 'Malformed tool arguments', summary: 'Calls are emitted but their arguments fail the schema', doctor: 'tool', category: 'Tool calling' },
+    { title: 'GPU memory contention / OOM', summary: 'KV-cache pressure evicts requests until a worker is OOM-killed', doctor: 'infra', category: 'GPU & hardware' },
   ],
 };
 

@@ -172,11 +172,6 @@ def index() -> FileResponse:
     return FileResponse(built if built.exists() else STATIC / "index.html")
 
 
-@app.get("/classic")
-def classic() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
-
-
 @app.get("/assets/{path:path}")
 def web_asset(path: str) -> FileResponse:
     root = (WEB_DIST / "assets").resolve()

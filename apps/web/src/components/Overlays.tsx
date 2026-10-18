@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { twin, useToasts } from '../lib/bus';
-import { ms, pct } from '../lib/format';
-import { store, useStore } from '../lib/store';
+import { ms } from '../lib/format';
+import { useStore } from '../lib/store';
 import type { Entity } from '../twin/scene';
-import type { Frame, Kpi, Topology } from '../lib/types';
+import type { Frame, Topology } from '../lib/types';
 import { OmegaMark, Wordmark } from './Logo';
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -123,77 +123,6 @@ export function Capsule({ disabled }: { disabled: boolean }) {
   );
 }
 
-// ------------------------------------------------------------------ telemetry
-
-interface Readout { key: string; label: string; value: (k: Kpi) => number | null; fmt: (v: number | null) => string; warn: (v: number | null) => boolean; max: number }
-
-/** Four quiet numbers in the corner. They brighten when they matter. */
-export function Telemetry({ hidden }: { hidden: boolean }) {
-  const topo = useStore((s) => s.topo);
-  const mode = useStore((s) => s.mode);
-  const [hist, setHist] = useState<Kpi[]>([]);
-  const buf = useRef<Kpi[]>([]);
-  useEffect(() => {
-    let lastT = -1, lastPush = 0;
-    const off = store.onFrame((f) => {
-      if (f.kpi.t === lastT) return;
-      lastT = f.kpi.t;
-      if (buf.current.length && f.kpi.t < buf.current[buf.current.length - 1].t) buf.current = [];
-      buf.current.push(f.kpi);
-      if (buf.current.length > 180) buf.current.shift();
-      const now = performance.now();
-      if (now - lastPush > 500) { lastPush = now; setHist([...buf.current]); }
-    });
-    return () => { off(); };
-  }, []);
-  if (!topo || !hist.length) return null;
-  const slo = topo.slo;
-  const items: Readout[] = [
-    { key: 'ttft', label: 'TTFT p95', value: (k) => k.ttft_p95, fmt: ms, warn: (v) => v != null && v > slo.ttft_p95_s, max: slo.ttft_p95_s * 2 },
-    { key: 'err', label: 'Errors', value: (k) => k.error_rate, fmt: (v) => pct(v ?? 0, 2), warn: (v) => (v ?? 0) > slo.error_rate, max: 0.1 },
-    { key: 'canary', label: 'Tool-call canary', value: (k) => k.canary, fmt: (v) => pct(v ?? 0, 0), warn: (v) => (v ?? 1) < 0.999, max: 1 },
-    { key: 'gpu', label: 'Hottest GPU', value: (k) => k.max_gpu_c, fmt: (v) => `${(v ?? 0).toFixed(0)}°C`, warn: (v) => (v ?? 0) > 85, max: 100 },
-  ];
-  const last = hist[hist.length - 1];
-  return (
-    <AnimatePresence>
-      {!hidden && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
-          transition={{ duration: 0.8, delay: 0.6, ease }}
-          className="pointer-events-auto absolute bottom-5 left-6 z-10 hidden items-end gap-5 md:flex"
-          aria-label="Twin telemetry"
-        >
-          {items.map((it) => {
-            const v = it.value(last);
-            const warn = it.warn(v);
-            return (
-              <div key={it.key} className={`transition-opacity duration-500 ${warn ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}>
-                <div className="label !text-[8.5px]">{it.label}</div>
-                <div className={`tnum font-mono text-[14px] transition-colors duration-500 ${warn ? 'text-warn' : 'text-ink'}`}>{it.fmt(v)}</div>
-                <Spark data={hist.map((k) => it.value(k))} max={it.max} warn={warn} />
-              </div>
-            );
-          })}
-          <span className="mb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">{mode === 'replay' ? 'replay' : 'simulated'}</span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function Spark({ data, max, warn }: { data: (number | null)[]; max: number; warn: boolean }) {
-  const w = 76, h = 14;
-  const pts = data.map((d, i) => `${((i / Math.max(1, data.length - 1)) * w).toFixed(1)},${(h - Math.min(1, (d ?? 0) / max) * (h - 2) - 1).toFixed(1)}`);
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mt-0.5 h-[14px] w-[76px]" preserveAspectRatio="none">
-      <polyline points={pts.join(' ')} fill="none" stroke={warn ? '#f5a524' : '#6e7b83'} strokeWidth="1" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
 // ------------------------------------------------------------------ toasts
 
 export function Toasts() {
@@ -275,31 +204,8 @@ export function Disconnected() {
   );
 }
 
-// ------------------------------------------------------------------ incident beats
-
-/** Between the hit and the first detection: say plainly that nobody has noticed yet. */
-export function IncidentHint({ show, title, since }: { show: boolean; title: string; since: number }) {
-  return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: 10 }}
-          transition={{ duration: 0.7, ease, delay: 0.6 }}
-          className="glass pointer-events-none absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full py-2 pl-3 pr-4 text-[12px]"
-        >
-          <span className="relative flex size-2"><span className="absolute inset-0 animate-ping rounded-full bg-bad opacity-70" /><span className="relative size-2 rounded-full bg-bad" /></span>
-          <span className="text-ink">{title}</span>
-          <span className="text-ink-3">· injected {Math.max(0, Math.round(since))} s ago · the doctors see only what monitoring sees</span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
 /** After the certificate: what to do next, without leaving the page. */
-export function ContinueBar({ show, right, actions }: { show: boolean; right: number; actions: { key: string; label: string; icon: ReactNode; onClick: () => void; disabled?: string | null; primary?: boolean }[] }) {
+export function ContinueBar({ show, right, lifted, actions }: { show: boolean; right: number; lifted?: boolean; actions: { key: string; label: string; hint?: string; icon: ReactNode; onClick: () => void; disabled?: string | null; primary?: boolean }[] }) {
   return (
     <AnimatePresence>
       {show && (
@@ -308,19 +214,23 @@ export function ContinueBar({ show, right, actions }: { show: boolean; right: nu
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           exit={{ opacity: 0, y: 14, transition: { duration: 0.3 } }}
           transition={{ duration: 0.7, ease }}
-          style={{ right }}
-          className="pointer-events-none absolute bottom-6 left-6 z-30 flex justify-center"
+          style={{ right, bottom: lifted ? 72 : 24 }}
+          className="pointer-events-none absolute left-6 z-30 flex justify-center"
         >
-          <div className="glass pointer-events-auto flex flex-wrap items-center justify-center gap-1 rounded-full p-1.5">
+          <div className="glass pointer-events-auto flex flex-wrap items-center justify-center gap-1 rounded-[22px] p-1.5">
             {actions.map((a) => (
               <button
                 key={a.key}
                 onClick={a.onClick}
                 disabled={!!a.disabled}
-                title={a.disabled ?? undefined}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[12.5px] transition disabled:cursor-not-allowed disabled:opacity-35 ${a.primary ? 'bg-[radial-gradient(120%_140%_at_50%_0%,rgba(244,63,94,0.3),rgba(60,8,18,0.5))] font-medium text-[#ffe1e6] shadow-[inset_0_0_0_1px_rgba(244,63,94,0.45)] hover:brightness-125' : 'text-ink-2 hover:bg-white/[0.06] hover:text-ink'}`}
+                title={a.disabled ?? a.hint}
+                className={`flex items-center gap-2.5 rounded-[16px] px-4 py-2 text-left text-[12.5px] transition disabled:cursor-not-allowed disabled:opacity-35 ${a.primary ? 'bg-[radial-gradient(120%_140%_at_50%_0%,rgba(244,63,94,0.3),rgba(60,8,18,0.5))] font-medium text-[#ffe1e6] shadow-[inset_0_0_0_1px_rgba(244,63,94,0.45)] hover:brightness-125' : 'text-ink-2 hover:bg-white/[0.06] hover:text-ink'}`}
               >
-                {a.icon}{a.label}
+                {a.icon}
+                <span className="flex flex-col leading-tight">
+                  <span>{a.label}</span>
+                  {a.hint && <span className={`font-mono text-[9px] tracking-[0.04em] ${a.primary ? 'text-[#ffb3c0]/70' : 'text-ink-4'}`}>{a.hint}</span>}
+                </span>
               </button>
             ))}
           </div>

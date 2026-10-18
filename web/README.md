@@ -74,6 +74,7 @@ Event envelope: `{"event_type", "payload", "run_id", "sequence", "timestamp"}`. 
 
 Newest first. One line each: date/time (ET), who, what.
 
+- 2026-10-18 01:11 — E3: the War Room is one page now: a holographic War Room screen over a brighter twin, and on an incident the full recovery architecture assembles on the right as 3D modules, one real event at a time (`apps/web/src/lib/arch.ts`, `src/arch/scene.ts`). Break the system labels every scenario SIMULATED, REPLAY ONLY or NOT IMPLEMENTED; nothing is live-injectable until the operator fault endpoint exists. The Architecture modal and `/classic` are gone.
 - 2026-10-17 23:45 — E3: the platform UI (`apps/web`, served by the twin server at `/`) now replays the real agent runs in `../evidence/agent/` as REPLAY · real fleet. The runs come from `GET /api/recordings[/{run_id}]` (`nexus/recordings.py`), and certificates download as JSON and PDF. Still read-only: no fleet changes from the UI until E2's operator fault endpoint exists.
 - 2026-10-17 22:50 — E2: live agent incident runs exist now. Real event trails are in `../evidence/agent/runs/` (Nemotron fixing VLLM-32926, 3/3 VERIFIED), with the evaluation log at `../evidence/agent/README.md`. The environment API is live on Brev at 127.0.0.1:8120 (read routes need `NEXUS_ENVIRONMENT_API_KEY`).
 - 2026-10-17 21:20 — E2: created `web/` with this README and real samples from the live fleet. Not yet available: live agent incident runs and the fault endpoint (see "Coming from E2").

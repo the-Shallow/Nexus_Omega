@@ -24,6 +24,8 @@ export interface Proof {
   controller: string;
   controllerReal: boolean;
   stats: { k: string; v: string; sub?: string; tone?: 'warn' | 'ok' }[];
+  /** The record's identity and trail: incident, source, tool collection, timeline, rollback, trace. */
+  facts: { k: string; v: string }[];
   slo: SloRow[];
   sloNote: string;
   checks: { name: string; passed: boolean; detail: string }[];
@@ -68,6 +70,14 @@ export function proofFromTwin(s: CertificateSummary, slo: Topology['slo'] | null
       { k: 'Time to close', v: dur(c.timeline.time_to_recover_s), sub: c.timeline.closed_clock },
       { k: 'Dashboards alerted', v: c.dashboards_alerted ? 'Yes' : 'Never', sub: c.dashboards_alerted ? 'SLO breached in the window' : 'silent to monitoring', tone: c.dashboards_alerted ? undefined : 'warn' },
       { k: 'Tool calls', v: String(c.tool_calls.length), sub: `${new Set(c.tool_calls.map((t) => t.tool)).size} distinct tools` },
+    ],
+    facts: [
+      { k: 'Incident', v: `${c.run_id} · ${c.incident.incident_class ?? c.incident.title ?? 'incident'}` },
+      { k: 'Source', v: 'SIMULATED · SimPy digital twin' },
+      { k: 'Tool collection', v: `${c.doctor === 'tool' ? 'Tool-Calling Doctor' : 'Infrastructure Doctor'} · ${[...new Set(c.tool_calls.map((t) => t.tool))].join(', ') || 'no tools'}` },
+      { k: 'Timeline', v: [c.timeline.fault_clock && `fault ${c.timeline.fault_clock}`, `detected ${c.timeline.detected_clock}`, c.timeline.acted_clock && `acted ${c.timeline.acted_clock}`, `closed ${c.timeline.closed_clock}`].filter(Boolean).join(' → ') },
+      { k: 'Rollback', v: c.repair.rollback_token ? `${c.repair.rollback_token} · ${c.repair.rollback_exercised ? 'exercised: changes restored' : 'ready, not needed'}` : c.repair.actions.length ? 'irreversible change (restart); no rollback token' : 'no change made' },
+      { k: 'Trace', v: `run ${c.run_id} · ${c.tool_calls.length} tool calls · ${c.evidence.length} evidence · sha256 ${c.sha256.slice(0, 12)}…` },
     ],
     slo: v ? [
       { metric: 'TTFT p95', before: fmtKpi.ttft(b), after: fmtKpi.ttft(a), limit: `≤ ${limit.ttft_p95_s} s`, ok: a?.ttft_p95 != null ? a.ttft_p95 <= limit.ttft_p95_s : null },
@@ -123,6 +133,10 @@ export function proofFromFleet(rec: RecordingDetail): Proof {
   const plan = ep?.decision?.repair_plan?.action?.arguments ?? rec.events.find((e) => e.event_type === 'decision_validated')?.payload?.repair_plan?.action?.arguments;
   const policy = rec.events.find((e) => e.event_type === 'repair_plan_evaluated')?.payload?.policy;
   const agentSecs = (Date.parse(s.agent_ended_at) - Date.parse(s.started_at)) / 1000;
+  const calls = rec.events.filter((e) => e.event_type === 'context_requested').map((e) => String(e.payload?.tool ?? ''));
+  const toolSide = (t: string) => (t === 'get_configuration' ? 'tool' : t === 'describe_environment' || t === 'list_resources' ? 'env' : 'infra');
+  const used = (side: string) => [...new Set(calls.filter((t) => toolSide(t) === side))];
+  const rollback = rec.events.find((e) => e.event_type === 'before_state_captured')?.payload?.rollback_token as string | undefined;
   const verdict = fleetVerdict(s);
   return {
     id: s.id,
@@ -148,6 +162,14 @@ export function proofFromFleet(rec: RecordingDetail): Proof {
       { k: 'Repair', v: x ? `${x.seconds.toFixed(1)} s` : '–', sub: x ? `executor · ${x.status}` : 'not executed' },
       { k: 'Solve time', v: s.solve_seconds != null ? `${s.solve_seconds.toFixed(1)} s` : '–', sub: 'referee-timed episode' },
       { k: 'Recorded', v: utc(s.started_at), sub: `${s.started_at.slice(0, 10)} UTC` },
+    ],
+    facts: [
+      { k: 'Incident', v: `${s.id} · ${s.fault ?? 'recorded fault'}` },
+      { k: 'Source', v: `REPLAY · recorded on the real fleet (${s.environment ?? 'Brev'})` },
+      { k: 'Tool collection', v: [used('tool').length && `Tool-Calling: ${used('tool').join(', ')}`, used('infra').length && `Infrastructure: ${used('infra').join(', ')}`, used('env').length && `environment: ${used('env').join(', ')}`].filter(Boolean).join(' · ') + ` · one ${modelName(s.controller)} model` },
+      { k: 'Timeline (UTC)', v: [`agent ${utc(s.started_at)}–${utc(s.agent_ended_at)}`, x && `executor ${utc(x.started_at)}–${utc(x.ended_at)}`, s.ended_at && `referee ${utc(s.ended_at)}`].filter(Boolean).join(' → ') },
+      { k: 'Rollback', v: rollback ? `${rollback} · before-state captured${x?.verification?.passed ? ', not needed' : ''}` : x ? 'no rollback token recorded' : 'no change made' },
+      { k: 'Trace', v: `evidence/agent/runs/${s.id}/events.jsonl · ${rec.events.length} events · ${s.evidence_count} evidence` },
     ],
     slo,
     sloNote: 'Before: the monitoring snapshot the agent started from. After: the referee\'s probe through HAProxy once the run closed.',

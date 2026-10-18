@@ -1,5 +1,6 @@
 // Small shared channels: the live scene instance and transient notices.
 import { useSyncExternalStore } from 'react';
+import type { ArchScene } from '../arch/scene';
 import type { TwinScene } from '../twin/scene';
 
 let scene: TwinScene | null = null;
@@ -9,6 +10,15 @@ export const twin = {
   set: (s: TwinScene | null) => { scene = s; sceneSubs.forEach((cb) => cb(s)); },
   /** Calls back now and whenever the scene is created or disposed. */
   subscribe(cb: (s: TwinScene | null) => void) { sceneSubs.add(cb); cb(scene); return () => { sceneSubs.delete(cb); }; },
+};
+
+let archScene: ArchScene | null = null;
+let archHost: HTMLElement | null = null;
+/** The recovery architecture's scene and the element it is drawn in (for traces and anchors). */
+export const arch = {
+  get: () => archScene,
+  host: () => archHost,
+  set: (s: ArchScene | null, host: HTMLElement | null) => { archScene = s; archHost = host; },
 };
 
 export interface Toast { id: number; text: string; tone: 'info' | 'bad' | 'ok' }

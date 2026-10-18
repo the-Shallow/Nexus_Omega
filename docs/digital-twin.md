@@ -11,7 +11,7 @@ npm run dev                # http://127.0.0.1:5173, hot reload, proxies the twin
 npm run build              # writes apps/web/dist, which the twin server serves at /
 ```
 
-`/` serves the React platform when `apps/web/dist` exists; the previous light-mode views stay at `/classic`.
+`/` serves the React platform when `apps/web/dist` exists, and the older static view when it does not (no npm needed).
 
 ## Doctors
 
@@ -26,23 +26,23 @@ Each terminal run writes a certificate to `artifacts/certificates/` (git-ignored
 
 ## Platform UI (`apps/web`)
 
-One dark, single-page War Room: React, TypeScript, Tailwind, Framer Motion, a WebSocket store, and a Three.js twin with bloom. The twin is always on screen. Everything else floats over it in glass, and every transition is driven by a real state change: a fault in the twin's frames, a doctor run's events, or the timeline of a recorded run.
+One dark, single-page War Room: React, TypeScript, Tailwind, Framer Motion, a WebSocket store, and two Three.js scenes with bloom (the twin and the recovery architecture). There is no page navigation: War Room → Break → the hall takes the hit → the architecture assembles → verify → certificate → replay or a new failure. Every transition follows a real state change: a fault in the twin's frames, a doctor run's events, or the timeline of a recorded run.
 
 | Element | What it shows |
 |---|---|
-| Floating dock | The NEXUS Ω mark, system status (only signals monitoring can see), the one data mode in effect (SIMULATED / REPLAY / LIVE), simulation or replay time with play, pause and speed, a menu (autopilot, architecture, domains, classic views, reset), and **Break the system** |
-| Twin | Fixed isometric camera with slight pointer parallax. It never flies to a failure. A fault gets concentric alarm rings on the floor beneath the affected racks or units, a red or amber pulse on their outlines and a small warning tag; everything else stays calm. Click any component for a glass capsule with its health and 2–3 metrics |
-| Break the system | A glass panel on the right. **Digital twin** lists the 9 simulated failures (hover outlines where each would land). **Real fleet** replays recorded Nemotron runs, failed attempts included |
-| Recovery workflow | Grows on the right one module at a time as the run's events arrive: Detect → Diagnose → Select Tools → Shadow Test (twin only) → Act → Verify → Certificate. A connector grows first, then the module materializes. The active module pulses. Click a module for its tool calls, arguments, results and timestamps. As the workflow appears, the hall shrinks slightly and moves left |
-| Certificate | Revealed when the run ends, never opened automatically. Shows the actual terminal state, before → after measurements, independent checks, actions, evidence and diagnosis. **Download JSON** and **Download PDF** both come from the same stored record |
-| After the certificate | Replay simulation (or recording), Start new failure, Run again (a fresh twin and a genuinely new execution, never a replay), Architecture |
-| Architecture | Incident → controller → tool runtime → Tool-Calling / Infrastructure Doctor → shadow twin / recovery tools → independent verification → certificate. Nodes this run used are lit; technologies are named only where they are integrated |
+| Floating dock | The Ω mark and NEXUS, system state (Nominal, Incident, Investigating, Repairing, Verifying, Verified, Rolled back, Requires approval, Abstained; only signals monitoring can see), the one data mode in effect (SIMULATED / REPLAY / LIVE), simulation or replay time with play, pause and 1× / 4× / 10× (hidden in LIVE), a menu (autopilot, domains, reset) and a compact **Break** |
+| War Room | A large holographic screen above the hall: a live topology (users and agents → gateway → the 8 replicas, facility underneath; particles move with real traffic), four health signals with history (TTFT p95, errors, tool-call canary, capacity), what the doctors are doing, and **Break the system**. It flags stale or lost frames. During a fleet replay it shows the recorded fleet instead (HAProxy, `target-a`, `target-b`, route probes, executor, referee) |
+| Twin | Foreground, brightly lit (sky fill, key, blue-white rim), fixed isometric camera with slight pointer parallax. It never flies to a failure: a fault gets concentric alarm rings on the floor, a red or amber pulse and a small tag. Click any component for a glass capsule with its health and 2–3 metrics |
+| Break the system | A sheet that grows out of the trigger. Rows grouped by **Tool-Calling Doctor** and **Infrastructure Doctor**, each labelled SIMULATED (injected into the twin through `POST /api/faults`), REPLAY ONLY (recorded Nemotron runs on the Brev fleet) or NOT IMPLEMENTED (listed, not selectable). Nothing is LIVE INJECTABLE: the fleet's fault endpoint is not connected |
+| Recovery architecture | After a short incident beat the hall and War Room shrink to the left and the full architecture assembles on the right as 3D glass modules: demand → gateway → vLLM replicas (real ids and health) on GPUs, network, cooling and power → telemetry → one controller → Tool-Calling / Infrastructure Doctor → shadow twin → policy gate → act → verify → outcome → certificate. A module appears only when the run reaches it or an event makes it relevant (the failure landing on it, a tool reading it, a repair changing it); its connector grows first. Tool calls and repairs arc over the board to what they touch, and thin traces link that module to the component in the hall. When the run ends, unused modules appear as ghosts and the branch actually taken (VERIFIED, ROLLED BACK, REQUIRES APPROVAL, ABSTAIN) is lit. Click a module for its calls, arguments, results and timestamps. Phones get the same run as a compact list |
+| Certificate | Revealed from the certificate module when the run ends, never opened automatically: incident id, source, tool collection, timeline, rollback, trace, the terminal state (green only for an independently verified success), before → after, checks, actions, evidence. **Download JSON** and **Download PDF** come from the same stored record |
+| After the certificate | Replay simulation (or recording; no new calls), Start new failure (resets the twin, waits for the backend, reopens the chooser), Run again (twin only: a fresh twin and a new execution by the rule-based stand-in, never a replay) |
 
-The doctor is never chosen in the UI: the backend routes each signal to the Tool-Calling or Infrastructure Doctor, both driven by one controller. Twin runs are labelled "rule-based stand-in · Nemotron not connected". A run shows as verified only when its record says `VERIFIED`; `ROLLED_BACK`, `REQUIRES_APPROVAL` and `ABSTAIN` are shown as they are.
+The doctor is never chosen in the UI: the backend routes each signal to a tool collection, both driven by one controller. Twin runs say "rule-based stand-in · Nemotron not connected". In a recorded fleet run the controller used one tool registry; the architecture groups its calls by what they inspect. A run shows as verified only when its record says `VERIFIED`, and a recorded run the referee did not confirm shows as FALSE VERIFIED.
 
 Data modes:
-- **SIMULATED**: the SimPy twin. Shadow-test results are labelled *predicted · simulated*.
-- **REPLAY**: either an incident recorded in the browser from the twin, or a **real-fleet recording**, i.e. a run of Nemotron 3.5 Lightning on the Brev fleet loaded from `evidence/agent/`. During a fleet replay the twin recedes and a diagram of the fleet (HAProxy, `target-a`, `target-b`, the agent, the referee) shows only recorded state. The clock shows recorded UTC time. Long silent gaps, such as the executor's ~75 s restart, are skipped faster, and the UI says so whenever it happens.
+- **SIMULATED**: the SimPy twin. Cooling and power are a virtual facility; shadow-twin results are labelled *predicted*.
+- **REPLAY**: either an incident recorded in the browser from the twin, or a **real-fleet recording**, i.e. a run of Nemotron 3.5 Lightning on the Brev fleet loaded from `evidence/agent/`. The twin recedes during a fleet replay. The clock shows recorded UTC time. Long silent gaps, such as the executor's ~75 s restart, are skipped faster, and the UI says so whenever it happens.
 - **LIVE**: reserved for production telemetry. It is not connected in this build.
 
 ## What is modeled
@@ -75,7 +75,7 @@ Each chaos card links to its row in `data/infra_candidate_csv.csv` (the infrastr
 | GPU XID 79 | NVIDIA-XID-48-79-94 | cordon + escalate (restart crash-loops) |
 | Thermal → XID cascade | COMPOUND-… | pause batch, then field repair |
 
-Software agents never "fix" cooling, power or hardware. Those clear only through **Record field repair** (a human action) in the Recovery panel, or **Field repair** in the classic Incidents panel.
+Software agents never "fix" cooling, power or hardware. Those clear only through **Record the technician's field repair** (a human action), offered next to the outcome when a run ends with one still open.
 
 ## API (for the agent's tools)
 

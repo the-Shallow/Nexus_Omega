@@ -30,6 +30,10 @@ export interface FlowItem {
   result?: string;
   tone?: Tone;
   payload?: unknown;
+  /** The tool that was called (tool items) or the action that was applied (action items). */
+  tool?: string;
+  /** The resource it read or changed, as the backend names it (vllm-1, A4-n2, B3, CRAH-1, target-b). */
+  target?: string | null;
 }
 
 export interface FlowStage {
@@ -111,9 +115,11 @@ function twinItem(e: RunEvent): FlowItem | null {
       return d.note ? { id, kind: 'note', at: e.clock, title: d.note } : null;
     case 'tool_call': {
       const c = d as ToolCallRecord;
+      const a = (c.arguments ?? {}) as Record<string, unknown>;
       return {
         id, kind: 'tool', at: e.clock, title: c.tool, detail: argList(c.arguments ?? {}), reason: c.reason,
         tone: c.status === 'ok' ? 'ok' : 'bad', payload: c.status === 'ok' ? c.result : { error: c.error_code, message: c.error },
+        tool: c.tool, target: String(a.service ?? a.node ?? a.rack ?? '') || null,
       };
     }
     case 'evidence':
@@ -124,8 +130,14 @@ function twinItem(e: RunEvent): FlowItem | null {
       return { id, kind: 'candidate', at: e.clock, title: e.title, detail: 'predicted · simulated' };
     case 'approval':
       return { id, kind: 'policy', at: e.clock, title: e.title, tone: 'warn' };
-    case 'action':
-      return { id, kind: 'action', at: e.clock, title: e.title, detail: d.token ? `token ${d.token}` : undefined, tone: e.title.startsWith('rollback') ? 'warn' : 'info', payload: d };
+    case 'action': {
+      const args = (d.args ?? {}) as Record<string, unknown>;
+      const workers = Array.isArray(args.workers) ? (args.workers as string[]).join(', ') : null;
+      return {
+        id, kind: 'action', at: e.clock, title: e.title, detail: d.token ? `token ${d.token}` : undefined, tone: e.title.startsWith('rollback') ? 'warn' : 'info', payload: d,
+        tool: e.title.startsWith('rollback') ? 'rollback' : d.kind, target: String(args.worker ?? args.node ?? args.scope ?? workers ?? '') || null,
+      };
+    }
     case 'verify': {
       const checks: { passed: boolean }[] = d.checks ?? [];
       return { id, kind: 'check', at: e.clock, title: e.title, tone: checks.every((c) => c.passed) ? 'ok' : 'bad', payload: d.checks };
@@ -258,7 +270,7 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
   const out: FleetEntry[] = [];
   const ev = [...rec.events].sort((a, b) => a.sequence - b.sequence);
   let diagnosing = false, tooling = false, acting = false, lastT = 0;
-  const pendingCall = new Map<string, { tool: string; args: string; reason?: string }>();
+  const pendingCall = new Map<string, { tool: string; args: string; reason?: string; target: string | null }>();
   const item = (e: AgentEvent, i: Omit<FlowItem, 'id' | 'at'>): FlowItem => ({ id: `s${e.sequence}`, at: utc(e.timestamp), ...i });
 
   for (const e of ev) {
@@ -275,7 +287,7 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
         const read = describeEvidence({ ...doc, source_type: doc.source_type ?? p.evidence?.source_type });
         const call = p.call_id ? pendingCall.get(p.call_id) : undefined;
         if (call) {
-          out.push({ t, focus: doc?.content?.resource_id ?? '@env', item: item(e, { kind: 'tool', title: call.tool, detail: call.args, result: read ? `${read.title}: ${read.detail}` : p.evidence?.finding, tone: 'ok', payload: { evidence_id: id, result: doc?.content } }) });
+          out.push({ t, focus: doc?.content?.resource_id ?? '@env', item: item(e, { kind: 'tool', title: call.tool, detail: call.args, result: read ? `${read.title}: ${read.detail}` : p.evidence?.finding, tone: 'ok', payload: { evidence_id: id, result: doc?.content }, tool: call.tool, target: call.target }) });
         } else {
           out.push({ t, item: item(e, { kind: 'evidence', title: read?.title ?? p.evidence?.finding ?? id, detail: read?.detail, tone: read?.tone, payload: doc?.content }) });
         }
@@ -296,7 +308,7 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
         break;
       }
       case 'context_requested': {
-        pendingCall.set(p.call_id, { tool: p.tool, args: argList(p.operational_arguments ?? {}), reason: p.reason });
+        pendingCall.set(p.call_id, { tool: p.tool, args: argList(p.operational_arguments ?? {}), reason: p.reason, target: p.operational_arguments?.resource_id ?? null });
         if (!tooling && p.tool !== 'describe_environment') {
           tooling = true;
           out.push({ t, stage: 'tools', phase: 'investigate', focus: p.operational_arguments?.resource_id ?? '@env' });
@@ -318,7 +330,7 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
         if (plan) {
           acting = true;
           const a = plan.action?.arguments ?? {};
-          out.push({ t, stage: 'act', phase: 'plan', focus: a.target ?? null, item: item(e, { kind: 'action', title: `Plan · ${a.action_id ?? plan.action?.tool}`, detail: `${argList(a.parameters ?? {})} → ${a.target ?? '?'}`, reason: plan.expected_effect, tone: 'info', payload: plan }) });
+          out.push({ t, stage: 'act', phase: 'plan', focus: a.target ?? null, item: item(e, { kind: 'action', title: `Plan · ${a.action_id ?? plan.action?.tool}`, detail: `${argList(a.parameters ?? {})} → ${a.target ?? '?'}`, reason: plan.expected_effect, tone: 'info', payload: plan, tool: 'plan', target: a.target ?? null }) });
           if (top) out.push({ t, item: item(e, { kind: 'hypothesis', title: `Hypothesis ${top.id}`, detail: `confidence ${pctTxt(top.confidence)} · cites ${(top.supports ?? []).join(', ') || 'nothing'}` }) });
         } else {
           out.push({ t, item: item(e, { kind: 'note', title: p.summary ?? 'Decision recorded', tone: 'muted' }) });
@@ -353,12 +365,12 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
     const end = Math.max(ms(x.ended_at), start + 1000);
     const drain = x.action === 'drain_worker';
     if (!acting) out.push({ t: start, stage: 'act' });
-    out.push({ t: start, phase: 'repair', focus: x.service, item: { id: 'x-start', at: utc(start), kind: 'action', title: `Executor · ${x.action} on ${x.service}`, detail: PROTOCOL[x.action]?.(x.profile) ?? 'one approved change, with a rollback path', tone: 'info', payload: x.before ?? x } });
+    out.push({ t: start, phase: 'repair', focus: x.service, item: { id: 'x-start', at: utc(start), kind: 'action', title: `Executor · ${x.action} on ${x.service}`, detail: PROTOCOL[x.action]?.(x.profile) ?? 'one approved change, with a rollback path', tone: 'info', payload: x.before ?? x, tool: x.action, target: x.service } });
     out.push({
       t: end, stage: 'verify', phase: 'verify',
       item: drain
         ? { id: 'x-end', at: utc(end), kind: 'action', title: `Drain ${x.status === 'APPLIED' ? 'applied' : x.status.toLowerCase()}`, detail: `${x.service} out of rotation after ${x.seconds.toFixed(1)} s; the link itself needs a human`, tone: x.status === 'APPLIED' ? 'info' : 'bad', payload: x }
-        : { id: 'x-end', at: utc(end), kind: 'check', title: `Executor's canary ${x.verification?.passed ? 'passed' : 'failed'}`, detail: `${x.status} after ${x.seconds.toFixed(1)} s · health ${x.verification?.health_status ?? '–'} · ${(x.verification?.failed_cases ?? []).length} failed cases`, tone: x.verification?.passed ? 'ok' : 'bad', payload: x.verification },
+        : { id: 'x-end', at: utc(end), kind: 'check', tool: 'executor_canary', target: x.service, title: `Executor's canary ${x.verification?.passed ? 'passed' : 'failed'}`, detail: `${x.status} after ${x.seconds.toFixed(1)} s · health ${x.verification?.health_status ?? '–'} · ${(x.verification?.failed_cases ?? []).length} failed cases`, tone: x.verification?.passed ? 'ok' : 'bad', payload: x.verification },
     });
     lastT = end;
   }
@@ -366,7 +378,7 @@ export function fleetTimeline(rec: RecordingDetail): FleetEntry[] {
     const at = Math.max(ms(ep.at), lastT + 300);
     if (!x) out.push({ t: at, stage: 'verify', phase: 'verify' });
     const checks = refereeChecks(rec);
-    checks.forEach((c, i) => out.push({ t: at + i * 140, item: { id: `ref-${i}`, at: utc(at), kind: 'check', title: c.name, detail: c.detail || (c.passed ? 'pass' : 'fail'), tone: c.passed ? 'ok' : 'bad' } }));
+    checks.forEach((c, i) => out.push({ t: at + i * 140, item: { id: `ref-${i}`, at: utc(at), kind: 'check', tool: 'referee', title: c.name, detail: c.detail || (c.passed ? 'pass' : 'fail'), tone: c.passed ? 'ok' : 'bad' } }));
     if (checks.length) out.push({ t: at + checks.length * 140, headline: `Referee: ${checks.filter((c) => c.passed).length}/${checks.length} checks passed` });
     out.push({ t: at + 900, end: 'terminal', phase: 'done' });
   }

@@ -51,7 +51,7 @@ export function OmegaMark({ size = 30, draw = false, orbit = true, className = '
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`display select-none whitespace-nowrap text-[13px] font-medium tracking-[0.28em] text-ink ${className}`}>
-      NEXUS<span className="ml-[0.35em] font-light text-accent">Ω</span>
+      NEXUS
     </span>
   );
 }

@@ -27,7 +27,7 @@ export interface ScreenPos { x: number; y: number; visible: boolean }
 const RW = 0.8, RD = 1.2, RH = 2.2;
 const NODE_H = 0.4;
 const TRAY_Y = 2.9, BUS_Y = 3.2, CEIL_Y = 3.15;
-const BG = 0x07090a;
+const BG = 0x060a12;
 const nodeY = (slot: number) => 0.52 + slot * 0.47;
 // Fixed isometric framing: azimuth from the gateway side, ~33° elevation, long lens.
 const ISO_TARGET = new THREE.Vector3(0, 0.55, 0.15);
@@ -173,7 +173,7 @@ void main(){
   vec2 g = abs(fract(q - 0.5) - 0.5) / fwidth(q);
   float line = 1.0 - min(min(g.x, g.y), 1.0);
   float fade = 1.0 - smoothstep(5.0, 15.0, length(vW.xz));
-  vec3 col = vec3(0.22, 0.42, 0.10) * line * 0.085 * fade;
+  vec3 col = vec3(0.30, 0.58, 0.72) * line * 0.12 * fade;
   vec4 h = texture2D(uHeat, vUv);
   col += h.rgb * h.a * uHeatGain;
   for (int i = 0; i < 6; i++) {
@@ -293,7 +293,7 @@ export class TwinScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.22;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(renderer.domElement);
@@ -307,16 +307,19 @@ export class TwinScene {
 
     const scene = this.scene;
     scene.background = new THREE.Color(BG);
-    scene.fog = new THREE.Fog(BG, 16, 46);
+    scene.fog = new THREE.Fog(BG, 22, 54);
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.18;
+    scene.environmentIntensity = 0.46;
 
     this.camera = new THREE.PerspectiveCamera(ISO_FOV, w / h, 0.5, 200);
     this.placeCamera();
 
-    scene.add(new THREE.HemisphereLight(0xa9bccb, 0x07090a, 0.75));
-    const key = new THREE.DirectionalLight(0xe4ecf2, 1.6);
+    // Night shift, not darkness: a cool sky fill, a key from above, and a blue-white rim
+    // from behind the hall so every rack reads as a silhouette.
+    scene.add(new THREE.HemisphereLight(0xb4cfee, 0x0b1424, 1.0));
+    scene.add(new THREE.AmbientLight(0x8fb4d8, 0.22));
+    const key = new THREE.DirectionalLight(0xf2f7ff, 1.8);
     key.position.set(7, 14, 6);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -324,11 +327,14 @@ export class TwinScene {
     key.shadow.bias = -0.0005;
     key.shadow.radius = 5;
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x9be22d, 0.32);
-    rim.position.set(-9, 5, -8);
+    const rim = new THREE.DirectionalLight(0xcfe6ff, 1.5);
+    rim.position.set(-11, 7, 11);
     scene.add(rim);
-    const fill = new THREE.DirectionalLight(0x5aa7ff, 0.22);
-    fill.position.set(-6, 3, 9);
+    const accent = new THREE.DirectionalLight(0x9be22d, 0.28);
+    accent.position.set(-9, 5, -8);
+    scene.add(accent);
+    const fill = new THREE.DirectionalLight(0x74aaff, 0.55);
+    fill.position.set(9, 4, -10);
     scene.add(fill);
 
     this.layout();
@@ -356,7 +362,7 @@ export class TwinScene {
     this.composer = new EffectComposer(renderer);
     this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.composer.addPass(new RenderPass(scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.7, 0.55, 0.82);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.78, 0.55, 0.8);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -454,15 +460,15 @@ export class TwinScene {
     const W = this.halfLen * 2 + 5.4, D = 10.2;
     this.hallW = W; this.hallD = D;
 
-    const ground = this.mesh(new THREE.PlaneGeometry(140, 140), new THREE.MeshStandardMaterial({ color: 0x060809, roughness: 1 }), { cast: false, receive: true });
+    const ground = this.mesh(new THREE.PlaneGeometry(140, 140), new THREE.MeshStandardMaterial({ color: 0x03070d, roughness: 1 }), { cast: false, receive: true });
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.13;
     s.add(ground);
 
-    const slab = this.mesh(new THREE.BoxGeometry(W, 0.12, D), new THREE.MeshStandardMaterial({ color: 0x0b0e11, roughness: 0.42, metalness: 0.35 }), { cast: false, receive: true });
+    const slab = this.mesh(new THREE.BoxGeometry(W, 0.12, D), new THREE.MeshStandardMaterial({ color: 0x131c27, roughness: 0.3, metalness: 0.55 }), { cast: false, receive: true });
     slab.position.y = -0.06;
     s.add(slab);
-    this.edges(slab.geometry, 0x1f282e, slab.position);
+    this.edges(slab.geometry, 0x3d5468, slab.position);
 
     // Thermal floor map, redrawn from rack exhaust temperatures each frame.
     const hc = document.createElement('canvas');
@@ -490,7 +496,7 @@ export class TwinScene {
     s.add(fx);
 
     // Cold-aisle floor strip: perforated tiles glowing faintly blue.
-    const tiles = new THREE.Mesh(new THREE.PlaneGeometry(this.halfLen * 2, 1.2), new THREE.MeshBasicMaterial({ color: 0x0b2a3a, transparent: true, opacity: 0.55, depthWrite: false }));
+    const tiles = new THREE.Mesh(new THREE.PlaneGeometry(this.halfLen * 2, 1.2), new THREE.MeshBasicMaterial({ color: 0x103a52, transparent: true, opacity: 0.6, depthWrite: false }));
     tiles.rotation.x = -Math.PI / 2;
     tiles.position.y = 0.003;
     s.add(tiles);
@@ -506,16 +512,16 @@ export class TwinScene {
     const dc = document.createElement('canvas');
     dc.width = 128; dc.height = 256;
     const g = dc.getContext('2d')!;
-    g.fillStyle = '#161b1f'; g.fillRect(0, 0, 128, 256);
-    g.fillStyle = '#2a333a';
+    g.fillStyle = '#222b33'; g.fillRect(0, 0, 128, 256);
+    g.fillStyle = '#3d4955';
     for (let y = 14; y < 242; y += 5) for (let x = 12 + ((y / 5) % 2) * 2.5; x < 116; x += 5) g.fillRect(x, y, 2, 2);
-    g.strokeStyle = '#323c43'; g.lineWidth = 3; g.strokeRect(4, 4, 120, 248);
-    g.fillStyle = '#2a343b'; g.fillRect(108, 112, 4, 32);
+    g.strokeStyle = '#4b5966'; g.lineWidth = 3; g.strokeRect(4, 4, 120, 248);
+    g.fillStyle = '#56636f'; g.fillRect(108, 112, 4, 32);
     const doorTex = new THREE.CanvasTexture(dc);
     doorTex.colorSpace = THREE.SRGBColorSpace;
     doorTex.anisotropy = 4;
-    const door = new THREE.MeshStandardMaterial({ map: doorTex, metalness: 0.35, roughness: 0.55 });
-    const top = new THREE.MeshStandardMaterial({ color: 0x111518, metalness: 0.5, roughness: 0.6 });
+    const door = new THREE.MeshStandardMaterial({ map: doorTex, metalness: 0.45, roughness: 0.42 });
+    const top = new THREE.MeshStandardMaterial({ color: 0x18212a, metalness: 0.6, roughness: 0.38 });
     const frameMat = [door, door, top, top, door, door];
     const exhaustGeo = new THREE.PlaneGeometry(RW * 0.86, RH * 0.88);
     for (const r of this.topo.racks) {
@@ -540,7 +546,7 @@ export class TwinScene {
 
     const chassis = new THREE.InstancedMesh(
       new THREE.BoxGeometry(RW * 0.86, NODE_H, 0.03),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.5, roughness: 0.45 }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.55, roughness: 0.38 }),
       nodes.length,
     );
     const gpuBars = new THREE.InstancedMesh(new THREE.BoxGeometry(0.046, 0.2, 0.012), new THREE.MeshBasicMaterial({ color: 0xffffff }), nodes.length * gpn);
@@ -550,7 +556,7 @@ export class TwinScene {
       const dir = this.row[this.rackById.get(nd.rack)!.row].dir;
       _m.makeTranslation(p.x, p.y, p.z + dir * 0.012);
       chassis.setMatrixAt(i, _m);
-      chassis.setColorAt(i, _c.set(nd.role === 'inference' ? 0x222b33 : 0x1a2026));
+      chassis.setColorAt(i, _c.set(nd.role === 'inference' ? 0x34414d : 0x28323c));
       nd.gpus.forEach((gi, local) => {
         const off = (local - (gpn - 1) / 2) * 0.072 * dir;
         _m.makeTranslation(p.x + off + dir * 0.03, p.y - 0.02, p.z + dir * 0.032);
@@ -582,12 +588,12 @@ export class TwinScene {
     for (const c of this.topo.crahs) {
       const pos = this.crahPos.get(c.id)!;
       const inward = -Math.sign(pos.x);
-      const body = this.mesh(new THREE.BoxGeometry(0.9, 2.3, 1.9), new THREE.MeshStandardMaterial({ color: 0x161b20, metalness: 0.6, roughness: 0.45 }), { receive: true });
+      const body = this.mesh(new THREE.BoxGeometry(0.9, 2.3, 1.9), new THREE.MeshStandardMaterial({ color: 0x24303b, metalness: 0.6, roughness: 0.38 }), { receive: true });
       body.position.set(pos.x, 1.15, pos.z);
       body.userData = { type: 'crah', id: c.id };
       s.add(body);
       this.pickables.push(body);
-      this.unitEdges.set(c.id, { mat: this.edges(body.geometry, 0x27313a, body.position), base: new THREE.Color(0x27313a) });
+      this.unitEdges.set(c.id, { mat: this.edges(body.geometry, 0x46586a, body.position), base: new THREE.Color(0x46586a) });
       for (let k = 0; k < 14; k++) {
         const slat = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.035, 1.6), new THREE.MeshStandardMaterial({ color: 0x232c34 }));
         slat.position.set(pos.x + inward * 0.452, 0.35 + k * 0.11, pos.z);
@@ -625,12 +631,12 @@ export class TwinScene {
   private buildPower() {
     const s = this.scene;
     for (const [id, pos] of this.upsPos) {
-      const body = this.mesh(new THREE.BoxGeometry(1.6, 2.0, 0.8), new THREE.MeshStandardMaterial({ color: 0x161b20, metalness: 0.6, roughness: 0.45 }), { receive: true });
+      const body = this.mesh(new THREE.BoxGeometry(1.6, 2.0, 0.8), new THREE.MeshStandardMaterial({ color: 0x24303b, metalness: 0.6, roughness: 0.38 }), { receive: true });
       body.position.set(pos.x, 1.0, pos.z);
       body.userData = { type: 'ups', id };
       s.add(body);
       this.pickables.push(body);
-      this.unitEdges.set(id, { mat: this.edges(body.geometry, 0x27313a, body.position), base: new THREE.Color(0x27313a) });
+      this.unitEdges.set(id, { mat: this.edges(body.geometry, 0x46586a, body.position), base: new THREE.Color(0x46586a) });
       const bars: THREE.MeshBasicMaterial[] = [];
       for (let k = 0; k < 6; k++) {
         const mat = new THREE.MeshBasicMaterial({ color: 0xf5a623 });
@@ -646,7 +652,7 @@ export class TwinScene {
       s.add(label);
       this.ups.set(id, { bars, label, on: true });
     }
-    const busMat = new THREE.MeshStandardMaterial({ color: 0x3b3326, metalness: 0.7, roughness: 0.4 });
+    const busMat = new THREE.MeshStandardMaterial({ color: 0x5a4c34, metalness: 0.75, roughness: 0.32 });
     for (const [rowId, row] of Object.entries(this.row)) {
       [...this.upsPos.keys()].forEach((u, k) => {
         const z = row.z + (k === 0 ? -0.22 : 0.22);
@@ -666,12 +672,12 @@ export class TwinScene {
   private buildNetwork() {
     const s = this.scene;
     const gp = this.gatewayPos;
-    const body = this.mesh(new THREE.BoxGeometry(0.9, 2.6, 0.9), new THREE.MeshStandardMaterial({ color: 0x14181c, metalness: 0.75, roughness: 0.36 }), { receive: true });
+    const body = this.mesh(new THREE.BoxGeometry(0.9, 2.6, 0.9), new THREE.MeshStandardMaterial({ color: 0x222d38, metalness: 0.75, roughness: 0.3 }), { receive: true });
     body.position.set(gp.x, 1.3, gp.z);
     body.userData = { type: 'gateway', id: 'gateway' };
     s.add(body);
     this.pickables.push(body);
-    this.unitEdges.set('gateway', { mat: this.edges(body.geometry, 0x2a343c, body.position), base: new THREE.Color(0x2a343c) });
+    this.unitEdges.set('gateway', { mat: this.edges(body.geometry, 0x4a5e70, body.position), base: new THREE.Color(0x4a5e70) });
     const portMat = new THREE.MeshBasicMaterial({ color: 0x76b900 });
     for (let k = 0; k < 10; k++) {
       const port = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.02, 0.01), portMat);
@@ -722,7 +728,7 @@ export class TwinScene {
       box.position.set(0, 1.35, row.hot);
       box.renderOrder = 2;
       this.scene.add(box);
-      this.edges(box.geometry, 0x1e272e, box.position, 0.8);
+      this.edges(box.geometry, 0x34495a, box.position, 0.8);
       this.containment[rowId] = mat;
       const light = new THREE.PointLight(0xf97316, 0, 6, 2);
       light.position.set(0, 2.2, row.hot);
@@ -745,10 +751,10 @@ export class TwinScene {
       const pts: V3[] = [[gp.x, 2.62, gp.z], [gp.x, TRAY_Y + 0.05, gp.z], [gp.x, TRAY_Y + 0.05, tz], [x, TRAY_Y + 0.05, tz], [x, y, tz], [x, y, row.front + row.dir * 0.04]];
       this.workerRoute.set(w.id, this.packets.addRoute(pts));
       // The fibre a request takes: lit by the state of the replica at its end.
-      const mat = new THREE.LineBasicMaterial({ color: STATUS.ok, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending });
+      const mat = new THREE.LineBasicMaterial({ color: STATUS.ok, transparent: true, opacity: 0.34, depthWrite: false, blending: THREE.AdditiveBlending });
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(...p))), mat);
       this.scene.add(line);
-      this.workerLine.set(w.id, { mat, target: new THREE.Color(STATUS.ok), opacity: 0.18 });
+      this.workerLine.set(w.id, { mat, target: new THREE.Color(STATUS.ok), opacity: 0.34 });
     }
 
     this.power = new Travelers(700, px);
@@ -1104,7 +1110,7 @@ export class TwinScene {
       const line = this.workerLine.get(w.id);
       if (line) {
         line.target.set(st ? st.color : STATUS.ok);
-        line.opacity = st ? st.opacity : 0.16;
+        line.opacity = st ? st.opacity : 0.32;
       }
     }
   }
@@ -1246,7 +1252,7 @@ export class TwinScene {
         if (w?.state === 'crashed') { col = blink ? STATUS.bad : 0x2a0810; gain = 2.4; }
         else if (w?.state === 'restarting' || w?.draining) col = null;
         else if (w?.state === 'hung') col = STATUS.ok; // the health check still says OK
-        else { col = w?.canary ? STATUS.ok : STATUS.warn; gain = w?.canary ? 1.4 : 2.2; }
+        else { col = w?.canary ? STATUS.ok : STATUS.warn; gain = w?.canary ? 2.1 : 2.4; }
       } else if (paused) col = STATUS.off;
       if (col === null) _c.set(STATUS.restart).multiplyScalar(0.5 + pulse * 1.5);
       else _c.set(col).multiplyScalar(gain);

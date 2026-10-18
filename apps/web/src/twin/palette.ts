@@ -101,5 +101,5 @@ export const STATUS = {
   xid: 0xd946ef,
   thermal: 0xf97316,
   batch: 0x3a4650,
-  neutral: 0x222a30,
+  neutral: 0x4a5c6c,
 };
