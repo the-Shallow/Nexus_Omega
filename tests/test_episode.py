@@ -32,7 +32,8 @@ class FaultSpecTests(unittest.TestCase):
 
     def test_heldout_profiles_exist_and_are_not_approved_repairs(self):
         self.assertEqual(set(episode.HELDOUT), {"compound-latb-32926a", "capacity-b", "tools-stripped-a", "noop"})
-        for name in ("qwen25-coder-7b.tools-stripped", "qwen25-coder-7b.capacity-1seq"):
+        self.assertEqual(set(episode.HELDOUT2), {"noauto-a", "vllm-32926-b", "kill-a", "compound-killb-32926a"})
+        for name in ("qwen25-coder-7b.tools-stripped", "qwen25-coder-7b.capacity-1seq", "qwen25-coder-7b.flags-v2"):
             profile = json.loads((PROFILES / f"{name}.json").read_text())
             self.assertEqual(profile["kind"], "broken")
             self.assertNotIn("stripped", profile["chat_template"])  # file name must not name the fault

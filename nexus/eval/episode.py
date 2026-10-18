@@ -10,13 +10,14 @@ Each fault declares the workers whose root cause must be fixed (`fix`), the
 workers that must end up drained (`drain`), how many solver rounds it allows
 (`rounds`; after each round that acted, the solver runs again on a fresh
 snapshot), and whether any action is expected at all (`expect_action`).
-`all` runs the four known faults; `heldout` runs faults that no solver was
-written or tuned against.
+`all` runs the four known faults; `heldout` (v1) and `heldout2` (v2) run
+faults that no solver was written or tuned against.
 
 Usage:
     python -m nexus.eval.episode vllm-32926 --solver rules
     python -m nexus.eval.episode all --solver rules --repeat 3
     python -m nexus.eval.episode heldout --solver agent --repeat 3
+    python -m nexus.eval.episode heldout2 --solver agent --repeat 3
 """
 from __future__ import annotations
 
@@ -46,21 +47,32 @@ FAULTS = {
     # Held out: built after the rules and the agent's runtime were fixed, never tuned against.
     # Two faults at once; the executor will not drain the last serving worker, so a must be
     # repaired while b still serves, and only then b drained.
-    "compound-latb-32926a": {"heldout": True, "fix": ["a"], "drain": ["b"], "rounds": 2,
+    "compound-latb-32926a": {"set": "v1", "fix": ["a"], "drain": ["b"], "rounds": 2,
                              "inject": lambda: (network.apply("b", "latency"),
                                                 manager.apply("a", "qwen25-coder-7b.vllm-32926"))},
     # Slow at the gateway like net-latency-b, but also slow direct: a concurrency cap, not the link.
-    "capacity-b": {"heldout": True, "fix": ["b"],
+    "capacity-b": {"set": "v1", "fix": ["b"],
                    "inject": lambda: (manager.apply("b", "qwen25-coder-7b.capacity-1seq"),
                                       load.apply("b", "steady"))},
     # VLLM-32926 family, but the model answers in prose: no call-shaped JSON to pattern-match.
-    "tools-stripped-a": {"heldout": True, "fix": ["a"],
+    "tools-stripped-a": {"set": "v1", "fix": ["a"],
                          "inject": lambda: manager.apply("a", "qwen25-coder-7b.tools-stripped")},
     # Nothing is wrong; any action is a false positive.
-    "noop": {"heldout": True, "expect_action": False, "inject": lambda: None},
+    "noop": {"set": "v1", "expect_action": False, "inject": lambda: None},
+    # Held out v2: written before the agent design changes of 2026-10-18, run once before and once
+    # after them. Two are label swaps of known faults (does it reason, or remember "a is broken"?).
+    "noauto-a": {"set": "v2", "fix": ["a"], "inject": lambda: manager.apply("a", "qwen25-coder-7b.flags-v2")},
+    "vllm-32926-b": {"set": "v2", "fix": ["b"], "inject": lambda: manager.apply("b", "qwen25-coder-7b.vllm-32926")},
+    "kill-a": {"set": "v2", "fix": ["a"], "inject": lambda: process.apply("a", "kill")},
+    # b must be back before a can be repaired: repairing a drains it, and nothing else would serve.
+    "compound-killb-32926a": {"set": "v2", "fix": ["a", "b"], "rounds": 2,
+                              "inject": lambda: (manager.apply("a", "qwen25-coder-7b.vllm-32926"),
+                                                 process.apply("b", "kill"))},
 }
-KNOWN = [name for name, f in FAULTS.items() if not f.get("heldout")]
-HELDOUT = [name for name, f in FAULTS.items() if f.get("heldout")]
+SETS = {"all": [n for n, f in FAULTS.items() if "set" not in f],
+        "heldout": [n for n, f in FAULTS.items() if f.get("set") == "v1"],
+        "heldout2": [n for n, f in FAULTS.items() if f.get("set") == "v2"]}
+KNOWN, HELDOUT, HELDOUT2 = SETS["all"], SETS["heldout"], SETS["heldout2"]
 
 
 def agent_solver() -> dict:
@@ -142,7 +154,7 @@ def run_episode(name: str, solver: str) -> dict:
     state, success, false_verified = score(fault, check, rounds)
     last = next((r for r in reversed(rounds) if r["action"]), rounds[-1])
     record = {
-        "fault": name, "heldout": bool(fault.get("heldout")), "solver": solver,
+        "fault": name, "heldout": "set" in fault, "set": fault.get("set", "known"), "solver": solver,
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "terminal_state": state, "success": success, "false_verified": false_verified,
         "solve_seconds": solve_seconds, "action": last["action"], "rule": last["rule"],
@@ -158,11 +170,11 @@ def run_episode(name: str, solver: str) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nexus.eval.episode")
-    parser.add_argument("fault", choices=[*FAULTS, "all", "heldout"])
+    parser.add_argument("fault", choices=[*FAULTS, *SETS])
     parser.add_argument("--solver", choices=sorted(SOLVERS), default="rules")
     parser.add_argument("--repeat", type=int, default=1)
     args = parser.parse_args(argv)
-    names = {"all": KNOWN, "heldout": HELDOUT}.get(args.fault, [args.fault])
+    names = SETS.get(args.fault, [args.fault])
     records = []
     try:
         for _ in range(args.repeat):
