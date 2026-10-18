@@ -24,10 +24,32 @@ The fault-injection endpoint E2 will provide uses a separate operator token and 
 Everything runs on the Brev box `nexus-omega`. Ports are bound to localhost there, so forward them:
 
 ```bash
-ssh -N -L 9090:localhost:9090 -L 8110:localhost:8110 -L 8100:localhost:8100 nexus-omega
+ssh -N -L 9090:localhost:9090 -L 8110:localhost:8110 -L 8100:localhost:8100 -L 8130:localhost:8130 nexus-omega
 ```
 
 The admin API needs `NEXUS_ADMIN_TOKEN` (from `.env` on the box; ask Samarth, never commit it).
+
+## UI server API (apps/twin)
+
+The React app talks only to the UI server (`./scripts/twin.sh`, :8765; Vite proxies `/api` and `/ws` to it). Besides the twin's routes it now serves the real runs. The design page's [Data flow](../apps/twin/static/design.html) section draws this.
+
+| Route | What it returns | Source |
+|---|---|---|
+| `GET /api/results/scoreboard` | Success / total / false VERIFIED / median time per solver × fault, grouped by the named batches in `../evidence/batches.json` (contaminated rounds never scored) | episode records |
+| `GET /api/results/episodes?solver&fault&heldout` · `/api/results/episodes/{id}` | Episode rows; one full record | episode records |
+| `GET /api/results/runs` · `/api/results/runs/{id}?view=snapshot\|raw` | Run list; one run as a `DoctorSnapshot` (`controller: "nemotron"`, ends with the referee's verdict) or the raw envelopes | `agent-runs/<id>/events.jsonl` + its episode |
+| `GET /api/results/runs/{id}/events?after=N` · `/evidence/{ev}` · `/episode` | Envelopes after a sequence; one evidence item; the run's episode | same |
+| `GET /api/results/bfcl` · `gates` · `capacity[/{name}]` · `audit?limit` | BFCL per serving profile (no per-case rows); gate summary; guidellm CSV with flattened headers; executor audit, newest first | `bfcl/`, `gates/`, `capacity/`, `harness/audit.jsonl` |
+| `GET /api/runs/{id}/stream` (SSE) | Replays then follows a run. Each message: `{event, run_events}` with `id:` = sequence (EventSource resumes on its own). Then `event: referee` and `event: end` with the full snapshot | tails the trail every 0.5 s, waits for the episode |
+| `WS /ws?source=live` | `hello{source:"live", topology}` then a 1 Hz frame in the twin's shape. Fields without a real source are `null`; `sources` says which feeds answered; `job` is the active Break it job | gateway admin, Prometheus, operator `/jobs` |
+| `GET /api/live/status` | Which of gateway, Prometheus and the operator app answer right now | health checks |
+| `GET /api/live/faults` · `POST /api/live/break {fault, solver}` · `GET /api/live/jobs[/{id}]` | Named real faults; start one as an episode (202 `{job_id}`; 409 while one runs); job state with `run_ids` to stream | operator app |
+
+Client calls for all of these are in `apps/web/src/lib/api.ts` (`streamRun()` for the SSE stream); types in `types.ts`. The views that use them are built: the results page (`results.html`, scoreboard charts and run list), the 3D replay (`story.html?run=`), Break it live on the story page, and the landing brief.
+
+Where results come from: with `NEXUS_OPERATOR_URL` set (e.g. `http://127.0.0.1:8130` through the tunnel) the UI server passes `/api/results/*` through to the box; otherwise it reads `ARTIFACTS_DIR` (optional local mirror) and then `../evidence/`, so everything works offline from git. Live mode also reads `NEXUS_GATEWAY_URL`, `NEXUS_PROMETHEUS_URL` and `NEXUS_ADMIN_TOKEN`. The operator token (`NEXUS_OPERATOR_TOKEN`) is set in the UI server's environment and never sent to the browser.
+
+**Operator app** (`apps/operator/`, :8130 on the box, `./scripts/operator_up.sh`): serves the same `/runs`, `/episodes`, `/scoreboard`… routes from `artifacts/` and starts jobs. Every route needs `Bearer $NEXUS_OPERATOR_TOKEN`; faults are accepted by name only (`nexus.eval.episode.FAULTS`), one job at a time, and the executor's mutation lock still guards each repair. The agent's environment API (:8120) is unchanged and cannot reach it.
 
 ## Data sources
 
@@ -68,11 +90,15 @@ Event envelope: `{"event_type", "payload", "run_id", "sequence", "timestamp"}`. 
 
 - [x] Environment API (`apps/environment/`): manifest-driven read API the agent uses. Read-only routes are also usable by the UI (`ssh -L 8120:localhost:8120`).
 - [x] Live agent runs on the fleet. Real incident trails are in `../evidence/agent/runs/`; new ones land in `artifacts/agent-runs/` on the box.
-- [ ] Operator fault endpoint for the "Break it" button (separate token, named faults only).
+- [x] Operator fault endpoint for the "Break it" button (separate token, named faults only): `apps/operator/` on :8130, reached through the UI server's `/api/live/break` (see [UI server API](#ui-server-api-appstwin)).
 
 ## Status log
 
 Newest first. One line each: date/time (ET), who, what.
 
+- 2026-10-18 08:30 — E3 (Claude): final results on the site. Every run set has its own named batch in `../evidence/batches.json` (v1/v2 before and after, known after, temp 0.6, Nemotron 3 Super with 4 harness exclusions), and the UI server always builds the scoreboard from `evidence/`. Results page and landing brief redesigned with charts; the landing replays `run-ce0c86a3` (held-out, VERIFIED).
+
+- 2026-10-18 01:19 — E2 (Claude): story mode at `apps/web/story.html` (code in `apps/web/src/story/`). `?run=<run-id>` (or the "Real runs" picker) replays a recorded agent run in 3D on the real 2-worker fleet, read-only from `/api/results/runs/{id}`, its opening probes and the episode: real tool calls, diagnosis, policy, executor action, referee checks and outcome, including false VERIFIED. The two scripted stories (8 illustrative replicas) stay, labelled SIMULATED. Not yet: live Break it / SSE streaming.
+- 2026-10-18 00:50 — E2: real runs reach the UI server: `/api/results/*` (scoreboard, episodes, runs as `DoctorSnapshot`, BFCL, gates, capacity, audit), `/api/runs/{id}/stream` (SSE), `/ws?source=live`, and Break it via the box operator app (:8130). Client calls in `apps/web/src/lib/api.ts`; the views are still to build. Diagram in `apps/twin/static/design.html#dataflow`.
 - 2026-10-17 22:50 — E2: live agent incident runs exist now. Real event trails are in `../evidence/agent/runs/` (Nemotron fixing VLLM-32926, 3/3 VERIFIED), with the evaluation log at `../evidence/agent/README.md`. The environment API is live on Brev at 127.0.0.1:8120 (read routes need `NEXUS_ENVIRONMENT_API_KEY`).
 - 2026-10-17 21:20 — E2: created `web/` with this README and real samples from the live fleet. Not yet available: live agent incident runs and the fault endpoint (see "Coming from E2").

@@ -178,6 +178,20 @@ table.doms { min-width: 760px; }
 .next b { font: 600 15px var(--display); }
 .next p { font-size: 13.5px; color: var(--ink2); margin-top: 4px; }
 
+/* data flow: real runs -> UI server -> views */
+svg.flow { min-width: 900px; }
+.col-bg { fill: var(--soft); stroke: var(--line); stroke-dasharray: 3 5; }
+.node.new rect.box { stroke-dasharray: 5 4; }
+.node.off { opacity: .55; }
+.newtag rect { fill: var(--ink); }
+.newtag text { font: 600 9.5px var(--mono); letter-spacing: .04em; fill: var(--on-dark); }
+svg.flow.focus .node:not(.st-active) { opacity: .35; }
+svg.flow.focus .edge:not(.hot) { opacity: .25; }
+.flowchips .chip { padding: 5px 12px; }
+.routes code { white-space: nowrap; }
+.routes td:nth-child(2) { color: var(--ink2); }
+table.routes { min-width: 860px; }
+
 footer { padding-block: 20px 48px; }
 footer .card { padding: 16px 18px; display: grid; gap: 8px; font-size: 13.5px; color: var(--ink2); }
 footer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
@@ -217,6 +231,20 @@ footer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
     <div class="card incident" id="incident"></div>
   </section>
 
+  <section id="dataflow">
+    <div class="head">
+      <div><span class="label">Data flow</span><h2>How real runs reach the UI</h2>
+        <p>The views above run on the SimPy twin. The real loop runs on the Brev box and writes files. One operator app on the box serves those records and starts named faults; the UI server adds the token, adapts the agent's trail to the twin's run shape and streams it, so the same panels can show either. Pick a path.</p></div>
+      <span class="pill ok">API and views built</span>
+    </div>
+    <div class="card diagram">
+      <div class="chips flowchips" id="flow-chips"></div>
+      <div class="svg-scroll"><svg class="sys flow" id="flow" viewBox="0 0 1240 548" role="img" aria-label="Data flow: Brev box sources, UI server routes and UI views"></svg></div>
+      <div class="caption" id="flow-caption" aria-live="polite"></div>
+    </div>
+    <div class="card tbl-wrap" style="margin-top:12px"><table class="routes" id="routes"></table></div>
+  </section>
+
   <section id="failures">
     <div class="head"><div><span class="label">Failure map</span><h2>Same eight slots in every domain</h2>
       <p>Rows are failure slots, columns are domains. Click a cell to load it into the diagram.</p></div></div>
@@ -248,9 +276,10 @@ footer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   <div class="card">
     <span class="label">What is real today</span>
     <ul>
-      <li>Doctor reasoning is a rule-based stand-in until Nemotron is connected. Tool calls, actions and verification run for real on the SimPy twin.</li>
+      <li>In the twin, Doctor reasoning is a rule-based stand-in. Tool calls, actions and verification run for real on the SimPy twin.</li>
+      <li>On the Brev fleet, Nemotron runs the loop for real. After the harness redesign, same weights: known faults 7/12 → 11/12, held-out v1 2/12 → 9/12 (rules 3/12), held-out v2 10/12 → 12/12, and 0 false VERIFIED in 36 runs (4 before). Its runs, the scoreboard and live fleet frames reach the UI server, and the React results page, 3D replay and Break it live use them.</li>
       <li>The twin is uncalibrated; it has not been fitted to Brev Prometheus or DCGM data yet.</li>
-      <li>On Brev, the loud tool-calling faults reproduce. The silent vLLM #32926 drop does not yet.</li>
+      <li>On Brev, the silent vLLM #32926 drop reproduces 3/3 (HTTP 200, health 200, 0 parsed tool calls; BFCL 0.83 → 0.00), as do the loud tool-calling faults.</li>
       <li>Healthcare, Agriculture, Education and Logistics are concepts. Their tool names are illustrative.</li>
     </ul>
     <span>Source in the repo: <code>apps/twin/static/design.html</code>. The live twin runs locally with <code>./scripts/twin.sh</code>.</span>
@@ -421,7 +450,8 @@ const CORE = [
   ['Shadow twin', 'Forks the live twin and races candidate fixes over several seeds.', 'nexus/simulator/whatif.py'],
   ['Verifier', 'Canaries, hidden canaries, SLOs and policy, independent of the model. Failure rolls back.', 'nexus/doctors/base.py'],
   ['Certificate', 'sha256-sealed record, matched by signature on the next incident.', 'nexus/certificate/'],
-  ['UI shell', 'Mission Control, Doctor views, Break the system, Proof of Recovery.', 'apps/twin/static/'],
+  ['Results reader', 'Reads real run records (trails, episodes, BFCL, gates) and maps an agent trail onto the UI’s run shape.', 'nexus/results/'],
+  ['UI shell', 'Mission Control, Doctor views, Break the system, Proof of Recovery; real runs over SSE and live frames.', 'apps/web · apps/twin/results_api.py · live.py'],
 ];
 const PACK = [['twin', 'Twin model'], ['telemetry', 'Telemetry'], ['faults', 'Faults'], ['tools', 'Doctor tools'], ['actions', 'Actions'], ['policy', 'Policy'], ['checks', 'SLOs & canaries'], ['scene', 'Scene']];
 const ICONS = {
@@ -630,13 +660,118 @@ function setDomain(id) {
   select(0, false);
 }
 
+// ---- Data flow: Brev box -> UI server -> UI views -------------------------------------------
+// new: true marks what this round added. Views marked todo exist only as API client calls so far.
+const FN = {
+  b_fleet: { x: 30, y: 64, t: 'Fleet', s: 'vLLM a/b · HAProxy · Nemotron' },
+  b_gw: { x: 30, y: 142, t: 'Gateway admin :8110', s: 'weight · drained · requests · errors' },
+  b_prom: { x: 30, y: 220, t: 'Prometheus + DCGM :9090', s: 'TTFT · queue · KV cache · GPU' },
+  b_files: { x: 30, y: 298, t: 'artifacts/', s: 'agent-runs · episodes · bfcl · harness/audit' },
+  b_op: { x: 30, y: 376, t: 'Operator app :8130', s: 'records + named-fault jobs · own token', new: true },
+  b_env: { x: 30, y: 470, t: 'Environment API :8120', s: 'agent’s E1 surface · not for the UI', off: true },
+  s_twin: { x: 470, y: 64, t: '/ws · /api/faults · /api/doctors', s: 'SimPy twin, 10 Hz frames, rule-based Doctors' },
+  s_live: { x: 470, y: 142, t: '/ws?source=live', s: '1 Hz frames in the twin’s shape; unknown = null', new: true },
+  s_results: { x: 470, y: 220, t: '/api/results/*', s: 'scoreboard · episodes · runs · bfcl · gates · audit', new: true },
+  s_stream: { x: 470, y: 298, t: '/api/runs/{id}/stream', s: 'SSE by sequence, adapted to RunEvent', new: true },
+  s_break: { x: 470, y: 376, t: '/api/live/break · /api/live/jobs', s: 'adds the operator token; browser never holds it', new: true },
+  s_ev: { x: 470, y: 470, t: 'evidence/ in git', s: 'same routes, offline, when the box is not connected' },
+  v_twin: { x: 950, y: 64, t: '3D twin · Vitals · Inspector', s: 'built; live mode to wire' },
+  v_panels: { x: 950, y: 142, t: 'Tool calls · Incident · Recovery', s: 'built; real runs via ?view=snapshot' },
+  v_proof: { x: 950, y: 220, t: 'Proof of Recovery', s: 'built (twin certificates)' },
+  v_score: { x: 950, y: 298, t: 'Scoreboard · BFCL', s: 'rules vs Nemotron, known vs held-out', todo: true },
+  v_runs: { x: 950, y: 376, t: 'Run browser', s: 'pick a real run, replay it in the panels', todo: true },
+  v_break: { x: 950, y: 454, t: 'Break it: real fleet', s: 'named faults, job progress, then the stream', todo: true },
+};
+const FW = { b: 250, s: 300, v: 260 }, FH = 60;
+const fw = (id) => FW[id[0]];
+const fcy = (id) => FN[id].y + FH / 2;
+const fright = (id) => FN[id].x + fw(id);
+const FE = [
+  ['b_gw>s_live', hcurve(fright('b_gw'), fcy('b_gw'), 470, fcy('s_live') - 10)],
+  ['b_prom>s_live', hcurve(fright('b_prom'), fcy('b_prom'), 470, fcy('s_live') + 10)],
+  ['b_op>s_live', hcurve(fright('b_op'), fcy('b_op') - 14, 470, fcy('s_live') + 20), 'thin'],
+  ['b_files>b_op', `M${30 + FW.b / 2} ${FN.b_files.y + FH} L ${30 + FW.b / 2} ${FN.b_op.y}`],
+  ['b_op>b_fleet', `M30 ${fcy('b_op')} C 10 ${fcy('b_op')}, 10 ${fcy('b_fleet')}, 30 ${fcy('b_fleet')}`, 'thin'],
+  ['b_op>s_results', hcurve(fright('b_op'), fcy('b_op') - 4, 470, fcy('s_results'))],
+  ['b_op>s_stream', hcurve(fright('b_op'), fcy('b_op') + 4, 470, fcy('s_stream'))],
+  ['b_op>s_break', hcurve(fright('b_op'), fcy('b_op') + 12, 470, fcy('s_break'))],
+  ['s_ev>s_results', `M770 ${fcy('s_ev')} C 812 ${fcy('s_ev')}, 812 ${fcy('s_results') + 14}, 770 ${fcy('s_results') + 14}`, 'thin'],
+  ['s_twin>v_twin', hcurve(770, fcy('s_twin'), 950, fcy('v_twin'))],
+  ['s_twin>v_panels', hcurve(770, fcy('s_twin') + 8, 950, fcy('v_panels') - 10)],
+  ['s_twin>v_proof', hcurve(770, fcy('s_twin') + 16, 950, fcy('v_proof') - 10)],
+  ['s_live>v_twin', hcurve(770, fcy('s_live'), 950, fcy('v_twin') + 12)],
+  ['s_results>v_score', hcurve(770, fcy('s_results'), 950, fcy('v_score'))],
+  ['s_results>v_runs', hcurve(770, fcy('s_results') + 8, 950, fcy('v_runs'))],
+  ['s_results>v_panels', hcurve(770, fcy('s_results') - 8, 950, fcy('v_panels') + 6), 'thin'],
+  ['s_stream>v_panels', hcurve(770, fcy('s_stream'), 950, fcy('v_panels') + 16)],
+  ['s_break>v_break', hcurve(770, fcy('s_break'), 950, fcy('v_break'))],
+];
+const FLOWS = [
+  { name: 'Watch a real run', nodes: ['b_files', 'b_op', 's_stream', 'v_panels'], edges: ['b_files>b_op', 'b_op>s_stream', 's_stream>v_panels'],
+    cap: ['Stream', 'Nemotron appends to artifacts/agent-runs/<id>/events.jsonl. The UI server polls the operator app for events after the last sequence every 0.5 s, maps each one onto the twin’s RunEvent shape and sends it as SSE. The trail stops when the agent hands its repair to the executor, so the stream waits for the referee’s episode record and ends with its verdict.'] },
+  { name: 'Scoreboard', nodes: ['b_files', 'b_op', 's_results', 's_ev', 'v_score', 'v_runs', 'v_panels'], edges: ['b_files>b_op', 'b_op>s_results', 's_ev>s_results', 's_results>v_score', 's_results>v_runs', 's_results>v_panels'],
+    cap: ['Results', 'Episode records grouped by solver and fault within the named batches in evidence/batches.json; contaminated rounds are listed but never scored. Without the box, the same routes read the committed evidence/ folder.'] },
+  { name: 'Live fleet', nodes: ['b_gw', 'b_prom', 'b_op', 's_live', 'v_twin'], edges: ['b_gw>s_live', 'b_prom>s_live', 'b_op>s_live', 's_live>v_twin'],
+    cap: ['Live', 'Once a second: routing and request counters from the gateway, TTFT, queue, KV and GPU from Prometheus, the active job from the operator app. Same frame shape as the twin; a field with no real source is null, never simulated.'] },
+  { name: 'Break it', nodes: ['v_break', 's_break', 'b_op', 'b_files', 'b_fleet'], edges: ['s_break>v_break', 'b_op>s_break', 'b_op>b_fleet', 'b_files>b_op'],
+    cap: ['Break', 'The browser names a fault. The UI server adds the operator token and forwards it. The operator app accepts only names from nexus.eval.episode.FAULTS, refuses a second job (409), and runs reset → inject → solver → referee in the background. The agent never sees this token.', 'bad'] },
+  { name: 'Simulated twin', nodes: ['s_twin', 'v_twin', 'v_panels', 'v_proof'], edges: ['s_twin>v_twin', 's_twin>v_panels', 's_twin>v_proof'],
+    cap: ['Twin', 'What the app shows today: the SimPy twin streams 10 Hz frames and its rule-based Doctors over /ws. Unchanged by this work.', 'ok'] },
+];
+const ROUTES = [
+  ['GET /api/results/scoreboard', 'episodes/*.json, evidence/batches.json', 'Scoreboard', 'todo'],
+  ['GET /api/results/episodes[/{id}]', 'episode records (known, held-out, contaminated flagged)', 'Scoreboard drill-down', 'todo'],
+  ['GET /api/results/runs[/{id}]', 'agent-runs/*/events.jsonl + its episode, as a DoctorSnapshot', 'Run browser, existing panels', 'todo'],
+  ['GET /api/results/runs/{id}/evidence/{ev}', 'agent-runs/*/evidence/ev-*.json', 'Evidence ledger', 'todo'],
+  ['GET /api/results/bfcl · gates · capacity · audit', 'bfcl/, gates/summary.json, capacity CSVs, harness/audit.jsonl', 'Proof and capacity cards', 'todo'],
+  ['GET /api/runs/{id}/stream (SSE)', 'events.jsonl tailed by sequence, then the episode', 'Tool calls · Incident · Recovery', 'todo'],
+  ['WS /ws?source=live', 'gateway /admin/workers, Prometheus, operator /jobs', '3D twin, Vitals, Inspector', 'todo'],
+  ['GET /api/live/status', 'gateway, Prometheus and operator health', 'Header mode pill', 'todo'],
+  ['GET /api/live/faults · POST /api/live/break · GET /api/live/jobs[/{id}]', 'operator app :8130, token added server-side', 'Break it: real fleet', 'todo'],
+  ['WS /ws · /api/faults · /api/control · /api/doctors/* · /api/certificates/*', 'SimPy twin (nexus/simulator, nexus/doctors)', 'Twin, panels, Proof', 'built'],
+];
+const fcur = { i: 0 };
+
+function buildFlow() {
+  const cols = [['BREV BOX · REACHED OVER SSH -L', 30, FW.b], ['UI SERVER :8765 · apps/twin', 470, FW.s], ['UI VIEWS · apps/web', 950, FW.v]];
+  const bands = cols.map(([t, x]) => `<text class="band" x="${x + 2}" y="44">${t}</text>`).join('')
+    + `<text class="band" x="472" y="460">LAPTOP</text>`;
+  const bgs = `<rect class="col-bg" x="16" y="54" width="${FW.b + 28}" height="${FN.b_env.y + FH + 10 - 54}" rx="16"/>`;
+  const edges = FE.map(([id, d, cls]) => `<path data-e="${id}" class="edge ${cls ?? ''}" d="${d}"/>`).join('');
+  const nodes = Object.entries(FN).map(([id, n]) => {
+    const w = fw(id), tag = n.new ? 'NEW' : n.todo ? 'VIEW TO BUILD' : '';
+    return `<g class="node ${n.new ? 'new' : ''} ${n.off ? 'off' : ''}" data-f="${id}">
+      <rect class="box" x="${n.x}" y="${n.y}" width="${w}" height="${FH}" rx="12"/>
+      <foreignObject x="${n.x}" y="${n.y}" width="${w}" height="${FH}"><div xmlns="http://www.w3.org/1999/xhtml" class="nd"><b>${esc(n.t)}</b><small>${esc(n.s)}</small></div></foreignObject>
+      ${tag ? `<g class="newtag"><rect rx="7" x="${n.x + w - tag.length * 6.4 - 24}" y="${n.y - 9}" height="18" width="${tag.length * 6.4 + 14}"/><text x="${n.x + w - tag.length * 6.4 - 17}" y="${n.y + 3.5}">${tag}</text></g>` : ''}</g>`;
+  }).join('');
+  $('#flow').innerHTML = bgs + bands + edges + nodes;
+  $('#flow-chips').innerHTML = FLOWS.map((f, i) => `<button type="button" class="chip" data-i="${i}"><b>${i + 1}</b>${esc(f.name)}</button>`).join('');
+  $$('#flow-chips .chip').forEach((b) => b.addEventListener('click', () => { fcur.i = +b.dataset.i; paintFlow(); }));
+  $$('#flow .node').forEach((g) => g.addEventListener('click', () => {
+    const i = FLOWS.findIndex((f) => f.nodes.includes(g.dataset.f));
+    if (i >= 0) { fcur.i = i; paintFlow(); }
+  }));
+  $('#routes').innerHTML = `<thead><tr><th>Route</th><th>Reads</th><th>UI view</th><th>API</th><th>View</th></tr></thead><tbody>${ROUTES.map(([r, src, view, st]) =>
+    `<tr><td><code>${esc(r)}</code></td><td>${esc(src)}</td><td>${esc(view)}</td><td><span class="pill ok">built</span></td><td><span class="pill ${st === 'built' ? 'ok' : 'warn'}">${st === 'built' ? 'built' : 'to build'}</span></td></tr>`).join('')}</tbody>`;
+}
+
+function paintFlow() {
+  const f = FLOWS[fcur.i];
+  $('#flow').classList.add('focus');
+  $$('#flow .node').forEach((g) => g.classList.toggle('st-active', f.nodes.includes(g.dataset.f)));
+  $$('#flow .edge').forEach((p) => p.classList.toggle('hot', f.edges.includes(p.dataset.e)));
+  $$('#flow-chips .chip').forEach((b) => b.classList.toggle('on', +b.dataset.i === fcur.i));
+  $('#flow-caption').innerHTML = `<span class="k ${f.cap[2] ?? ''}">${esc(f.cap[0])}</span><span>${esc(f.cap[1])}</span>`;
+}
+
 function init() {
   $('#domain-tabs').innerHTML = DOMAINS.map((d) => `<button type="button" role="tab" data-d="${d.id}" style="--c:${d.color}"><i></i>${esc(d.name)}</button>`).join('');
   $$('#domain-tabs button').forEach((b) => b.addEventListener('click', () => { setDomain(b.dataset.d); play(); }));
   $('#steps').innerHTML = STEPS.map((s) => `<button type="button"><i></i><span>${s}</span></button>`).join('');
   $$('#steps button').forEach((b, j) => b.addEventListener('click', () => { stop(); cur.step = j; paint(); }));
   $('#play').addEventListener('click', play);
-  buildSvg(); renderModules(); renderDomains();
+  buildSvg(); renderModules(); renderDomains(); buildFlow(); paintFlow();
   const hash = location.hash.slice(1);
   setDomain(DOMAINS.some((d) => d.id === hash) ? hash : 'datacenter');
   play();

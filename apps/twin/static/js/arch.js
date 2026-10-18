@@ -8,8 +8,8 @@ const NODES = [
   { id: 'twin', x: 290, y: 250, title: 'Digital Twin', sub: 'operational · SimPy · 3D', status: 'built',
     body: 'SimPy model of the inference pod: request flow, continuous batching, KV cache, GPU power and thermals, rack feeds, cooling. Exposes DCGM and vLLM metric names so tools read it like the live target.',
     io: ['In: profile (uncalibrated), faults, actions', 'Out: 10 Hz frames, Prometheus text'], api: ['WS /ws', 'GET /metrics', 'POST /api/faults'] },
-  { id: 'ctrl', x: 480, y: 250, title: 'Nemotron Controller', sub: 'small model + state machine', status: 'progress',
-    body: 'NVIDIA Nemotron 3.5 Lightning selects tools and proposes repairs; a deterministic controller owns the state machine, budgets, policy and audit log. Today the doctors run a rule-based stand-in with the same contract while Checkpoint 0 is validated on Brev.',
+  { id: 'ctrl', x: 480, y: 250, title: 'Nemotron Controller', sub: 'small model + state machine', status: 'live',
+    body: 'NVIDIA Nemotron 3.5 Lightning selects tools and proposes repairs on the Brev fleet; a deterministic controller owns the state machine, budgets, policy and audit log. In this twin view the doctors run a rule-based stand-in with the same contract.',
     io: ['In: evidence bundle, tool results', 'Out: schema-valid decisions, tool requests'], api: ['nexus/agent (Checkpoint 0)', 'nexus/doctors/base.py (stand-in)'] },
   { id: 'runtime', x: 670, y: 250, title: 'Tool-Calling Runtime', sub: 'typed · allow-listed', status: 'built',
     body: 'Validates every tool call against its schema, enforces read / test / mutate classes per state, applies budgets, records an append-only audit trail. No generic shell or HTTP client.',
@@ -33,11 +33,11 @@ const NODES = [
 const EDGES = [['org', 'twin'], ['twin', 'ctrl'], ['ctrl', 'runtime'], ['runtime', 'tooldoc'], ['runtime', 'infradoc'], ['tooldoc', 'sim'], ['infradoc', 'sim'], ['sim', 'verify'], ['verify', 'cert']];
 
 const TECH = [
-  ['Models', [['NVIDIA Nemotron 3.5 Lightning', 'progress', 'Weights on Brev (NVFP4); controller contract at Checkpoint 0'], ['Qwen3-4B (target)', 'live', 'The service being repaired, on vLLM'], ['Nemotron Embed', 'planned', 'Incident retrieval; token-overlap matching today']]],
-  ['Serving', [['vLLM 0.27.1', 'live', 'Serves the target on Brev'], ['FastAPI gateway', 'live', 'Drain and reweight on Brev'], ['guidellm replay', 'planned', 'Azure / BurstGPT traces']]],
-  ['Simulation & evaluation', [['SimPy digital twin', 'built', 'Uncalibrated profile'], ['Doctor runtime + certificates', 'built', 'Rule-based stand-in reasoning'], ['NVIDIA NeMo Gym', 'planned', 'ServeOps environment, baselines']]],
+  ['Models', [['NVIDIA Nemotron 3.5 Lightning', 'live', 'The agent on Brev (NVFP4, 35% of the H100)'], ['Qwen2.5-Coder-7B (target)', 'live', 'Two workers being repaired, on vLLM']]],
+  ['Serving', [['vLLM 0.27.1', 'live', 'Serves the agent and the targets on Brev'], ['HAProxy + admin API', 'live', 'Load balancing, drain and undrain'], ['guidellm', 'live', 'Capacity sweeps']]],
+  ['Simulation & evaluation', [['SimPy digital twin', 'built', 'Uncalibrated profile'], ['Doctor runtime + certificates', 'built', 'Rule-based stand-in reasoning'], ['Episodes + referee', 'live', 'Rules vs Nemotron, held-out sets']]],
   ['Observability', [['NVIDIA DCGM exporter', 'live', 'GPU telemetry on Brev'], ['Prometheus', 'live', '5 s scrape on Brev'], ['Three.js twin view', 'built', 'This interface']]],
-  ['Infrastructure', [['NVIDIA Brev', 'live', '1 × H100 PCIe 80 GB'], ['Docker Compose', 'live', 'Gateway, Prometheus, DCGM'], ['Red Hat AI Inference image', 'planned', 'Pinned digest at bring-up']]],
+  ['Infrastructure', [['NVIDIA Brev', 'live', '1 × H100 PCIe 80 GB'], ['Docker Compose', 'live', 'HAProxy, gateway, Prometheus, DCGM, Toxiproxy']]],
 ];
 const STATUS = { live: 'Live on Brev', built: 'Built in repo', progress: 'In progress', planned: 'Planned' };
 
