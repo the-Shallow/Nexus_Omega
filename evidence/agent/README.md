@@ -30,7 +30,8 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 | Solver | Setup | compound-latb-32926a | capacity-b | tools-stripped-a | noop | Total | False VERIFIED |
 |---|---|---|---|---|---|---|---|
 | Rule baseline | Batch 2 (2026-10-18 03:29–04:01 UTC) | 0/3 (20 s) | 0/3 (56 s) | 0/3 (2 s) | 3/3 (2 s) | **3/12** | 0 |
-| Nemotron | Batch 2, fixed executor + controller (`69072a2`, `c805fab`) | running | | | | | |
+| Nemotron | Batch 2 round 1 only, **contaminated** (stale metrics; see below) | 0/1 | 0/1 (scored 1/1 by the old referee) | 0/1 (crash) | 0/1 [1] | 0/4 | 1 |
+| Nemotron | Batch 2 rerun, incident-scoped evidence + stricter referee | running | | | | | |
 
 **BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
 
@@ -101,6 +102,21 @@ What Nemotron did in each final run (all three were identical):
 | noop | ✅ ABSTAIN | Nothing matched, nothing done |
 
 The rules fail safe (no false claims, no harmful action that the executor let through), but they only fix what their author anticipated, and their fixed order is wrong when two faults interact.
+
+**Nemotron, round 1 (stopped after 4 of 12 episodes).** Records `../heldout/agent-round1-contaminated.json`, trails in `runs/`.
+
+| Fault | Runs | Logged | What happened |
+|---|---|---|---|
+| compound-latb-32926a | `run-bffd2577`, `run-efcd7fff` | ❌ REQUIRES_APPROVAL | Round 1 restarted b; round 2 applied the healthy profile to **b**, though its own summary said *a* had the hermes parser. The new executor route check caught both ("passes on its own port but not through HAProxy"), so no false claim, but a was never fixed |
+| capacity-b | `run-914bc452` | ✅ by the old referee, ❌ in truth | Drained b, calling it a network-proxy fault. The old referee's "root fixed" was only the hidden canary, which a one-sequence worker still passes (correctly, slowly); draining hid the fault without fixing it |
+| tools-stripped-a | `run-1615f8c8` | ❌ ABSTAIN (crash) | ContractError: "PLAN requires evidence for the leading hypothesis" |
+| noop | `run-036cb2f3` | ❌ false VERIFIED | Summary: "Both targets are healthy … No abnormalities detected", then proposed restart-worker on a anyway |
+
+**Why the batch was stopped: two harness faults, not agent faults.**
+1. *Stale evidence across episodes.* During the compound fault the agent queried a 10-minute metric window and got b's TTFT p95 4.8 s and queue 4. A link toxic cannot produce either (it delays the proxy, not vLLM). They came from the previous episode, the rules' capacity-b run. The agent partly reasoned from another incident's data, while the rules, which never read Prometheus, were unaffected. Fix: the episode runner marks the incident start after each reset, and the environment API clamps metric windows and log `since` to it, saying so in a note (`nexus/harness/incident.py`).
+2. *Weak "fixed" check.* Now a worker counts as fixed only if it is back in rotation, within the SLO through HAProxy, and passing the hidden canary. Rescoring the rule baseline with it changes nothing (its only successes were noop).
+
+Neither fix changes the agent, its prompts, or the rules, so the faults remain held out. Rounds 2–3 were discarded unrun; the agent is rerun ×3 from the start.
 
 ## How it got there: every attempt
 

@@ -1,0 +1,14 @@
+{
+  "content": {
+    "metric": "ttft_p95_s",
+    "note": null,
+    "resource_id": "target-a",
+    "unit": "seconds",
+    "value": 0.0394,
+    "window": "10m"
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:metric:ttft_p95_s",
+  "source_type": "metric",
+  "trust": "trusted"
+}

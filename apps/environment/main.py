@@ -23,7 +23,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from nexus.harness import executor
+from nexus.harness import executor, incident
 from nexus.harness.inspect import TARGET_WORKERS, HarnessError, bounded_logs, effective_launch_config
 from nexus.target import manager
 from nexus.verifier import canary, route
@@ -227,10 +227,12 @@ class LogsBody(BaseModel):
 def query_logs(body: LogsBody):
     resource(body.resource_id)
     try:
-        out = bounded_logs(body.resource_id, body.since, body.query, body.limit)
+        since, clamped = incident.clamp_since(body.since)
+        out = bounded_logs(body.resource_id, since, body.query, body.limit)
     except HarnessError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"resource_id": body.resource_id, **{k: v for k, v in out.items() if k != "service"}}
+    note = {"note": f"since limited to the start of the current incident ({since})"} if clamped else {}
+    return {"resource_id": body.resource_id, **{k: v for k, v in out.items() if k != "service"}, **note}
 
 
 class MetricBody(BaseModel):
@@ -245,14 +247,18 @@ def query_metrics(body: MetricBody):
     if body.metric not in METRICS:
         raise HTTPException(404, f"undeclared metric: {body.metric}")
     promql, _, label, unit = METRICS[body.metric]
-    query = promql.format(window=window(body.window), label=label.format(w=worker))
+    applied, clamped = incident.clamp_window(window(body.window))
+    query = promql.format(window=applied, label=label.format(w=worker))
     resp = httpx.get(f"{PROMETHEUS}/api/v1/query", params={"query": query}, timeout=10)
     resp.raise_for_status()
     result = resp.json()["data"]["result"]
     value = float(result[0]["value"][1]) if result else math.nan
-    return {"resource_id": body.resource_id, "metric": body.metric, "window": body.window, "unit": unit,
-            "value": None if math.isnan(value) else round(value, 4),
-            "note": "no samples in window (no traffic or not scraping)" if math.isnan(value) else None}
+    notes = ["no samples in window (no traffic or not scraping)"] if math.isnan(value) else []
+    if clamped:
+        notes.append(f"window limited to the current incident ({applied})")
+    return {"resource_id": body.resource_id, "metric": body.metric, "window": body.window,
+            "window_applied": applied, "unit": unit, "value": None if math.isnan(value) else round(value, 4),
+            "note": "; ".join(notes) or None}
 
 
 class ProbeBody(BaseModel):

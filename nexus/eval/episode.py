@@ -29,7 +29,7 @@ from pathlib import Path
 
 from nexus.baseline import rules
 from nexus.faults import load, network, process
-from nexus.harness import executor
+from nexus.harness import executor, incident
 from nexus.target import manager
 from nexus.verifier import canary, route
 
@@ -81,6 +81,7 @@ def reset() -> None:
         if not running or state["profile"] != HEALTHY:
             manager.up(worker, HEALTHY, port)
         executor.gateway("POST", f"/admin/workers/{worker}/undrain")
+    incident.mark_start()
 
 
 def verify(fault: dict) -> dict:
@@ -90,7 +91,11 @@ def verify(fault: dict) -> dict:
                         repeat=1, raw=False, no_think=True)
     running = {r["worker"] for r in manager.status() if r["container"] == "running"}
     workers = executor.gateway("GET", "/admin/workers")
-    root = {w: w in running and executor.hidden_check(w)["passed"] for w in fault.get("fix", [])}
+    # Fixed means serving users again: in rotation, within the SLO through HAProxy, and passing the
+    # hidden canary. Correct answers alone are not enough (a worker capped at one sequence answers
+    # correctly, just slowly; draining it hides the fault instead of fixing it).
+    root = {w: (w in running and not workers[w]["drained"] and routes["workers"].get(w, {}).get("ok", False)
+                and executor.hidden_check(w)["passed"]) for w in fault.get("fix", [])}
     drained = {w: workers[w]["drained"] for w in fault.get("drain", [])}
     return {"users_ok": routes["passed"] and hidden["passed"], "route": routes["workers"],
             "hidden_passed": hidden["passed"], "root_fixed": all(root.values()), "root": root,

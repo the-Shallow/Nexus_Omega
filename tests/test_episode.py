@@ -90,3 +90,39 @@ class HeldoutSymptomTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IncidentWindowTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        from unittest import mock
+        from nexus.harness import incident
+        self.incident = incident
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        patch = mock.patch.object(incident, "MARK", Path(tmp.name) / "incident-start")
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def started_ago(self, seconds: float) -> None:
+        import time
+        self.incident.MARK.write_text(f"{time.time() - seconds}\n")
+
+    def test_no_mark_leaves_requests_alone(self):
+        self.assertEqual(self.incident.clamp_window("10m"), ("10m", False))
+        self.assertEqual(self.incident.clamp_since("10m"), ("10m", False))
+
+    def test_window_reaching_before_the_incident_is_clamped(self):
+        self.started_ago(120)
+        self.assertEqual(self.incident.clamp_window("10m"), ("120s", True))
+        self.assertEqual(self.incident.clamp_window("1m"), ("1m", False))
+        self.started_ago(3)
+        self.assertEqual(self.incident.clamp_window("5m"), ("15s", True))
+
+    def test_log_since_starts_no_earlier_than_the_incident(self):
+        self.started_ago(120)
+        since, clamped = self.incident.clamp_since("1h")
+        self.assertTrue(clamped)
+        self.assertTrue(since.endswith("Z"))
+        self.assertEqual(self.incident.clamp_since("30s"), ("30s", False))
+        self.assertTrue(self.incident.clamp_since("2026-01-01T00:00:00+00:00")[1])
