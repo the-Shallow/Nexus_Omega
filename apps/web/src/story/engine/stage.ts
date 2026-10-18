@@ -12,6 +12,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ease, pointScale, type V3 } from './fx';
 
 const BG = 0x07090a;
+const _orbit = new THREE.Vector3(), _orbitT = new THREE.Vector3();
 const FOV = 36;
 
 const FLOOR_VS = `varying vec3 vW;
@@ -67,6 +68,7 @@ export class Stage {
   private last = performance.now();
   private ro: ResizeObserver;
   private viewShift = 0;
+  private orbiting: { cx: number; cz: number; r: number; h: number; ty: number; speed: number; a: number } | null = null;
   private viewShiftTarget = 0;
 
   constructor(private container: HTMLElement, opts: StageOpts = {}) {
@@ -102,7 +104,7 @@ export class Stage {
     this.controls.dampingFactor = 0.07;
     this.controls.target.set(...cam.target);
     this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.controls.addEventListener('start', () => { this.tween?.resolve(); this.tween = null; });
+    this.controls.addEventListener('start', () => { this.tween?.resolve(); this.tween = null; this.orbiting = null; });
 
     s.add(new THREE.HemisphereLight(0xa9bccb, 0x07090a, 0.75));
     const key = new THREE.DirectionalLight(0xe4ecf2, 1.6);
@@ -161,6 +163,7 @@ export class Stage {
   /** Fly the camera; resolves when it lands (or when the user grabs the camera). */
   flyTo(pos: V3, target: V3, dur = 2.2): Promise<void> {
     this.tween?.resolve();
+    this.orbiting = null;
     return new Promise((resolve) => {
       if (dur <= 0) {
         this.camera.position.set(...pos);
@@ -170,6 +173,12 @@ export class Stage {
       }
       this.tween = { t: 0, dur, p0: this.camera.position.clone(), p1: new THREE.Vector3(...pos), t0: this.controls.target.clone(), t1: new THREE.Vector3(...target), resolve };
     });
+  }
+
+  /** A slow ambient orbit around a point on the floor, starting from where the camera is. Any fly-to or drag ends it. */
+  orbit(center: [number, number], radius: number, height: number, speed = 0.03, targetY = 0.5) {
+    const a = Math.atan2(this.camera.position.z - center[1], this.camera.position.x - center[0]);
+    this.orbiting = { cx: center[0], cz: center[1], r: radius, h: height, ty: targetY, speed, a };
   }
 
   /** Shift the picture right by a fraction of the width, clear of a left-hand rail. */
@@ -218,6 +227,11 @@ export class Stage {
       this.camera.position.lerpVectors(tw.p0, tw.p1, e);
       this.controls.target.lerpVectors(tw.t0, tw.t1, e);
       if (tw.t >= 1) { this.tween = null; tw.resolve(); }
+    } else if (this.orbiting) {
+      const o = this.orbiting;
+      o.a += dt * o.speed;
+      this.camera.position.lerp(_orbit.set(o.cx + Math.cos(o.a) * o.r, o.h, o.cz + Math.sin(o.a) * o.r), 0.03);
+      this.controls.target.lerp(_orbitT.set(o.cx, o.ty, o.cz), 0.03);
     }
     this.controls.update(dt);
     this.floorFx.uniforms.uTime.value = this.time;

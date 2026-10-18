@@ -8,9 +8,9 @@ import { ROOM, type RoomId } from '../world/layout';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-export function TopBar({ stories, story, onStory, onRun, loading, clock, engineer, setEngineer }: {
+export function TopBar({ stories, story, onStory, onRun, loading, clock, engineer, setEngineer, onAbout }: {
   stories: Story[]; story: Story; onStory: (s: Story) => void; onRun: (runId: string) => void; loading: string | null;
-  clock: string; engineer: boolean; setEngineer: (v: boolean) => void;
+  clock: string; engineer: boolean; setEngineer: (v: boolean) => void; onAbout: () => void;
 }) {
   const [picker, setPicker] = useState(false);
   const real = story.mode === 'real';
@@ -24,6 +24,7 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
           <div className="label !text-[9.5px]">simulation</div>
         </div>
       </a>
+      <button onClick={onAbout} className="rounded-lg px-2.5 py-1.5 text-[13px] text-ink-3 hover:bg-white/[0.05] hover:text-ink">About Nexus</button>
       <div className="mx-auto flex gap-1 rounded-xl bg-white/[0.04] p-1">
         {stories.map((s) => (
           <button key={s.id} onClick={() => { setPicker(false); onStory(s); }}

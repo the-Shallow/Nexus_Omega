@@ -45,6 +45,8 @@ const near = (id: RoomId, dx: number, h: number, dz: number, ty = 0.9): Pose => 
 };
 
 export const CAMS: Record<string, Pose> = {
+  // The landing's opening view: across the whole floor from the front right, close enough to read the rooms.
+  landing: { pos: [9, 15, 24], target: [-2.5, 0.5, -0.5] },
   wide: { pos: [-1.5, 29, 33], target: [-1.5, 0, 0.5] },
   // Looks a little past the floor's centre so the overview sits above the flow map.
   finale: { pos: [-1.2, 40, 30], target: [-1.2, 0, 8.5] },

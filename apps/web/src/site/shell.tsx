@@ -10,7 +10,7 @@ export const storyUrl = (q: string) => `story.html?${q}`;
 export function Nav({ page }: { page: 'home' | 'results' }) {
   const links = page === 'home'
     ? [['#problem', 'Problem'], ['#how', 'How it works'], ['#evidence', 'Evidence'], ['#next', 'What’s next']]
-    : [['./', 'Product'], ['#scoreboard', 'Scoreboard'], ['#profiles', 'Tool calling'], ['#runs', 'Runs']];
+    : [['about.html', 'About'], ['#scoreboard', 'Scoreboard'], ['#profiles', 'Tool calling'], ['#runs', 'Runs']];
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-6 px-5">

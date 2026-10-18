@@ -14,7 +14,8 @@ export const SHOT = params.has('shot');
 /** The hop to open on first load, from ?hop=N. Later stories start at 0. */
 const firstHop = Math.max(0, Number(params.get('hop')) || 0);
 
-export function useDirector(world: World | null, story: Story) {
+/** `enabled` false holds the director (the landing intro drives the world instead). */
+export function useDirector(world: World | null, story: Story, enabled = true) {
   // Story and hop live together so a new story never plays a stale hop index, even for a frame.
   const [pos, setPos] = useState({ story, hop: Math.min(firstHop, story.hops.length - 1) });
   const [playing, setPlaying] = useState(!SHOT);
@@ -34,8 +35,9 @@ export function useDirector(world: World | null, story: Story) {
 
   // Enter the hop: set every block to where the story is, then play this hop's beats.
   useEffect(() => {
-    if (!world) return;
+    if (!world || !enabled) return;
     world.clearTimers();
+    world.ambientOn = false;
     world.configureTwin(story.candidates);
     const snap = snapshotAt(story, hop);
     world.apply(snap.blocks);
@@ -76,14 +78,14 @@ export function useDirector(world: World | null, story: Story) {
     url.searchParams.set('hop', String(hop));
     history.replaceState(null, '', url);
     // Speed is read once per hop on purpose; a change applies from the next hop.
-  }, [world, story, hop]);
+  }, [world, story, hop, enabled]);
 
   // Advance after the hop's duration, unless paused, waiting for approval, or at the end.
   useEffect(() => {
-    if (!world || !playing || SHOT || waiting || hop >= story.hops.length - 1) return;
+    if (!world || !enabled || !playing || SHOT || waiting || hop >= story.hops.length - 1) return;
     const t = setTimeout(() => setHop((i) => i + 1), (h.dur * 1000) / speed);
     return () => clearTimeout(t);
-  }, [world, story, hop, playing, speed, waiting, h.dur, setHop]);
+  }, [world, enabled, story, hop, playing, speed, waiting, h.dur, setHop]);
 
   const go = useCallback((i: number) => setHop(() => Math.min(Math.max(0, i), story.hops.length - 1)), [story, setHop]);
   const approve = useCallback(() => {
@@ -96,14 +98,14 @@ export function useDirector(world: World | null, story: Story) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea')) return;
+      if (!enabled || (e.target as HTMLElement).closest('input, textarea')) return;
       if (e.key === 'ArrowRight') go(hop + 1);
       else if (e.key === 'ArrowLeft') go(hop - 1);
       else if (e.key === ' ') { e.preventDefault(); setPlaying((p) => !p); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, hop]);
+  }, [go, hop, enabled]);
 
   return { hop, h, room, playing, setPlaying, speed, setSpeed, waiting, approve, go, restart };
 }

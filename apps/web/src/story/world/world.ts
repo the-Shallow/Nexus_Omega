@@ -17,6 +17,8 @@ export class World {
   built: Built;
   focused: RoomId | null = null;
   finaleOn = false;
+  /** Every room softly lit at once: the landing's opening view. */
+  ambientOn = false;
   /** Requests per second across the whole floor. */
   rate = 4.5;
 
@@ -220,8 +222,9 @@ export class World {
       const r = this.built.rooms[def.id];
       const on = def.id === this.focused;
       r.group.position.y += ((on ? 0.12 : 0) - r.group.position.y) * k;
-      r.light.intensity += ((on ? 16 : this.finaleOn ? 5 : 0) - r.light.intensity) * k;
-      r.pool.material.opacity += ((on ? 0.16 : this.finaleOn ? 0.05 : 0) - r.pool.material.opacity) * k;
+      const soft = this.finaleOn || this.ambientOn;
+      r.light.intensity += ((on ? 16 : soft ? 7 : 0) - r.light.intensity) * k;
+      r.pool.material.opacity += ((on ? 0.16 : soft ? 0.07 : 0) - r.pool.material.opacity) * k;
       r.edge.color.lerp(_c.copy(glow(on ? STATUS.ok : 0x2a343c, on ? 0.9 : 0.7)), k);
     }
 

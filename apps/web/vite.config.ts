@@ -15,10 +15,10 @@ export default defineConfig({
       '/ws': { target: TWIN.replace(/^http/, 'ws'), ws: true },
     },
   },
-  // Four pages: the product story at /, the live platform, the story simulation, and the results.
+  // Five pages: the 3D landing at /, the narrative about page, the live platform, the story simulation, and the results.
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1200,
-    rollupOptions: { input: { index: 'index.html', platform: 'platform.html', story: 'story.html', results: 'results.html' } },
+    rollupOptions: { input: { index: 'index.html', about: 'about.html', platform: 'platform.html', story: 'story.html', results: 'results.html' } },
   },
 });
