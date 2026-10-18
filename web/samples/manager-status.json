@@ -1,0 +1,23 @@
+[
+  {
+    "worker": "a",
+    "port": 8101,
+    "profile": "qwen25-coder-7b.tools-template",
+    "container": "running",
+    "changes": 26
+  },
+  {
+    "worker": "agent",
+    "port": 8103,
+    "profile": "lightning-nvfp4.agent",
+    "container": "running",
+    "changes": 0
+  },
+  {
+    "worker": "b",
+    "port": 8102,
+    "profile": "qwen25-coder-7b.tools-template",
+    "container": "running",
+    "changes": 0
+  }
+]

@@ -1,0 +1,1 @@
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"DCGM_FI_DRIVER_VERSION":"570.195.03","Hostname":"1b6a9dbcd0ed","UUID":"GPU-feb8c6e0-f005-4210-adf8-77a5ba347e99","__name__":"DCGM_FI_DEV_GPU_UTIL","device":"nvidia0","gpu":"0","instance":"dcgm-exporter:9400","job":"dcgm","modelName":"NVIDIA H100 PCIe"},"value":[1792286068.541,"0"]}]}}
