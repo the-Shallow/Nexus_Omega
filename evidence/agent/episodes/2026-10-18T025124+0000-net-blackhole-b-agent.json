@@ -1,0 +1,99 @@
+{
+  "fault": "net-blackhole-b",
+  "solver": "agent",
+  "at": "2026-10-18T02:51:24+00:00",
+  "terminal_state": "REQUIRES_APPROVAL",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 37.9,
+  "action": {
+    "tool": "drain-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-bf811f8b",
+  "steps": 10,
+  "tool_calls": 8,
+  "decision": {
+    "state": "REQUIRES_APPROVAL",
+    "summary": "target-b has 100% error rate and 5s p95 latency while target-a is healthy. Both workers have identical configuration and are running, but target-b is reached through a network proxy that can be impaired. The visible tool-call canary on target-b succeeded (ev-003), confirming the worker processes requests, but routing through HAProxy fails with errors.",
+    "hypotheses": [
+      {
+        "id": "hyp-proxy-impairment-001",
+        "confidence": 0.85,
+        "supports": [
+          "ev-001",
+          "ev-003",
+          "ev-005",
+          "ev-006",
+          "ev-007",
+          "ev-008",
+          "ev-009",
+          "ev-010",
+          "ev-011"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Context budget exhausted; no more evidence can be requested.",
+    "repair_plan": {
+      "hypothesis_id": "hyp-proxy-impairment-001",
+      "confidence": 0.85,
+      "evidence": [
+        "ev-001",
+        "ev-003",
+        "ev-005",
+        "ev-006",
+        "ev-007",
+        "ev-008",
+        "ev-009",
+        "ev-010",
+        "ev-011"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "drain-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "Stop routing new traffic to target-b, removing it from the serving pool. target-a will absorb all traffic and maintain healthy error rate ~0.",
+      "risk": "If target-b is the only worker capable of certain workloads, draining it reduces overall capacity. However, target-a is healthy and can handle the load (5 requests observed).",
+      "verification_plan": [
+        "Apply drain-worker to target-b and verify route_error_rate drops to 0.0 via ev-010 pattern",
+        "Run route-probe again to confirm p95_s < 0.5s and error_rate = 0.0"
+      ],
+      "rollback_plan": "Apply undrain-worker to target-b to return it to rotation once the proxy impairment is resolved or investigated further."
+    }
+  },
+  "verification": {
+    "users_ok": true,
+    "route": {
+      "a": {
+        "requests": 30,
+        "p95_s": 0.039,
+        "median_s": 0.038,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": false,
+    "faulty_worker_drained": true
+  },
+  "executor": {
+    "action": "drain_worker",
+    "service": "target-b",
+    "change_id": "afd24f7bc1bd",
+    "started_at": "2026-10-18T02:51:22+00:00",
+    "status": "APPLIED",
+    "gateway": {
+      "worker": "b",
+      "drained_before": false,
+      "drained": true
+    },
+    "ended_at": "2026-10-18T02:51:22+00:00",
+    "seconds": 0.1
+  }
+}

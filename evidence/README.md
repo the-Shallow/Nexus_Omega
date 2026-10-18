@@ -6,7 +6,7 @@ These are small, reviewable copies of results produced on the Brev H100. The ful
 |---|---|---|
 | `brev-context-expansion/` | E1 handoff (E1.md sections 6–7): healthy vs VLLM-32926-broken canary, effective launch config, request trace, raw generation (deterministic replay), bounded logs. 3/3 runs matched. | `python3 -m nexus.harness.handoff --service target-a --runs 3` |
 | `gates/summary.json` | Every fault-gate run: healthy → broken → recovered, per run. | `scripts/gate1.sh`, `scripts/gate_route.sh` |
-| `agent/` | **Nemotron on the live fleet:** evaluation log (`agent/README.md`), every episode record including failed attempts, and each run's full event trail and evidence. VLLM-32926: 3/3 VERIFIED, 0 false VERIFIED. | `python -m nexus.eval.episode vllm-32926 --solver agent` |
+| `agent/` | **Nemotron on the live fleet:** evaluation log (`agent/README.md`), every episode record including failed attempts, and each run's full event trail and evidence, plus the results matrix. Known faults, Batch 1: 7/12, 3 false VERIFIED (VLLM-32926 3/3). | `python -m nexus.eval.episode vllm-32926 --solver agent` |
 | `baseline/rules-episodes.json` | Rule baseline: 12/12 on four faults, 0 false VERIFIED. | `python -m nexus.eval.episode all --solver rules --repeat 3` |
 | `capacity/*.csv` | guidellm concurrency sweeps (Qwen2.5-Coder-7B, 256 tokens in / 128 out). | `scripts/load_sweep.sh` |
 

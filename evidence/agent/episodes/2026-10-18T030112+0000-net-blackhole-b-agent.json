@@ -1,0 +1,104 @@
+{
+  "fault": "net-blackhole-b",
+  "solver": "agent",
+  "at": "2026-10-18T03:01:12+00:00",
+  "terminal_state": "VERIFIED",
+  "success": false,
+  "false_verified": true,
+  "solve_seconds": 108.3,
+  "action": {
+    "tool": "restart-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-85fd4883",
+  "steps": 10,
+  "tool_calls": 8,
+  "decision": {
+    "state": "VERIFIED",
+    "summary": "target-b has a 100% error rate and ~5s p95 latency while target-a is healthy. Configurations are identical, container is running, and both workers pass the visible tool-call canary. The root cause is target-b being stuck in a serving state with degraded performance despite correct configuration. The immediate issue appears to be target-b serving errors that route-probe detects (error_rate 1.0 in initial snapshot).",
+    "hypotheses": [
+      {
+        "id": "hyp-001",
+        "confidence": 0.85,
+        "supports": [
+          "ev-001",
+          "ev-005",
+          "ev-006",
+          "ev-007",
+          "ev-008",
+          "ev-010",
+          "ev-011"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "context_budget exhausted",
+    "repair_plan": {
+      "hypothesis_id": "hyp-001",
+      "confidence": 0.85,
+      "evidence": [
+        "ev-001",
+        "ev-005",
+        "ev-006",
+        "ev-007",
+        "ev-008",
+        "ev-010",
+        "ev-011"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "restart-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "Relaunches target-b worker with its current profile, clearing any transient serving degradation while preserving its configuration.",
+      "risk": "Low - restart-worker is a safe, reversible action; target-b will be briefly unavailable but target-a continues serving. Requires rollback via undrain-worker if issues persist.",
+      "verification_plan": [
+        "Run route-probe to confirm target-b error_rate drops to 0.0 and p95_s returns below 0.5s",
+        "Run tool-call-visible on target-b to verify structured tool-call canary passes post-restart"
+      ],
+      "rollback_plan": "Apply undrain-worker to return target-b to rotation after confirming health, or re-apply restart-worker if error_rate remains elevated."
+    }
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.04,
+        "median_s": 0.035,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 5.007,
+        "median_s": 5.007,
+        "error_rate": 1.0,
+        "ok": false
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": {
+    "action": "restart_worker",
+    "service": "target-b",
+    "change_id": "12bf947b4e84",
+    "started_at": "2026-10-18T02:58:28+00:00",
+    "ready_seconds": 69.4,
+    "profile": "qwen25-coder-7b.tools-template",
+    "status": "VERIFIED",
+    "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+    },
+    "ended_at": "2026-10-18T02:59:40+00:00",
+    "seconds": 72.0
+  }
+}

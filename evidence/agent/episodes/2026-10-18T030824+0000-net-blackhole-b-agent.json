@@ -1,0 +1,91 @@
+{
+  "fault": "net-blackhole-b",
+  "solver": "agent",
+  "at": "2026-10-18T03:08:24+00:00",
+  "terminal_state": "REQUIRES_APPROVAL",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 36.5,
+  "action": {
+    "tool": "drain-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-3e3ddf5c",
+  "steps": 10,
+  "tool_calls": 8,
+  "decision": {
+    "state": "REQUIRES_APPROVAL",
+    "summary": "target-b has 96.81% error rate and high latency (p95 5s, avg 0.312s) despite being 'ready' and 'running'. Config is identical to target-a. target-a is healthy (0% error, p95 36ms). The root cause is likely a network/proxy impairment on target-b since the environment description notes 'target-b is reached through a network proxy that can be impaired'.",
+    "hypotheses": [
+      {
+        "id": "h1_proxy_impairment",
+        "confidence": 0.85,
+        "supports": [
+          "ev-001",
+          "ev-003",
+          "ev-004",
+          "ev-009",
+          "ev-010"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Evidence budget exhausted; root cause identified with high confidence",
+    "repair_plan": {
+      "hypothesis_id": "h1_proxy_impairment",
+      "confidence": 0.85,
+      "evidence": [
+        "ev-001",
+        "ev-003",
+        "ev-004",
+        "ev-009",
+        "ev-010"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "drain-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "Stops routing new traffic to target-b, removing it from the load-balanced pool",
+      "risk": "Short-term reduction in capacity; target-b will be drained and undrained after investigation",
+      "verification_plan": [
+        "Apply drain-worker to target-b, verify error rate drops to 0% on remaining workers",
+        "Apply undrain-worker to target-b, then test with tool-call-visible probe"
+      ],
+      "rollback_plan": "Apply undrain-worker to target-b to restore it to rotation if draining does not resolve the issue, or re-apply if already drained"
+    }
+  },
+  "verification": {
+    "users_ok": true,
+    "route": {
+      "a": {
+        "requests": 30,
+        "p95_s": 0.038,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": false,
+    "faulty_worker_drained": true
+  },
+  "executor": {
+    "action": "drain_worker",
+    "service": "target-b",
+    "change_id": "1f035ea7d74c",
+    "started_at": "2026-10-18T03:08:21+00:00",
+    "status": "APPLIED",
+    "gateway": {
+      "worker": "b",
+      "drained_before": false,
+      "drained": true
+    },
+    "ended_at": "2026-10-18T03:08:21+00:00",
+    "seconds": 0.1
+  }
+}

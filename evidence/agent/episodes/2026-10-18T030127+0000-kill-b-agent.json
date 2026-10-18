@@ -1,0 +1,43 @@
+{
+  "fault": "kill-b",
+  "solver": "agent",
+  "at": "2026-10-18T03:01:27+00:00",
+  "terminal_state": "ABSTAIN",
+  "success": false,
+  "false_verified": false,
+  "solve_seconds": 13.8,
+  "action": {},
+  "rule": null,
+  "run_id": "run-c51cdb4e",
+  "steps": null,
+  "tool_calls": null,
+  "decision": {
+    "state": "ABSTAIN",
+    "summary": "agent run failed: ContractError: missing arguments for run_probe: ['inputs', 'probe_id']",
+    "hypotheses": [],
+    "stop_reason": "agent_error"
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.035,
+        "median_s": 0.035,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.004,
+        "median_s": 0.003,
+        "error_rate": 1.0,
+        "ok": false
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": null
+}

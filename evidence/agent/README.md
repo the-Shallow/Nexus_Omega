@@ -14,6 +14,30 @@ This is the record of putting Nemotron 3.5 Lightning in charge of the live Brev 
 | Referee | `nexus.eval.episode`, independent of the agent: users served (route probe + hidden canary through HAProxy) and root cause fixed (hidden canary on the faulty worker). The agent never declares its own success. |
 | Fairness | Worker profile names are hidden from the agent (from commit `24bf2e3`), because the broken profile is literally named `qwen25-coder-7b.vllm-32926`. |
 
+## Results matrix
+
+Each cell is successes/episodes, with false VERIFIED in brackets. Success is judged by the independent referee (`nexus.eval.episode`), never by the solver. Median solve time includes the executor's restart and hidden canary (~75 s whenever a worker is relaunched).
+
+**Known faults** (the rules were written for these; the agent was tuned on VLLM-32926)
+
+| Solver | Setup | vllm-32926 | net-latency-b | net-blackhole-b | kill-b | Total | False VERIFIED |
+|---|---|---|---|---|---|---|---|
+| Rule baseline | — | 3/3 (74 s) | 3/3 (18 s) | 3/3 (47 s) | 3/3 (75 s) | **12/12** | 0 |
+| Nemotron | Batch 1, before fixes (2026-10-18 02:48–03:10 UTC) | 3/3 (93 s) | 1/3 [2] (97 s) | 2/3 [1] (38 s) | 1/3 (14 s) | **7/12** | **3** |
+
+**Held-out faults** (built after the solvers were frozen; neither was written or tuned against them)
+
+| Solver | Setup | compound-latb-32926a | capacity-b | tools-stripped-a | noop | Total | False VERIFIED |
+|---|---|---|---|---|---|---|---|
+| Rule baseline | — | not run yet | | | | | |
+| Nemotron | — | not run yet | | | | | |
+
+**BFCL** (200 pinned cases, gorilla `6ea5797`; worker a, only the serving profile changes)
+
+| Serving profile | simple | multiple | parallel | irrelevance | Tool-calling score |
+|---|---|---|---|---|---|
+| not run yet | | | | | |
+
 ## Results so far
 
 ### VLLM-32926 (silent tool-call fault on `target-a`)
@@ -33,9 +57,31 @@ What Nemotron did in each final run (all three were identical):
 
 7 model steps, 5 context rounds. Its summary in one run: *"target-a uses incompatible tool_call_parser 'hermes' with 'model default' chat_template, producing 0 structured tool calls. target-b uses correct 'qwen2_5_coder' parser…"*
 
-### Other faults
+### Batch 1: all four known faults ×3 (before fixes)
 
-Not yet run with the agent: link latency on `b`, link blackhole on `b`, worker `b` killed. The rule baseline is 12/12 on all four (`../baseline/rules-episodes.json`).
+`python -m nexus.eval.episode all --solver agent --repeat 3` on merge `18f8d9a`. Started 02:48 UTC; the summary line read `7/12 succeeded, 3 false VERIFIED`. Records `episodes/2026-10-18T0250*`–`T0310*`, trails in `runs/`.
+
+| Round | Fault | Run | Result | Action | What happened |
+|---|---|---|---|---|---|
+| 1 | vllm-32926 | `run-7ed83f56` | ✅ VERIFIED | apply-serving-profile a | Same diagnosis as the earlier 3/3 |
+| 1 | net-latency-b | `run-d7241613` | ✅ REQUIRES_APPROVAL | drain-worker b | "b p95 1.665 s, a 0.035 s, identical configuration" → drained, link left for a human |
+| 1 | net-blackhole-b | `run-bf811f8b` | ✅ REQUIRES_APPROVAL | drain-worker b | Same reasoning, 100% errors |
+| 1 | kill-b | `run-4d48618e` | ❌ ABSTAIN (crash) | — | Asked for logs `since` an ISO timestamp; the environment API accepts only `30s`/`10m`/`2h`, returned 400, and one tool error aborts the run |
+| 2 | vllm-32926 | `run-440dff8b` | ✅ VERIFIED | apply-serving-profile a | |
+| 2 | net-latency-b | `run-685d47a5` | ❌ **false VERIFIED** | restart-worker b | Correct symptom ("b high error rate and p95, a healthy"), wrong action. The executor's hidden canary hits b's port directly, which bypasses the impaired link, so the restart "verified" while users through HAProxy still saw p95 1.7 s |
+| 2 | net-blackhole-b | `run-85fd4883` | ❌ **false VERIFIED** | restart-worker b | Same: direct check passed, the route still had 100% errors at 5 s |
+| 2 | kill-b | `run-c51cdb4e` | ❌ ABSTAIN (crash) | — | Called `run_probe` without `probe_id`/`inputs`; the malformed call aborts the run |
+| 3 | vllm-32926 | `run-96915174` | ✅ VERIFIED | apply-serving-profile a | |
+| 3 | net-latency-b | `run-1f9ed99f` | ❌ **false VERIFIED** | restart-worker b | As in round 2 |
+| 3 | net-blackhole-b | `run-3e3ddf5c` | ✅ REQUIRES_APPROVAL | drain-worker b | |
+| 3 | kill-b | `run-bb656ff4` | ✅ VERIFIED | restart-worker b | "target-b container has exited … restart the target-b worker" |
+
+**What Batch 1 shows.**
+- *The referee works; the executor's own check did not.* All three false VERIFIED claims came from the executor's post-change check, which tests the repaired worker on its own port. A link fault lives between HAProxy and the worker, so that check cannot see it. The independent referee, which probes the users' path, caught all three. The fix belongs to the executor (E2): it must also check the route through HAProxy before it says VERIFIED. Until then, a wrong action on a link fault can be reported as fixed.
+- *Diagnosis was right far more often than the action.* On the link faults, every run named the symptom correctly ("b slow or failing, a healthy, identical configuration"). In 3 of 6 it chose restart instead of drain. At temperature 0, the same fault produced different actions across rounds, because each round's live measurements differ.
+- *kill-b failed twice on one malformed or rejected tool call each.* The diagnosis was trivial ("container has exited") when the run survived. One bad tool call ending the whole run is the same weakness as attempt #1 above.
+- VLLM-32926 stays at 3/3, which makes 6/6 across both sessions.
+
 
 ## How it got there: every attempt
 
@@ -68,8 +114,8 @@ Each change has a detailed commit message addressed to E1 for review:
 
 ## Still to do
 
-- Agent on link latency, link blackhole and worker crash (×3 each), against the rules' 12/12.
-- Held-out faults the rule author didn't anticipate (compound faults, overload vs link, a 32926 variant, a no-op), for both solvers.
-- BFCL hidden canaries.
+- Fixes from Batch 1, each rerun and logged as an "after fix" row: the executor also verifies the route through HAProxy (E2); the environment API accepts timestamps for log `since` (E2); a malformed tool call goes back to the model as an error instead of aborting the run (E1's controller, needs Khush).
+- Held-out faults (built in `0d6f318`): compound-latb-32926a, capacity-b, tools-stripped-a, noop, for both solvers.
+- BFCL per serving profile (`nexus.verifier.bfcl`, built in `c7f0caa`), then BFCL hidden canaries.
 - Large reference model on the same episodes (needs an endpoint).
 - Record `run_id` in each episode, so episodes and trails link directly rather than by time (added to `nexus.eval.episode` with this log).

@@ -1,0 +1,15 @@
+{
+  "content": {
+    "artifact_id": "art-664ef8a2e7",
+    "http_status": 200,
+    "observation_id": "art-664ef8a2e7",
+    "probe_id": "tool-call-visible",
+    "resource_id": "target-a",
+    "structured_tool_call_count": 0,
+    "verdict": "no structured tool_calls in response"
+  },
+  "evidence_id": "ev-009",
+  "source": "probe:tool-call-visible:art-664ef8a2e7",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

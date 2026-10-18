@@ -1,0 +1,87 @@
+{
+  "fault": "net-latency-b",
+  "solver": "agent",
+  "at": "2026-10-18T02:50:44+00:00",
+  "terminal_state": "REQUIRES_APPROVAL",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 25.0,
+  "action": {
+    "tool": "drain-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-d7241613",
+  "steps": 10,
+  "tool_calls": 8,
+  "decision": {
+    "state": "REQUIRES_APPROVAL",
+    "summary": "target-b has ok:false with p95_s=1.665s and 5 requests, while target-a is healthy with p95_s=0.035s and 5 requests. Both workers share identical configuration (tool_call_parser=qwen2_5_coder, same chat_template, same model, same container_state=running). The high p95 latency on target-b (1.665s vs 0.035s on target-a) combined with its ok:false status indicates a performance issue on target-b. The environment description notes target-b is reached through a network proxy that can be impaired. Evidence ev-006 shows target-b route_latency_avg_s=0.204s but the per-worker probe (ev-001) shows p95_s=1.665s, suggesting the proxy or target-b's serving is degraded. The tool-call-visible probe (ev-003) confirms target-b can still process structured tool calls successfully, so the issue is latency, not functional failure.",
+    "hypotheses": [
+      {
+        "id": "hyp-001",
+        "confidence": 0.9,
+        "supports": [
+          "ev-001",
+          "ev-003",
+          "ev-006"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Evidence sufficient to identify root cause: target-b latency degradation likely due to network proxy impairment as described in the environment manifest.",
+    "repair_plan": {
+      "hypothesis_id": "hyp-001",
+      "confidence": 0.9,
+      "evidence": [
+        "ev-001",
+        "ev-003",
+        "ev-006"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "drain-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "Drain target-b from routing so new traffic goes only to target-a, reducing overall fleet latency.",
+      "risk": "Low - target-b will be drained; existing in-flight requests may complete or fail, but target-a remains healthy serving traffic.",
+      "verification_plan": [
+        "Re-run route-probe to confirm target-b p95_s improves or target-b is marked ok:false persists (indicating drain was successful but issue remains).",
+        "Re-run tool-call-visible on target-b to confirm structured tool calls still work after drain."
+      ],
+      "rollback_plan": "undrain-worker action_id=undrain-worker to return target-b to rotation if needed."
+    }
+  },
+  "verification": {
+    "users_ok": true,
+    "route": {
+      "a": {
+        "requests": 30,
+        "p95_s": 0.039,
+        "median_s": 0.038,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": false,
+    "faulty_worker_drained": true
+  },
+  "executor": {
+    "action": "drain_worker",
+    "service": "target-b",
+    "change_id": "7e85cf912bfa",
+    "started_at": "2026-10-18T02:50:42+00:00",
+    "status": "APPLIED",
+    "gateway": {
+      "worker": "b",
+      "drained_before": false,
+      "drained": true
+    },
+    "ended_at": "2026-10-18T02:50:42+00:00",
+    "seconds": 0.1
+  }
+}

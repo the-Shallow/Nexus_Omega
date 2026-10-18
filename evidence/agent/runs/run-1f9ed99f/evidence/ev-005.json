@@ -1,0 +1,23 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "chat_template": "/templates/tool_chat_template_qwen2_5_coder.jinja",
+      "container_state": "running",
+      "enable_auto_tool_choice": true,
+      "image_digest": "sha256:0a51ea5b4ae2dc5d81890e5173f54203d2a3ae0cfffe51b8fd2afd4391bfd967",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "model_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "reasoning_parser": null,
+      "tool_call_parser": "qwen2_5_coder",
+      "tool_parser_plugin": "/plugins/qwen2_5_coder_tool_parser.py"
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-005",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

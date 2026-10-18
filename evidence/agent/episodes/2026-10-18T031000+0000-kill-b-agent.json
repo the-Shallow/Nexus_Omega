@@ -1,0 +1,99 @@
+{
+  "fault": "kill-b",
+  "solver": "agent",
+  "at": "2026-10-18T03:10:00+00:00",
+  "terminal_state": "VERIFIED",
+  "success": true,
+  "false_verified": false,
+  "solve_seconds": 92.2,
+  "action": {
+    "tool": "restart-worker",
+    "service": "target-b"
+  },
+  "rule": null,
+  "run_id": "run-bb656ff4",
+  "steps": 8,
+  "tool_calls": 6,
+  "decision": {
+    "state": "VERIFIED",
+    "summary": "target-b container has exited, causing 100% error rate and zero structured tool calls. Repair: restart the target-b worker.",
+    "hypotheses": [
+      {
+        "id": "container-exited-001",
+        "confidence": 0.95,
+        "supports": [
+          "ev-001",
+          "ev-003",
+          "ev-006",
+          "ev-007",
+          "ev-009"
+        ],
+        "contradicts": []
+      }
+    ],
+    "stop_reason": "Diagnosis complete; root cause identified and repair action supported by evidence.",
+    "repair_plan": {
+      "hypothesis_id": "container-exited-001",
+      "confidence": 0.95,
+      "evidence": [
+        "ev-001",
+        "ev-003",
+        "ev-006",
+        "ev-007",
+        "ev-009"
+      ],
+      "action": {
+        "tool": "apply_action",
+        "arguments": {
+          "action_id": "restart-worker",
+          "target": "target-b",
+          "parameters": {}
+        }
+      },
+      "expected_effect": "target-b container_state transitions from 'exited' to 'running'; error_rate drops to 0.0; structured tool call count becomes >0; worker returns to healthy state",
+      "risk": "Low \u2014 restart-worker is a declared, reversible action with requires_rollback=true; standard worker restart operation",
+      "verification_plan": [
+        "After applying restart-worker: (1) get_resource_state target-b container_state should be 'running'; (2) query_metrics target-b route_error_rate should be 0.0; (3) run_probe tool-call-visible on target-b should return structured_tool_call_count > 0 and verdict 'valid structured tool call'"
+      ],
+      "rollback_plan": "Apply undrain-worker to return the restarted worker to rotation if it does not automatically rejoin; monitor container_state and error_rate; if restart fails, consider apply-action drain-worker then undrain-worker, or escalate"
+    }
+  },
+  "verification": {
+    "users_ok": true,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.038,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": true,
+    "root_fixed": true,
+    "faulty_worker_drained": false
+  },
+  "executor": {
+    "action": "restart_worker",
+    "service": "target-b",
+    "change_id": "27e292ab6519",
+    "started_at": "2026-10-18T03:08:42+00:00",
+    "ready_seconds": 72.4,
+    "profile": "qwen25-coder-7b.tools-template",
+    "status": "VERIFIED",
+    "verification": {
+      "passed": true,
+      "health_status": 200,
+      "failed_cases": []
+    },
+    "ended_at": "2026-10-18T03:09:57+00:00",
+    "seconds": 74.4
+  }
+}
