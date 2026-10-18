@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from nexus.agent.contracts import ContractError, ModelTurn, ToolCall
-from nexus.agent.decision_format import decision_response_format
+from nexus.agent.decision_format import decision_response_format, normalize_citations
 from nexus.agent.tool_loop import ToolLoopController
 from nexus.infrastructure.events import JsonlEventLog
 from nexus.infrastructure.nemotron import ScriptedNemotronClient, VLLMClientConfig, VLLMNemotronClient
@@ -77,6 +77,16 @@ class DecisionFormatTests(unittest.TestCase):
         self.assertNotIn("max_tokens", tool_turn)
         self.assertEqual(final_turn["chat_template_kwargs"], {"enable_thinking": False})
         self.assertNotIn("chat_template_kwargs", tool_turn)
+
+    def test_citations_with_descriptions_are_reduced_to_ids(self):
+        raw = json.dumps({"state": "PLAN", "summary": "s", "stop_reason": None,
+                          "hypotheses": [{"id": "h", "confidence": 0.9, "contradicts": [],
+                                          "supports": ["ev-002: target-a has 0 tool calls", "ev-005"]}],
+                          "repair_plan": {"evidence": ["ev-005: parser is hermes", "not an id"]}})
+        out = json.loads(normalize_citations(raw))
+        self.assertEqual(out["hypotheses"][0]["supports"], ["ev-002", "ev-005"])
+        self.assertEqual(out["repair_plan"]["evidence"], ["ev-005", "not an id"])
+        self.assertEqual(normalize_citations("not json"), "not json")
 
     def test_response_format_uses_the_canonical_schema(self):
         schema = decision_response_format()["json_schema"]["schema"]

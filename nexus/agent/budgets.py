@@ -60,7 +60,10 @@ class RunBudget:
 class ContextBudget:
     """Limits model-directed context expansion independently of token limits."""
 
-    max_rounds: int = 5
+    # 8, not 5: comparing two services (manifest, config x2, state x2) already
+    # uses five rounds, which left no room to check a hypothesis before
+    # concluding. Seen live with Nemotron Lightning on the Brev fleet.
+    max_rounds: int = 8
     max_requests_per_turn: int = 3
     max_repeated_requests: int = 2
     max_source_files: int = 8

@@ -102,6 +102,48 @@ class AgentRuntimeTests(unittest.TestCase):
             self.assertEqual(result.state, "PRECHECK")
             self.assertEqual(result.precheck.approval.action_id, "set-runtime-profile")
 
+    def test_repair_called_as_a_tool_is_redirected_to_a_plan(self):
+        # Seen live with Nemotron Lightning: after gathering evidence it *called*
+        # apply_action (parameters as a JSON string) instead of returning a PLAN.
+        turns = successful_turns(with_repair=True)
+        plan = turns[-1]
+        repair_call = ModelTurn(tool_calls=(ToolCall("call-4", "apply_action", {
+            "action_id": "set-runtime-profile", "target": "target-a",
+            "parameters": json.dumps({"profile": "matched-v1"})}),))
+        client = ScriptedNemotronClient([*turns[:-1], repair_call, plan])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); provider = FakeEnvironmentProvider(); tokens = iter(("002", "rollback-002"))
+            precheck = RepairPrecheck(RepairPolicy(manifest()), provider, token_factory=lambda: next(tokens))
+            result = self.make_controller(root, client, provider, precheck=precheck).run(diagnostic_input("Diagnose contract failure."))
+            events = [json.loads(line)["event_type"] for line in (root / "events.jsonl").read_text().splitlines()]
+        self.assertEqual(result.state, "PRECHECK")
+        self.assertEqual(result.expansion_rounds, 2)
+        self.assertIn("repair_tool_call_redirected", events)
+        final_request = client.requests[-1]
+        self.assertEqual(final_request["tools"], [])
+        self.assertEqual(final_request["response_format"]["type"], "json_schema")
+        note = json.loads(final_request["messages"][-1]["content"])
+        self.assertEqual(note["status"], "not_executed")
+
+    def test_string_parameters_in_a_plan_are_parsed(self):
+        turns = successful_turns(with_repair=True)
+        final = json.loads(turns[-1].content)
+        final["repair_plan"]["action"]["arguments"]["parameters"] = json.dumps({"profile": "matched-v1"})
+        client = ScriptedNemotronClient([*turns[:-1], ModelTurn(content=json.dumps(final))])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); provider = FakeEnvironmentProvider(); tokens = iter(("003", "rollback-003"))
+            precheck = RepairPrecheck(RepairPolicy(manifest()), provider, token_factory=lambda: next(tokens))
+            result = self.make_controller(root, client, provider, precheck=precheck).run(diagnostic_input("Diagnose contract failure."))
+        self.assertEqual(result.state, "PRECHECK")
+        self.assertEqual(result.precheck.approval.parameters, {"profile": "matched-v1"})
+
+    def test_default_budgets_allow_eight_expansion_rounds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = self.make_controller(Path(directory), ScriptedNemotronClient([]))
+        self.assertEqual(controller.context_budget.max_rounds, 8)
+        # Each round is a model step plus at least one tool call.
+        self.assertGreaterEqual(controller.run_budget.max_total_operations, 2 * 8 + 2)
+
     def test_fabricated_evidence_and_missing_context_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             unsupported = ModelTurn(content=json.dumps({"state": "PLAN", "summary": "Guess.", "hypotheses": [{"id": "guess", "confidence": 0.9, "supports": ["ev-999"], "contradicts": []}], "stop_reason": None}))

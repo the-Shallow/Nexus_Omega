@@ -11,7 +11,7 @@ from ..infrastructure.nemotron import NemotronClient
 from ..tools.environment import EnvironmentTools, ToolObservation
 from .budgets import ContextBudget, RunBudget
 from .contracts import AgentDecision, ContractError, DiagnosticInput, ModelTurn
-from .decision_format import parse_decision
+from .decision_format import decision_response_format, parse_decision
 from .evidence import EvidenceLedger, EvidenceRecord
 from .policy import PolicyDecision, PrecheckResult, RepairPrecheck
 
@@ -38,6 +38,22 @@ evidence cannot support a diagnosis, return state ABSTAIN without a repair_plan.
 The final response must be only a JSON object containing: state, summary,
 hypotheses, stop_reason, and optionally repair_plan.
 """
+
+
+REPAIR_TOOL = "apply_action"
+
+
+def _normalize_action_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Parse a JSON-string ``parameters`` into an object, in place."""
+    parameters = arguments.get("parameters")
+    if isinstance(parameters, str):
+        try:
+            parsed = json.loads(parameters)
+        except json.JSONDecodeError:
+            return arguments
+        if isinstance(parsed, dict):
+            arguments["parameters"] = parsed
+    return arguments
 
 
 @dataclass(frozen=True)
@@ -70,10 +86,12 @@ class AgentController:
         self.tools = tools
         self.evidence = evidence
         self.event_log = event_log
+        # Sized for ContextBudget.max_rounds = 8: each round is one model step
+        # plus up to three tool calls, plus the final answer and one format retry.
         self.run_budget = run_budget or RunBudget(
-            max_steps=12,
-            max_tool_calls=15,
-            max_total_operations=12,
+            max_steps=16,
+            max_tool_calls=20,
+            max_total_operations=32,
             timeout_seconds=120,
         )
         self.context_budget = context_budget or ContextBudget()
@@ -131,7 +149,9 @@ class AgentController:
                 self.run_budget.consume_step()
                 turn = self.client.complete(messages, self.tools.schemas())
                 self._record_model_turn(turn)
-                if turn.tool_calls:
+                if turn.tool_calls and any(c.name == REPAIR_TOOL for c in turn.tool_calls):
+                    turn = self._redirect_repair_call(messages, turn)
+                elif turn.tool_calls:
                     self._expand_context(messages, turn)
                     continue
 
@@ -366,12 +386,57 @@ class AgentController:
         elif decision.repair_plan is not None:
             raise ContractError("ABSTAIN must not include a repair plan")
 
+    def _redirect_repair_call(
+        self,
+        messages: list[dict[str, Any]],
+        turn: ModelTurn,
+    ) -> ModelTurn:
+        """Turn a repair the model tried to *call* into a request for its PLAN.
+
+        apply_action is not a tool: the prompt says the repair action "must use
+        tool apply_action", and a small model reads that as "call it". Live,
+        Nemotron Lightning called apply_action with the correct action after
+        gathering evidence, which was then counted as a sixth context round and
+        aborted the run. Nothing is executed here and no context round is
+        spent: every call in the turn gets a "not executed" result, and the
+        model is asked for its final decision with the decision schema enforced
+        (as in decision_format), so the proposal still goes through
+        RepairPolicy and RepairPrecheck like any PLAN.
+        """
+        proposed = [_normalize_action_arguments(c.arguments) for c in turn.tool_calls if c.name == REPAIR_TOOL]
+        self.event_log.append("repair_tool_call_redirected", {"proposed": proposed})
+        messages.append({
+            "role": "assistant",
+            "content": turn.content,
+            "tool_calls": [call.to_vllm() for call in turn.tool_calls],
+        })
+        for call in turn.tool_calls:
+            if call.name == REPAIR_TOOL:
+                note = ("Not executed. apply_action is not a callable tool; you propose a repair, the "
+                        "controller decides. Return your final decision now: state PLAN with a "
+                        "repair_plan whose action is {\"tool\": \"apply_action\", \"arguments\": "
+                        "{\"action_id\", \"target\", \"parameters\"}}, citing the evidence IDs that "
+                        "support your hypothesis.")
+            else:
+                note = "Not executed: this turn also proposed a repair. Return your final decision now."
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.call_id,
+                "name": call.name,
+                "content": json.dumps({"status": "not_executed", "message": note}),
+            })
+        self.run_budget.consume_step()
+        return self.client.complete(messages, [], response_format=decision_response_format())
+
     def _prepare_repair(
         self,
         decision: AgentDecision,
     ) -> tuple[str, PrecheckResult | None]:
         if decision.state != "PLAN":
             return decision.state, None
+        if decision.repair_plan is not None:
+            # Models sometimes send parameters as a JSON string; the policy needs an object.
+            _normalize_action_arguments(decision.repair_plan.action.arguments)
         if decision.repair_plan is None:
             if self.repair_precheck is not None:
                 raise ContractError("PLAN requires a repair_plan when policy is enabled")

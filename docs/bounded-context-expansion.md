@@ -38,7 +38,7 @@ structured trigger + initial observations
 Logs, artifacts, and repository content are marked untrusted. A final diagnosis
 cannot cite an unknown evidence ID, and a `PLAN` needs real supporting evidence.
 
-The default limits are 12 total operations, 15 tool calls, five expansion
+The default limits are 32 total operations, 16 model steps, 20 tool calls, eight expansion
 rounds, three calls in one turn, two repetitions of the same operational
 request, 200 log lines, eight source files, 250 lines per source read, 1,500
 source lines total, and 120 seconds wall-clock time.
