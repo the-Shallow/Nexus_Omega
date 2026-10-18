@@ -1,0 +1,15 @@
+{
+  "content": {
+    "available_fields": null,
+    "resource_id": "target-a",
+    "state": {
+      "container_state": "running",
+      "profile_label": "qwen25-coder-7b.vllm-32926"
+    },
+    "unavailable_fields": []
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

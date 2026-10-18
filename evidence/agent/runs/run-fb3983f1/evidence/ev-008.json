@@ -1,0 +1,15 @@
+{
+  "content": {
+    "available_fields": null,
+    "resource_id": "target-b",
+    "state": {
+      "container_state": "running",
+      "profile_label": "qwen25-coder-7b.tools-template"
+    },
+    "unavailable_fields": []
+  },
+  "evidence_id": "ev-008",
+  "source": "resource:target-b:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

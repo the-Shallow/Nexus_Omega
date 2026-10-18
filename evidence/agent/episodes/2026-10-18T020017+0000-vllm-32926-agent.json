@@ -1,0 +1,40 @@
+{
+  "fault": "vllm-32926",
+  "solver": "agent",
+  "at": "2026-10-18T02:00:17+00:00",
+  "terminal_state": "ABSTAIN",
+  "success": false,
+  "false_verified": false,
+  "solve_seconds": 16.3,
+  "action": {},
+  "rule": null,
+  "decision": {
+    "state": "ABSTAIN",
+    "summary": "agent run failed: ContractError: hypothesis hyp-001 cites unknown evidence: ['tool_call_parser mismatch between target-a and target-b']",
+    "hypotheses": [],
+    "stop_reason": "agent_error"
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.036,
+        "median_s": 0.035,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": null
+}

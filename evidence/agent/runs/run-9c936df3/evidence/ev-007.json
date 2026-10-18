@@ -1,0 +1,27 @@
+{
+  "content": {
+    "available_fields": [
+      "container",
+      "ready",
+      "drained",
+      "weight",
+      "active_requests",
+      "queued_requests",
+      "port",
+      "container_state",
+      "profile_label"
+    ],
+    "resource_id": "target-a",
+    "state": {
+      "container_state": "running",
+      "profile_label": "qwen25-coder-7b.vllm-32926"
+    },
+    "unavailable_fields": [
+      "tool_call_parser"
+    ]
+  },
+  "evidence_id": "ev-007",
+  "source": "resource:target-a:state",
+  "source_type": "resource_state",
+  "trust": "trusted"
+}

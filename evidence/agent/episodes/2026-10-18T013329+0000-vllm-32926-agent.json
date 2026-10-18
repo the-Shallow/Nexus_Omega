@@ -1,0 +1,40 @@
+{
+  "fault": "vllm-32926",
+  "solver": "agent",
+  "at": "2026-10-18T01:33:29+00:00",
+  "terminal_state": "ABSTAIN",
+  "success": false,
+  "false_verified": false,
+  "solve_seconds": 14.3,
+  "action": {},
+  "rule": null,
+  "decision": {
+    "state": "ABSTAIN",
+    "summary": "agent run failed: ContractError: hypothesis config-001 cites unknown evidence: [\"ev-002: target-a has structured_tool_call_count=0, verdict 'no structured tool_calls in response'\", \"ev-003: target-b has structured_tool_call_count=1, verdict 'valid structured tool call'\", \"ev-005: target-a config has tool_call_parser='hermes', chat_template='model default', profile_label='qwen25-coder-7b.vllm-32926",
+    "hypotheses": [],
+    "stop_reason": "agent_error"
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": null
+}

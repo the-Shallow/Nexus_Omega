@@ -1,0 +1,40 @@
+{
+  "fault": "vllm-32926",
+  "solver": "agent",
+  "at": "2026-10-18T02:03:01+00:00",
+  "terminal_state": "ABSTAIN",
+  "success": false,
+  "false_verified": false,
+  "solve_seconds": 12.6,
+  "action": {},
+  "rule": null,
+  "decision": {
+    "state": "ABSTAIN",
+    "summary": "agent run failed: ContractError: hypothesis H1_config_mismatch cites unknown evidence: ['apply-serving-profile']",
+    "hypotheses": [],
+    "stop_reason": "agent_error"
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.036,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": null
+}

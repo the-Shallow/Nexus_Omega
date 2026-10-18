@@ -1,0 +1,40 @@
+{
+  "fault": "vllm-32926",
+  "solver": "agent",
+  "at": "2026-10-18T01:23:19+00:00",
+  "terminal_state": "ABSTAIN",
+  "success": false,
+  "false_verified": false,
+  "solve_seconds": 7.8,
+  "action": {},
+  "rule": null,
+  "decision": {
+    "state": "ABSTAIN",
+    "summary": "agent run failed: EnvironmentClientError: environment returned HTTP 400: {\"detail\":\"undeclared state fields: ['container_state', 'profile_label']\"}",
+    "hypotheses": [],
+    "stop_reason": "agent_error"
+  },
+  "verification": {
+    "users_ok": false,
+    "route": {
+      "a": {
+        "requests": 15,
+        "p95_s": 0.036,
+        "median_s": 0.036,
+        "error_rate": 0.0,
+        "ok": true
+      },
+      "b": {
+        "requests": 15,
+        "p95_s": 0.037,
+        "median_s": 0.037,
+        "error_rate": 0.0,
+        "ok": true
+      }
+    },
+    "hidden_passed": false,
+    "root_fixed": false,
+    "faulty_worker_drained": false
+  },
+  "executor": null
+}

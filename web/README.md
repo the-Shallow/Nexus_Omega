@@ -66,12 +66,13 @@ Event envelope: `{"event_type", "payload", "run_id", "sequence", "timestamp"}`. 
 
 ## Coming from E2
 
-- [ ] Environment API (`apps/environment/`): manifest-driven read API the agent uses. Read-only routes will also be usable by the UI.
-- [ ] Live agent runs on the fleet. `artifacts/agent-runs/` fills with real incident trails.
+- [x] Environment API (`apps/environment/`): manifest-driven read API the agent uses. Read-only routes are also usable by the UI (`ssh -L 8120:localhost:8120`).
+- [x] Live agent runs on the fleet. Real incident trails are in `../evidence/agent/runs/`; new ones land in `artifacts/agent-runs/` on the box.
 - [ ] Operator fault endpoint for the "Break it" button (separate token, named faults only).
 
 ## Status log
 
 Newest first. One line each: date/time (ET), who, what.
 
+- 2026-10-17 22:50 — E2: live agent incident runs exist now. Real event trails are in `../evidence/agent/runs/` (Nemotron fixing VLLM-32926, 3/3 VERIFIED), with the evaluation log at `../evidence/agent/README.md`. The environment API is live on Brev at 127.0.0.1:8120 (read routes need `NEXUS_ENVIRONMENT_API_KEY`).
 - 2026-10-17 21:20 — E2: created `web/` with this README and real samples from the live fleet. Not yet available: live agent incident runs and the fault endpoint (see "Coming from E2").

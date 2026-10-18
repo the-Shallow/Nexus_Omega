@@ -1,0 +1,17 @@
+{
+  "content": {
+    "available_keys": null,
+    "configuration": {
+      "chat_template": "model default",
+      "profile_label": "qwen25-coder-7b.vllm-32926",
+      "tool_call_parser": "hermes"
+    },
+    "resource_id": "target-a",
+    "source": "docker inspect (running container)",
+    "unavailable_keys": []
+  },
+  "evidence_id": "ev-005",
+  "source": "resource:target-a:configuration",
+  "source_type": "configuration",
+  "trust": "trusted"
+}

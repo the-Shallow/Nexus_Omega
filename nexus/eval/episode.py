@@ -87,6 +87,7 @@ def run_episode(name: str, solver: str) -> dict:
         "terminal_state": state, "success": success,
         "false_verified": state == "VERIFIED" and not (check["users_ok"] and check["root_fixed"]),
         "solve_seconds": solve_seconds, "action": result.get("action"), "rule": result.get("rule"),
+        "run_id": result.get("run_id"), "steps": result.get("steps"), "tool_calls": result.get("tool_calls"),
         "decision": result["decision"], "verification": check, "executor": result.get("executor"),
     }
     OUT.mkdir(parents=True, exist_ok=True)
