@@ -1,0 +1,24 @@
+{
+  "content": {
+    "data": {
+      "artifact_id": "art-f2ce95f794",
+      "flags": {
+        "target-b": [
+          "visible tool-call canary failed: HTTP 0, 0 structured tool calls (HTTP 0)"
+        ]
+      },
+      "http_status": 0,
+      "observation_id": "art-f2ce95f794",
+      "probe_id": "tool-call-visible",
+      "resource_id": "target-b",
+      "structured_tool_call_count": 0,
+      "verdict": "HTTP 0"
+    },
+    "observed_at": "2026-10-18T08:06:24+00:00",
+    "resource_id": "target-b"
+  },
+  "evidence_id": "ev-005",
+  "source": "probe:tool-call-visible:art-f2ce95f794",
+  "source_type": "probe_result",
+  "trust": "trusted"
+}

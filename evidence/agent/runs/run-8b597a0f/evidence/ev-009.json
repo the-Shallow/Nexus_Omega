@@ -1,0 +1,15 @@
+{
+  "content": {
+    "metric": "route_latency_avg_s",
+    "note": null,
+    "resource_id": "target-a",
+    "unit": "seconds",
+    "value": 0.06,
+    "window": "1m",
+    "window_applied": "1m"
+  },
+  "evidence_id": "ev-009",
+  "source": "resource:target-a:metric:route_latency_avg_s",
+  "source_type": "metric",
+  "trust": "trusted"
+}

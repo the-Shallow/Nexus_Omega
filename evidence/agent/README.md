@@ -24,6 +24,7 @@ Each cell is successes/episodes, with false VERIFIED in brackets. Success is jud
 |---|---|---|---|---|---|---|---|
 | Rule baseline | — | 3/3 (74 s) | 3/3 (18 s) | 3/3 (47 s) | 3/3 (75 s) | **12/12** | 0 |
 | Nemotron | Batch 1, before fixes (2026-10-18 02:48–03:10 UTC) | 3/3 (93 s) | 1/3 [2] (97 s) | 2/3 [1] (38 s) | 1/3 (14 s) | **7/12** | **3** |
+| Nemotron | **after design changes** (structured build 4, `db9836c`; 08:03–08:23 UTC) | 3/3 (87 s) | 3/3 (34 s) | 3/3 (72 s) | 2/3 (90 s) | **11/12** | 0 |
 
 **Held-out faults** (built after the solvers were frozen; neither was written or tuned against them)
 
@@ -159,6 +160,8 @@ The pattern behind builds 2–4: Lightning's written findings were consistently 
 | noop | 3/3 | "No fault found" in 7–13 s; the old agent acted on a healthy fleet in 2 of 3 runs |
 
 Next fix (not run: it would mean rerunning v1 and v2 after the deadline for this batch): relabel only when the draft contradicts the evidence (healthy despite flags, or class none/unknown), never override a specific valid fault class.
+
+**Build 4 on the known faults: 11/12, 0 false VERIFIED** (before 7/12 with 3). Records `known-after.json`. Link faults were drained in 6/6 (before: restarted in 3/6). The miss, kill-b round 1, decided in 9 s without checking process state: the opening snapshot does not include container state, so it saw "100% errors on both paths, no config difference", drafted failed/unknown, and the relabel call turned that into network_path (contradicting that class's own definition), so it drained. Next fix: add process state to the opening snapshot, and relabel only contradictory drafts.
 
 ## How it got there: every attempt
 
