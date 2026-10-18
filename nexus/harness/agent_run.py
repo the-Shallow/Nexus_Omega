@@ -37,6 +37,10 @@ RESOURCES = ("target-a", "target-b")
 SUMMARY = ("Routine fleet health check of the inference service. Review the attached monitoring "
            "snapshot, investigate anything abnormal with the available tools, and repair it if a "
            "declared action is supported by evidence.")
+# Structured mode (default): code runs the comparison probes up front, and the controller ends
+# with assess -> choose-from-menu instead of a free-form decision. NEXUS_AGENT_STRUCTURED=0
+# restores the earlier free-form mode for comparison.
+STRUCTURED = os.environ.get("NEXUS_AGENT_STRUCTURED", "1") != "0"
 
 
 def now() -> str:
@@ -51,6 +55,16 @@ def monitoring_snapshot(provider: HttpEnvironmentProvider) -> list[dict]:
         "finding": "Per-worker latency and errors through the HAProxy entry point.",
         "content": routes, "trust": "trusted", "observed_at": now(),
     })
+    if STRUCTURED:
+        for probe_id, inputs, finding in (
+            ("config-diff", {}, "Configuration keys whose values differ between the workers."),
+            ("path-compare", {"requests": 5}, "Per-worker latency and errors directly and through HAProxy."),
+        ):
+            result = provider.run_probe(probe_id, inputs)
+            observations.append({
+                "source_type": "probe_result", "source": f"probe:{probe_id}:{result['observation_id']}",
+                "finding": finding, "content": result, "trust": "trusted", "observed_at": now(),
+            })
     for resource_id in RESOURCES:
         probe = provider.run_probe("tool-call-visible", {"case": "visible_tool_call", "resource_id": resource_id})
         observations.append({
@@ -92,7 +106,7 @@ def run_agent() -> dict:
     })
     action, record = {}, None
     try:
-        result = build_live_controller(run_id, RUNS / run_id).run(diagnostic_input)
+        result = build_live_controller(run_id, RUNS / run_id, structured=STRUCTURED).run(diagnostic_input)
     except Exception as exc:  # noqa: BLE001 - a failed run is a result for the referee
         decision = {"state": "ABSTAIN", "summary": f"agent run failed: {type(exc).__name__}: {exc}"[:400],
                     "hypotheses": [], "stop_reason": "agent_error"}

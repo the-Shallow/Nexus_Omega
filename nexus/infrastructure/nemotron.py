@@ -39,6 +39,8 @@ class VLLMClientConfig:
     model: str
     api_key: str = ""
     timeout_seconds: float = 30.0
+    # 0 by default for repeatable runs; the closest public Nemotron card recommends 0.6 for tool calling.
+    temperature: float = 0.0
 
     @classmethod
     def from_env(cls) -> "VLLMClientConfig":
@@ -50,6 +52,7 @@ class VLLMClientConfig:
             model=model,
             api_key=os.environ.get("NEMOTRON_API_KEY", ""),
             timeout_seconds=float(os.environ.get("NEMOTRON_TIMEOUT_SECONDS", "30")),
+            temperature=float(os.environ.get("NEMOTRON_TEMPERATURE", "0")),
         )
 
 
@@ -68,7 +71,7 @@ class VLLMNemotronClient:
         payload: dict[str, Any] = {
             "model": self.config.model,
             "messages": messages,
-            "temperature": 0,
+            "temperature": self.config.temperature,
         }
         if tools:
             payload["tools"] = tools
