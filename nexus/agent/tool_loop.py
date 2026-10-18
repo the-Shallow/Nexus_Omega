@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from .budgets import RunBudget
-from .client import NemotronClient
+from ..infrastructure.events import JsonlEventLog
+from ..infrastructure.nemotron import NemotronClient
+from ..tools.registry import ToolRegistry
 from .contracts import AgentDecision, ModelTurn
-from .events import JsonlEventLog
-from .tooling import ToolRegistry
 
 
 SYSTEM_PROMPT = """You are the Nexus Omega diagnostic agent.
-Use only the tools provided by the controller. Call get_topology before
+Use only the tools provided by the controller. Call describe_environment before
 returning a decision. After receiving its result, respond
 with only a JSON object containing exactly: state, summary, hypotheses, and
 stop_reason. Use state DIAGNOSE, hypotheses as an array, and null stop_reason.

@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from .contracts import ContractError
+from ..agent.contracts import ContractError
 
 
 TEXT_SUFFIXES = {
@@ -36,6 +36,7 @@ class BoundedRepository:
         max_file_bytes: int = 1_000_000,
     ) -> None:
         self.root = Path(root).resolve()
+        self.allowed_root_names = tuple(allowed_roots)
         self.allowed_roots = tuple(
             self._resolve_allowed_root(item) for item in allowed_roots
         )

@@ -1,10 +1,64 @@
 import json
 import unittest
 
-from nexus.agent.contracts import AgentDecision, ContractError, ModelTurn
+from nexus.agent.contracts import (
+    AgentDecision,
+    ContractError,
+    DiagnosticInput,
+    ModelTurn,
+)
 
 
 class ContractTests(unittest.TestCase):
+    def test_structured_diagnostic_input_is_decoded(self) -> None:
+        diagnostic_input = DiagnosticInput.from_dict(
+            {
+                "trigger_id": "trigger-1",
+                "summary": "A worker emitted repeated allocation failures.",
+                "observed_at": "2026-10-17T14:22:31Z",
+                "affected_resources": ["worker-1"],
+                "initial_observations": [
+                    {
+                        "source_type": "log",
+                        "source": "worker-1:stderr",
+                        "finding": "CUDA allocation failed.",
+                        "content": {"lines": ["CUDA out of memory"]},
+                        "trust": "untrusted",
+                        "resource_id": "worker-1",
+                    }
+                ],
+                "correlation_ids": {"request_id": "req-1"},
+            }
+        )
+        self.assertEqual(diagnostic_input.affected_resources, ("worker-1",))
+        self.assertEqual(
+            diagnostic_input.initial_observations[0].trust, "untrusted"
+        )
+
+    def test_diagnostic_input_requires_timestamp_and_valid_trust(self) -> None:
+        payload = {
+            "trigger_id": "trigger-1",
+            "summary": "Failure detected.",
+            "observed_at": "2026-10-17T14:22:31",
+            "affected_resources": [],
+            "initial_observations": [],
+        }
+        with self.assertRaisesRegex(ContractError, "include a timezone"):
+            DiagnosticInput.from_dict(payload)
+
+        payload["observed_at"] = "2026-10-17T14:22:31Z"
+        payload["initial_observations"] = [
+            {
+                "source_type": "log",
+                "source": "stderr",
+                "finding": "Failure detected.",
+                "content": {},
+                "trust": "maybe",
+            }
+        ]
+        with self.assertRaisesRegex(ContractError, "trusted or untrusted"):
+            DiagnosticInput.from_dict(payload)
+
     def test_native_tool_call_is_decoded(self) -> None:
         turn = ModelTurn.from_vllm_message(
             {
@@ -13,12 +67,12 @@ class ContractTests(unittest.TestCase):
                     {
                         "id": "call-1",
                         "type": "function",
-                        "function": {"name": "get_topology", "arguments": "{}"},
+                        "function": {"name": "describe_environment", "arguments": "{}"},
                     }
                 ],
             }
         )
-        self.assertEqual(turn.tool_calls[0].name, "get_topology")
+        self.assertEqual(turn.tool_calls[0].name, "describe_environment")
         self.assertEqual(turn.tool_calls[0].arguments, {})
 
     def test_malformed_tool_arguments_are_rejected(self) -> None:
@@ -30,7 +84,7 @@ class ContractTests(unittest.TestCase):
                             "id": "call-1",
                             "type": "function",
                             "function": {
-                                "name": "get_topology",
+                                "name": "describe_environment",
                                 "arguments": "{broken",
                             },
                         }
@@ -97,10 +151,13 @@ class ContractTests(unittest.TestCase):
                         "confidence": 0.95,
                         "evidence": ["ev-001"],
                         "action": {
-                            "tool": "patch_serving_config",
+                            "tool": "apply_action",
                             "arguments": {
-                                "service": "target-a",
-                                "approved_profile": "qwen-tools-matched-v1",
+                                "action_id": "apply-serving-profile",
+                                "target": "target-a",
+                                "parameters": {
+                                    "profile": "qwen-tools-matched-v1"
+                                },
                             },
                         },
                         "expected_effect": "Structured tool calls are restored.",
@@ -113,7 +170,7 @@ class ContractTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            decision.repair_plan.action.arguments["approved_profile"],
+            decision.repair_plan.action.arguments["parameters"]["profile"],
             "qwen-tools-matched-v1",
         )
 

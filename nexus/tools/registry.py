@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from .contracts import ContractError
+from ..agent.contracts import ContractError
 
 
 ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]
@@ -27,7 +27,7 @@ def _matches_type(value: Any, expected: str) -> bool:
     return True
 
 
-def _validate_schema(value: Any, schema: dict[str, Any], label: str) -> None:
+def validate_schema(value: Any, schema: dict[str, Any], label: str) -> None:
     expected = schema.get("type")
     if isinstance(expected, str) and not _matches_type(value, expected):
         raise ContractError(f"{label} must be of type {expected}")
@@ -60,7 +60,7 @@ def _validate_schema(value: Any, schema: dict[str, Any], label: str) -> None:
         for key, item in value.items():
             child_schema = properties.get(key)
             if isinstance(child_schema, dict):
-                _validate_schema(item, child_schema, f"{label}.{key}")
+                validate_schema(item, child_schema, f"{label}.{key}")
     if isinstance(value, list) and isinstance(schema.get("items"), dict):
         minimum = schema.get("minItems")
         if isinstance(minimum, int) and len(value) < minimum:
@@ -69,7 +69,7 @@ def _validate_schema(value: Any, schema: dict[str, Any], label: str) -> None:
         if isinstance(maximum, int) and len(value) > maximum:
             raise ContractError(f"{label} must contain at most {maximum} items")
         for index, item in enumerate(value):
-            _validate_schema(item, schema["items"], f"{label}[{index}]")
+            validate_schema(item, schema["items"], f"{label}[{index}]")
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ class ToolRegistry:
             raise ContractError(f"unknown tool: {name}")
         if not isinstance(arguments, dict):
             raise ContractError("tool arguments must be an object")
-        _validate_schema(arguments, definition.parameters, name)
+        validate_schema(arguments, definition.parameters, name)
         return definition
 
     def invoke(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
