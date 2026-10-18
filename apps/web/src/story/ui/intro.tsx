@@ -58,7 +58,7 @@ type Total = { success: number; total: number; false_verified: number };
 /** The brief's numbers, read from the results API: BFCL per serving profile and the scoreboard batches. */
 function useStats() {
   const [s, setS] = useState<{ healthy?: number; broken?: number; fvBefore?: number; fvAfter?: number; nBefore?: number; nAfter?: number;
-    rules?: Total; after?: Total; bigger?: Total }>({});
+    rules?: Total; after?: Total }>({});
   useEffect(() => {
     api.bfcl().then((p) => setS((x) => ({
       ...x,
@@ -71,7 +71,7 @@ function useStats() {
       const before = ['agent-batch1', 'agent-v1-before', 'agent-v2-before'], after = ['agent-known-after', 'agent-v1-after', 'agent-v2-after'];
       setS((x) => ({
         ...x, fvBefore: sum(before, 'false_verified'), nBefore: sum(before, 'total'), fvAfter: sum(after, 'false_verified'), nAfter: sum(after, 'total'),
-        rules: t('rules-heldout'), after: t('agent-v1-after'), bigger: t('agent-super-v1'),
+        rules: t('rules-heldout'), after: t('agent-v1-after'),
       }));
     }).catch(() => {});
   }, []);
@@ -96,7 +96,7 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
   const beats: { title: string; body: string; visual?: ReactNode; caption?: string }[] = [
     {
       title: 'Dashboards say fine. The AI stopped working.',
-      body: 'Teams run their own models on vLLM to power AI agents. One wrong setting and the server keeps answering, fast, with every health check green, but the tool calls the agent depends on are gone. No alert fires.',
+      body: 'One wrong vLLM setting and the server keeps answering, fast, with every health check green, while the tool calls AI agents depend on are gone. No alert fires.',
       visual: (
         <div>
           <div className="flex flex-wrap gap-1.5"><Chip>HTTP 200</Chip><Chip>/health OK</Chip><Chip>latency normal</Chip></div>
@@ -112,7 +112,7 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
     },
     {
       title: 'A small model investigates. Code decides what counts.',
-      body: 'NVIDIA Nemotron 3.5 Lightning, with 3B active parameters, runs on the same GPU it repairs. It gathers evidence and proposes one fix. Everything after that is code it can’t talk its way past.',
+      body: 'NVIDIA Nemotron 3.5 Lightning (3B active) runs on the same GPU it repairs and proposes one fix. Everything after that is code it can’t talk its way past.',
       visual: (
         <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line">
           {FLOW.map(([t, d], i) => (
@@ -127,24 +127,21 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
     },
     {
       title: 'Trustworthy enough to touch production.',
-      body: 'Out of the box it sometimes said “fixed” when nothing was. We redesigned the harness around it, not the model, and measured the same weights before and after.',
+      body: 'Out of the box it sometimes said “fixed” when nothing was. We redesigned the harness around it, not the model.',
       visual: (
-        <div className="grid gap-5">
-          <div>
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-3">False “fixed” claims</div>
-            <HBars compact bars={[
-              { key: 'fb', label: 'Before', value: st.fvBefore ?? 0, max: 6, display: st.fvBefore !== undefined ? `${st.fvBefore} in ${st.nBefore}` : '–', tone: 'bad' },
-              { key: 'fa', label: 'After', value: st.fvAfter ?? 0, max: 6, display: st.fvAfter !== undefined ? `${st.fvAfter} in ${st.nAfter}` : '–', tone: 'bad' },
-            ]} />
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
+          <div className="bg-[rgb(9_11_13/0.9)] p-4">
+            <div className="text-[11.5px] leading-snug text-ink-3">False “fixed” claims</div>
+            <div className="mt-2 text-[28px] font-semibold leading-none tracking-tight tnum">
+              <span className="text-bad">{st.fvBefore ?? '–'}</span><span className="mx-1.5 text-[20px] text-ink-4">→</span><span className="text-ok">{st.fvAfter ?? '–'}</span>
+            </div>
+            <div className="mt-2 text-[11.5px] text-ink-3">before → after, {st.nAfter ?? '–'} runs each</div>
           </div>
-          <div>
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-3">Faults nobody wrote rules for</div>
-            <HBars compact bars={[
-              { key: 'r', label: 'Hand-written rules', value: st.rules?.success ?? 0, max: st.rules?.total ?? 1, display: frac(st.rules), tone: 'muted' },
-              { key: 'n', label: 'Nexus with Lightning', value: st.after?.success ?? 0, max: st.after?.total ?? 1, display: frac(st.after), tone: 'accent' },
-            ]} />
+          <div className="bg-[rgb(9_11_13/0.9)] p-4">
+            <div className="text-[11.5px] leading-snug text-ink-3">Faults nobody wrote rules for</div>
+            <div className="mt-2 text-[28px] font-semibold leading-none tracking-tight tnum text-ink">{frac(st.after)}</div>
+            <div className="mt-2 text-[11.5px] text-ink-3">solved. Rules: {frac(st.rules)}</div>
           </div>
-          {st.bigger && <p className="text-[12.5px] leading-relaxed text-ink-3">A model with 4× the active parameters, on the same harness, gets {frac(st.bigger)}, at about twice the time and off the box.</p>}
         </div>
       ),
     },
@@ -195,7 +192,7 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
 
   return (
     <motion.aside initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.9, ease }}
-      className="absolute bottom-3 left-3 top-[72px] z-20 flex flex-col justify-between overflow-y-auto rounded-2xl border border-white/[0.07] bg-[rgb(9_11_13/0.72)] p-7 backdrop-blur-xl"
+      className="absolute bottom-3 left-3 top-[72px] z-20 flex flex-col justify-between overflow-y-auto rounded-2xl border border-white/[0.07] bg-[rgb(9_11_13/0.72)] p-7 backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [@media(max-height:820px)]:p-6"
       style={{ width: INTRO_WIDTH }} aria-label="What is Nexus">
       <div>
         <div className="flex items-center justify-between">
@@ -208,22 +205,22 @@ export function IntroPanel({ beat, onBeat, onStart }: { beat: number; onBeat: (i
           </div>
         </div>
         <AnimatePresence mode="wait" custom={dir} initial={false}>
-          <motion.div key={beat} custom={dir} variants={slide} initial="enter" animate="center" exit="exit" className="mt-8">
+          <motion.div key={beat} custom={dir} variants={slide} initial="enter" animate="center" exit="exit" className="mt-8 [@media(max-height:820px)]:mt-5">
             <div className="font-mono text-[12px] text-accent">0{beat + 1}</div>
-            <h1 className="mt-3 text-[32px] font-semibold leading-[1.06] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>{b.title}</h1>
+            <h1 className="mt-3 text-[32px] font-semibold [@media(max-height:820px)]:text-[28px] leading-[1.06] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>{b.title}</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{b.body}</p>
-            {b.visual && <div className="mt-7">{b.visual}</div>}
+            {b.visual && <div className="mt-6 [@media(max-height:820px)]:mt-5">{b.visual}</div>}
             {b.caption && <p className="mt-6 font-mono text-[11.5px] leading-relaxed text-ink-3">{b.caption}</p>}
           </motion.div>
         </AnimatePresence>
       </div>
-      <div className="mt-8">
+      <div className="mt-8 [@media(max-height:820px)]:mt-5">
         <div className="flex flex-wrap gap-2">
           <button onClick={onStart} className="rounded-xl bg-accent px-5 py-3 text-[15px] font-semibold text-bg">Watch the demo ▸</button>
           <a href="results.html" className="rounded-xl border border-line-2 px-4 py-3 text-[14px] font-medium text-ink hover:bg-white/[0.05]">See the results</a>
           <a href="about.html" className="rounded-xl px-3 py-3 text-[14px] font-medium text-ink-2 hover:text-ink">About</a>
         </div>
-        <p className="mt-5 flex items-center gap-2 font-mono text-[11px] text-ink-4">
+        <p className="mt-5 flex items-center gap-2 font-mono text-[11px] text-ink-4 [@media(max-height:820px)]:mt-3">
           <motion.span animate={{ y: [0, 3, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>↓</motion.span>
           {beat < beats.length - 1 ? 'Scroll to continue' : 'Scroll to start the demo'}
         </p>
