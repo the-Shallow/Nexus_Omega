@@ -92,10 +92,30 @@ def assessment_errors(assessment: dict[str, Any]) -> list[str]:
     return errors
 
 
-def coerce(assessment: dict[str, Any]) -> dict[str, Any]:
-    """After the one retry, resolve a remaining status/class contradiction conservatively."""
-    for row in assessment["assessments"].values():
-        if row["status"] == "healthy":
+def flag_errors(assessment: dict[str, Any], flags: dict[str, list[str]]) -> list[str]:
+    """A resource assessed healthy although the evidence flags it as abnormal.
+
+    Seen live: the finding read "HTTP 400 ... diverging from the reviewed
+    configuration ... directly explains the canary failure" while status was
+    healthy and fault class none. Probes mark per-resource abnormal signals
+    ("flags"); code holds the assessment to them instead of trusting the labels.
+    """
+    return [f"{resource_id} is assessed healthy, but the evidence flags it: {'; '.join(flags[resource_id])}"
+            for resource_id, row in assessment["assessments"].items()
+            if row["status"] == "healthy" and flags.get(resource_id)]
+
+
+def coerce(assessment: dict[str, Any], flags: dict[str, list[str]] | None = None) -> dict[str, Any]:
+    """After the one retry, resolve remaining contradictions conservatively.
+
+    A flagged resource still called healthy becomes degraded/unknown: no
+    automatic move fits unknown, so the run ends needing a human, never in
+    "no fault found".
+    """
+    for resource_id, row in assessment["assessments"].items():
+        if row["status"] == "healthy" and (flags or {}).get(resource_id):
+            row["status"], row["fault_class"] = "degraded", "unknown"
+        elif row["status"] == "healthy":
             row["fault_class"] = "none"
         elif row["fault_class"] == "none":
             row["fault_class"] = "unknown"

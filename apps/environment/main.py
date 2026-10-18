@@ -340,9 +340,13 @@ def run_probe(probe_id: str, body: ProbeBody):
             "raw_generation": {"text": raw.get("text", ""), "available": raw.get("available", False),
                                "capture": "deterministic_replay"},
         })
-        return {"probe_id": probe_id, "observation_id": artifact_id, "artifact_id": artifact_id,
-                "resource_id": resource_id, "http_status": result["http_status"],
-                "structured_tool_call_count": len(result["tool_calls"]), "verdict": result["reason"]}
+        out = {"probe_id": probe_id, "observation_id": artifact_id, "artifact_id": artifact_id,
+               "resource_id": resource_id, "http_status": result["http_status"],
+               "structured_tool_call_count": len(result["tool_calls"]), "verdict": result["reason"]}
+        if not result.get("ok", result["http_status"] == 200 and bool(result["tool_calls"])):
+            out["flags"] = {resource_id: [f"visible tool-call canary failed: HTTP {result['http_status']}, "
+                                          f"{len(result['tool_calls'])} structured tool calls ({result['reason']})"]}
+        return out
     if probe_id == "config-diff":
         # Compared with the reviewed profile, not only worker against worker: with two workers a
         # difference alone does not say which one is wrong (held-out v1: the agent blamed the
@@ -366,9 +370,14 @@ def run_probe(probe_id: str, body: ProbeBody):
             for r, c in configs.items() if "unavailable" not in c
             for diff in [{k: {"actual": c.get(k), "reviewed": reviewed.get(k)} for k in compared
                           if c.get(k) != reviewed.get(k)}]}
+        flags = {r: [f"configuration differs from the reviewed one on {sorted(v['differs_from_reviewed'])}"]
+                 for r, v in versus_reviewed.items() if not v["matches_reviewed"]}
+        flags.update({r: [f"configuration unavailable: {c['unavailable']}"]
+                      for r, c in configs.items() if "unavailable" in c})
         return {"probe_id": probe_id, "observation_id": f"config-diff-{uuid.uuid4().hex[:8]}",
                 "versus_reviewed": versus_reviewed, "between_workers": differing,
-                "unavailable": {r: c["unavailable"] for r, c in configs.items() if "unavailable" in c}}
+                "unavailable": {r: c["unavailable"] for r, c in configs.items() if "unavailable" in c},
+                "flags": flags}
     if probe_id == "path-compare":
         n = body.inputs.get("requests")
         if not isinstance(n, int) or not 5 <= n <= 20:
@@ -386,8 +395,15 @@ def run_probe(probe_id: str, body: ProbeBody):
                                      "requests": via["requests"]} if via else
                                     {"requests": 0, "note": "drained" if drained.get(worker, {}).get("drained")
                                      else "no requests reached this worker"})}
+        flags = {}
+        for resource_id, w in workers.items():
+            reasons = [f"{path}: p95 {m['p95_s']} s, error rate {m['error_rate']}"
+                       for path, m in (("direct", w["direct"]), ("through HAProxy", w["through_haproxy"]))
+                       if m.get("requests") and (m["p95_s"] > 0.5 or m["error_rate"] > 0)]
+            if reasons:
+                flags[resource_id] = reasons
         return {"probe_id": probe_id, "observation_id": f"path-compare-{uuid.uuid4().hex[:8]}",
-                "workers": workers, "limits": {"max_p95_s": 0.5, "max_error_rate": 0.0}}
+                "workers": workers, "limits": {"max_p95_s": 0.5, "max_error_rate": 0.0}, "flags": flags}
     if probe_id == "route-probe":
         n = body.inputs.get("requests")
         if not isinstance(n, int) or not 5 <= n <= 30:
@@ -396,7 +412,9 @@ def run_probe(probe_id: str, body: ProbeBody):
         return {"probe_id": probe_id, "observation_id": f"route-{uuid.uuid4().hex[:8]}",
                 "entry_point_health": out["health_status"],
                 "workers": {f"target-{w}": v for w, v in out["workers"].items()},
-                "limits": out["limits"]}
+                "limits": out["limits"],
+                "flags": {f"target-{w}": [f"through HAProxy: p95 {v['p95_s']} s, error rate {v['error_rate']}"]
+                          for w, v in out["workers"].items() if not v["ok"] and f"target-{w}" in RESOURCES}}
     raise HTTPException(404, f"undeclared probe: {probe_id}")
 
 

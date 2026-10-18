@@ -78,12 +78,26 @@ class MenuTests(unittest.TestCase):
         self.assertEqual((fixed["target-a"]["fault_class"], fixed["target-b"]["fault_class"]), ("none", "unknown"))
 
 
+class FlagTests(unittest.TestCase):
+    def test_flagged_resource_called_healthy_is_named(self):
+        flags = {"target-a": ["ev-004: visible tool-call canary failed: HTTP 400"]}
+        errors = flow.flag_errors(assessment(row("healthy", "none"), row("healthy", "none")), flags)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("target-a is assessed healthy, but the evidence flags it", errors[0])
+
+    def test_flagged_resource_still_called_healthy_needs_a_human(self):
+        fixed = flow.coerce(assessment(row("healthy", "none"), row("healthy", "none")),
+                            {"target-a": ["ev-004: canary failed"]})["assessments"]
+        self.assertEqual((fixed["target-a"]["status"], fixed["target-a"]["fault_class"]), ("degraded", "unknown"))
+        self.assertEqual(fixed["target-b"]["status"], "healthy")
+
+
 class Serving:
     def __init__(self, up): self.up = up
     def get_resource_state(self, resource_id, fields): return {"state": {"serving": self.up[resource_id]}}
 
 
-def run(turns, serving=None):
+def run(turns, serving=None, snapshot=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         client = ScriptedNemotronClient(turns)
@@ -95,7 +109,8 @@ def run(turns, serving=None):
             "trigger_id": "t-1", "summary": "Health check.", "observed_at": "2026-10-18T05:00:00Z",
             "affected_resources": ["target-a", "target-b"], "human_context": None,
             "initial_observations": [{"source_type": "probe_result", "source": "probe:check:1",
-                                      "finding": "Snapshot.", "content": {"ok": True}, "trust": "trusted"}]})
+                                      "finding": "Snapshot.", "content": snapshot or {"ok": True},
+                                      "trust": "trusted"}]})
         return controller.run(trigger), client
 
 
@@ -132,6 +147,19 @@ class StructuredControllerTests(unittest.TestCase):
         # unknown has no fitting action, so there is nothing to choose: a human is needed.
         self.assertEqual(result.state, "ABSTAIN")
         self.assertIn("requires a human", result.decision.stop_reason)
+
+    def test_healthy_verdict_against_flagged_evidence_gets_one_named_retry(self):
+        flagged = {"flags": {"target-a": ["visible tool-call canary failed: HTTP 400"]}}
+        result, client = run([
+            ModelTurn(content="a returns HTTP 400."),
+            ModelTurn(content=json.dumps(assessment(row("healthy", "none"), row("healthy", "none")))),
+            ModelTurn(content=json.dumps(assessment(row("failed", "misconfigured"), row("healthy", "none")))),
+            ModelTurn(content=json.dumps({"reasoning": "Repair a.", "move": "apply-profile target-a reviewed",
+                                          "expected_effect": "Tool calls work.", "risk": "Brief restart."})),
+        ], serving={"target-a": True, "target-b": True}, snapshot=flagged)
+        rejected = json.loads(client.requests[2]["messages"][-1]["content"])["rejected"]
+        self.assertIn("ev-001: visible tool-call canary failed: HTTP 400", rejected[0])
+        self.assertEqual(result.decision.repair_plan.action.arguments["target"], "target-a")
 
     def test_unparseable_assessment_twice_abstains_instead_of_crashing(self):
         result, _ = run([ModelTurn(content="Done."), ModelTurn(content="not json"), ModelTurn(content="still not")])

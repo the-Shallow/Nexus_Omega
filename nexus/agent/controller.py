@@ -121,6 +121,8 @@ class AgentController:
         # provider supplies each resource's "serving" state for the menu's capacity notes.
         self.structured = structured
         self.provider = provider
+        # Per-resource abnormal signals reported by probes ("flags"), each tagged with its evidence ID.
+        self.flags: dict[str, list[str]] = {}
 
     def run(self, diagnostic_input: DiagnosticInput) -> AgentRunResult:
         if not isinstance(diagnostic_input, DiagnosticInput):
@@ -264,7 +266,15 @@ class AgentController:
                 },
             )
             payloads.append(self._evidence_payload(record, content))
+            self._note_flags(record, observation.content)  # content wraps it as {"data": ...}
         return payloads
+
+    def _note_flags(self, record: EvidenceRecord, content: Any) -> None:
+        flags = content.get("flags") if isinstance(content, dict) else None
+        if isinstance(flags, dict):
+            for resource_id, reasons in flags.items():
+                if isinstance(reasons, list):
+                    self.flags.setdefault(resource_id, []).extend(f"{record.evidence_id}: {r}" for r in reasons)
 
     def _expand_context(
         self,
@@ -329,6 +339,7 @@ class AgentController:
                 trust=observation.trust,
             )
             deduplicated = len(self.evidence.records) == before
+            self._note_flags(record, observation.content)
             self.event_log.append(
                 "evidence_recorded",
                 {
@@ -478,14 +489,14 @@ class AgentController:
         assessment = self._constrained(messages, flow.assess_format(manifest, evidence_ids), "assessment")
         if assessment is None:
             return flow.abstain(None, "The assessment could not be produced.", "assessment_failed")
-        errors = flow.assessment_errors(assessment)
+        errors = flow.assessment_errors(assessment) + flow.flag_errors(assessment, self.flags)
         if errors:
             self.event_log.append("assessment_inconsistent", {"errors": errors})
             messages.append({"role": "user", "content": json.dumps({
                 "step": "assess", "rejected": errors,
                 "instructions": "Fix exactly these contradictions and return the full assessment again."})})
             retried = self._constrained(messages, flow.assess_format(manifest, evidence_ids), "assessment")
-            assessment = flow.coerce(retried or assessment)
+            assessment = flow.coerce(retried or assessment, self.flags)
         self.event_log.append("assessment", assessment)
         rows = assessment["assessments"]
         if all(row["status"] == "healthy" for row in rows.values()):
