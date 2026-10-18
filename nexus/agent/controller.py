@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -115,7 +116,9 @@ class AgentController:
             max_steps=24 if structured else 16,
             max_tool_calls=20,
             max_total_operations=44 if structured else 32,
-            timeout_seconds=150 if structured else 120,
+            # NEXUS_RUN_TIMEOUT_SECONDS overrides the wall-clock cap, e.g. for a hosted model
+            # whose network latency would otherwise end runs early.
+            timeout_seconds=float(os.environ.get("NEXUS_RUN_TIMEOUT_SECONDS", 150 if structured else 120)),
         )
         self.context_budget = context_budget or ContextBudget()
         self.repair_precheck = repair_precheck
