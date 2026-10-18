@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<!-- Same content as the shared artifact; this wrapper only adds the document skeleton. -->
+<title>Nexus Ω System Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one column. Short intro, the live architecture diagram as the centrepiece, then compact reference tables.
+   Light only, matching the Nexus Ω app (the team asked for a light UI). */
+:root {
+  --bg: #f5f7f8; --paper: #ffffff; --ink: #0f1a14; --ink2: #46534b; --ink3: #6b7a71; --muted: #9aa8a0;
+  --line: #e1e7e3; --line2: #edf1ee; --soft: #f7f9f8; --code: #eef2f0;
+  --green: #76b900; --green-d: #4d7c0f; --green-bg: #f2f8e6;
+  --red: #e11d48; --red-d: #be123c; --red-bg: #fff1f3; --amber: #d97706; --amber-l: #f59e0b; --amber-d: #92400e; --amber-bg: #fff8e6; --blue: #0ea5e9;
+  --accent: #76b900; --accent-bg: #f2f8e6; --on-dark: #ffffff;
+  --display: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif; --body: Inter, 'Helvetica Neue', Arial, sans-serif; --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: .84em; background: var(--code); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+button { font: inherit; cursor: pointer; color: inherit; }
+button:focus-visible, a:focus-visible, td:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.label { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font: 600 11.5px/1.5 var(--body); background: var(--line2); color: var(--ink2); white-space: nowrap; }
+.pill.ok { background: var(--green-bg); color: var(--green-d); }
+.pill.warn { background: var(--amber-bg); color: var(--amber-d); }
+.pill.bad { background: var(--red-bg); color: var(--red-d); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--paper); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 16px; padding-block: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 16px var(--display); }
+.logo { width: 30px; height: 30px; border-radius: 8px; background: var(--green); color: var(--on-dark); display: grid; place-items: center; font: 700 18px/1 Arial, sans-serif; }
+.domains { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--line2); margin-left: auto; overflow-x: auto; max-width: 100%; }
+.domains button { border: 0; background: none; padding: 6px 11px; border-radius: 9px; font-weight: 600; font-size: 13px; color: var(--ink2); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.domains button i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.domains button.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(15, 26, 20, .14); }
+
+/* intro */
+.intro { padding-block: 40px 22px; display: grid; gap: 12px; max-width: 760px; }
+.intro h1 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.1; }
+.intro h1 em { font-style: normal; color: var(--accent); }
+.intro p { font-size: 16.5px; color: var(--ink2); max-width: 66ch; }
+
+section { padding-block: 22px; }
+.head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.head h2 { font-size: 24px; margin-top: 6px; }
+.head p { color: var(--ink2); margin-top: 4px; max-width: 70ch; }
+
+/* diagram */
+.diagram { padding: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
+.chip { border: 1px solid var(--line); background: var(--paper); border-radius: 99px; padding: 4px 11px 4px 5px; font-size: 12.5px; font-weight: 600; color: var(--ink2); display: inline-flex; align-items: center; gap: 7px; }
+.chip:hover { border-color: var(--muted); color: var(--ink); }
+.chip b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 11px var(--mono); background: var(--line2); color: var(--ink2); }
+.chip.silent b { background: var(--amber-bg); color: var(--amber); }
+.chip.on { border-color: var(--ink); color: var(--ink); }
+.chip.on b { background: var(--red); color: var(--on-dark); }
+.svg-scroll { overflow-x: auto; }
+svg.sys { width: 100%; min-width: 860px; display: block; }
+.band { font: 600 10.5px var(--mono); letter-spacing: .12em; fill: var(--muted); }
+.panel-bg { fill: var(--soft); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.panel-label { font: 700 12px var(--mono); letter-spacing: .1em; fill: var(--accent); }
+.sub-bg { fill: var(--soft); stroke: var(--line); stroke-dasharray: 3 5; }
+.node rect.box { fill: var(--paper); stroke: #d3dbd6; stroke-width: 1.5; transition: fill .4s, stroke .4s; }
+.node .nd { height: 100%; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; gap: 1px; overflow: hidden; font-family: var(--body); }
+.node .nd b { font: 600 13.5px/1.2 var(--display); color: var(--ink); }
+.node .nd small { font-size: 11px; line-height: 1.3; color: var(--ink3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.node .nd .ico { width: 18px; height: 18px; color: var(--ink3); margin-bottom: 4px; }
+.node .nd .ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.node .tgbg, .node .tg { opacity: 0; transition: opacity .3s; }
+.node .tg { font: 600 9.5px var(--mono); letter-spacing: .04em; text-transform: uppercase; fill: var(--on-dark); }
+.node.has-tag .tgbg, .node.has-tag .tg { opacity: 1; }
+.node.st-bad rect.box { fill: var(--red-bg); stroke: var(--red); }
+.node.st-bad .tgbg { fill: var(--red); }
+.node.st-warn rect.box { fill: var(--amber-bg); stroke: var(--amber-l); }
+.node.st-warn .tgbg { fill: var(--amber); }
+.node.st-ok rect.box { fill: var(--green-bg); stroke: var(--green); }
+.node.st-ok .tgbg { fill: var(--green-d); }
+.node.st-active rect.box { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2.2; }
+.node.st-active .tgbg { fill: var(--ink); }
+.halo { fill: none; stroke: var(--red); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.node.st-bad .halo { animation: halo 1.4s ease-out infinite; }
+@keyframes halo { 0% { opacity: .5; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
+.edge { fill: none; stroke: #c9d3cd; stroke-width: 1.6; transition: stroke .3s; }
+.edge.thin { stroke-dasharray: 2 5; stroke: #d3dbd6; }
+.edge.sup { stroke-dasharray: 1 6; stroke-linecap: round; stroke-width: 2.2; stroke: #c3cdc7; }
+.edge.hot { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 7 6; animation: march .7s linear infinite; }
+.edge.badline { stroke: var(--red); stroke-width: 2; }
+@keyframes march { to { stroke-dashoffset: -13; } }
+.flow circle { fill: var(--blue); transition: fill .3s, opacity .3s; }
+.lane.warn circle { fill: var(--amber-l); }
+.lane.dead circle { opacity: 0; }
+.badge { cursor: pointer; }
+.badge circle { fill: var(--paper); stroke: var(--ink2); stroke-width: 1.5; }
+.badge text { font: 700 11px var(--mono); text-anchor: middle; dominant-baseline: central; fill: var(--ink2); pointer-events: none; }
+.badge.silent circle { stroke: var(--amber); }
+.badge.on circle { fill: var(--red); stroke: var(--red); }
+.badge.on text { fill: var(--on-dark); }
+
+.player { display: flex; align-items: center; gap: 12px; padding: 12px 2px 4px; border-top: 1px solid var(--line2); margin-top: 6px; flex-wrap: wrap; }
+.play { border: 0; background: var(--ink); color: var(--on-dark); height: 36px; padding: 0 15px 0 11px; border-radius: 10px; font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 8px; }
+.play svg { width: 15px; height: 15px; fill: currentColor; }
+.steps { display: flex; gap: 4px; flex: 1; min-width: 240px; }
+.steps button { flex: 1; border: 0; background: none; padding: 0; text-align: left; }
+.steps i { display: block; height: 5px; border-radius: 4px; background: var(--line); transition: background .3s; }
+.steps .done i { background: var(--accent); }
+.steps .cur i { background: var(--ink); }
+.steps span { display: block; font: 600 10.5px var(--mono); color: var(--muted); margin-top: 5px; white-space: nowrap; }
+.steps .cur span, .steps .done span { color: var(--ink2); }
+@media (max-width: 700px) { .steps span { display: none; } }
+.caption { min-height: 48px; padding: 10px 2px 2px; font-size: 15px; display: flex; gap: 10px; align-items: flex-start; }
+.caption .k { font: 700 11px var(--mono); padding: 4px 8px; border-radius: 7px; background: var(--ink); color: var(--on-dark); white-space: nowrap; letter-spacing: .04em; text-transform: uppercase; }
+.caption .k.bad { background: var(--red); } .caption .k.ok { background: var(--green-d); }
+
+.incident { margin-top: 12px; padding: 18px; display: grid; grid-template-columns: minmax(0, 1.1fr) repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 10px; }
+@media (max-width: 900px) { .incident { grid-template-columns: 1fr; } }
+.incident .title { display: grid; gap: 8px; align-content: start; padding: 6px 6px 0 2px; }
+.incident .title h3 { font-size: 18px; line-height: 1.25; }
+.incident .title .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.irow { padding: 8px 10px; border-radius: 10px; transition: background .3s; min-width: 0; }
+.irow p { font-size: 13.5px; margin-top: 4px; color: var(--ink2); }
+.irow.lit { background: var(--accent-bg); }
+.irow.lit p { color: var(--ink); }
+.tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line2); }
+thead th { font: 600 12px var(--display); color: var(--ink2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+thead th i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--c); }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+table.map { min-width: 820px; }
+.map th.slot { font-weight: 600; color: var(--ink2); white-space: nowrap; }
+.map th.slot b { font: 700 11px var(--mono); color: var(--muted); margin-right: 6px; }
+.map tr.silent th.slot { color: var(--amber); }
+.map td { cursor: pointer; color: var(--ink2); }
+.map td:hover { background: var(--soft); color: var(--ink); }
+.map td.col { background: var(--accent-bg); color: var(--ink); }
+.map td.cell { box-shadow: inset 0 0 0 2px var(--ink); color: var(--ink); background: var(--paper); font-weight: 600; }
+
+.mods { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .mods { grid-template-columns: 1fr; } }
+.mods .card { padding: 6px 4px; min-width: 0; }
+.mods h3 { font-size: 16px; padding: 12px 14px 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mod { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 4px 14px; padding: 10px 14px; border-top: 1px solid var(--line2); }
+.mod:first-of-type { border-top: 0; }
+.mod b { font: 600 14px var(--display); }
+.mod p { font-size: 13.5px; color: var(--ink2); }
+.mod .path { grid-column: 2; font: 500 11.5px var(--mono); color: var(--ink3); }
+@media (max-width: 520px) { .mod { grid-template-columns: 1fr; } .mod .path { grid-column: 1; } }
+.note { margin-top: 12px; font-size: 13.5px; color: var(--ink2); }
+
+.doms td:first-child { white-space: nowrap; font-weight: 600; }
+.doms td:first-child i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--c); }
+.doms tr { cursor: pointer; }
+.doms tr:hover td { background: var(--soft); }
+table.doms { min-width: 760px; }
+.next { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 800px) { .next { grid-template-columns: 1fr; } }
+.next .card { padding: 14px 16px; }
+.next b { font: 600 15px var(--display); }
+.next p { font-size: 13.5px; color: var(--ink2); margin-top: 4px; }
+
+footer { padding-block: 20px 48px; }
+footer .card { padding: 16px 18px; display: grid; gap: 8px; font-size: 13.5px; color: var(--ink2); }
+footer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="logo">Ω</span>Nexus Ω design</div>
+    <div class="domains" id="domain-tabs" role="tablist" aria-label="Domain"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="intro">
+    <span class="label">System design · for the team</span>
+    <h1>One recovery loop for any system where <em id="hero-word">agents and humans</em> depend on shared infrastructure.</h1>
+    <p>Callers send work through a front door to many serving units on physical infrastructure. When something breaks, one controller with two tool collections (the Doctors) notices, tests fixes in a shadow twin, acts within policy and proves the repair.</p>
+  </div>
+
+  <section id="architecture">
+    <div class="head">
+      <div><span class="label">Architecture</span><h2 id="arch-title">Agents and humans → vLLM replicas → Nexus Doctors</h2>
+        <p>Pick a failure and press play. Slot 1 is silent: dashboards stay green while the work is wrong.</p></div>
+      <span class="pill" id="dom-status"></span>
+    </div>
+    <div class="card diagram">
+      <div class="chips" id="chips"></div>
+      <div class="svg-scroll"><svg class="sys" id="sys" viewBox="0 0 1240 596" role="img" aria-label="Architecture: callers, front door, serving units, physical substrate, telemetry and the Nexus controller"></svg></div>
+      <div class="player">
+        <button class="play" id="play" type="button"><svg viewBox="0 0 24 24" id="play-ico"><path d="M7 4v16l13-8z"/></svg><span id="play-lbl">Play</span></button>
+        <div class="steps" id="steps"></div>
+      </div>
+      <div class="caption" id="caption" aria-live="polite"></div>
+    </div>
+    <div class="card incident" id="incident"></div>
+  </section>
+
+  <section id="failures">
+    <div class="head"><div><span class="label">Failure map</span><h2>Same eight slots in every domain</h2>
+      <p>Rows are failure slots, columns are domains. Click a cell to load it into the diagram.</p></div></div>
+    <div class="card tbl-wrap"><table class="map" id="matrix"></table></div>
+  </section>
+
+  <section id="modules">
+    <div class="head"><div><span class="label">Modules</span><h2>A shared core plus one pack per domain</h2>
+      <p>The core is reused as is. A new domain only writes its pack. The pack column follows the domain picked at the top.</p></div></div>
+    <div class="mods">
+      <div class="card"><h3>Core <span class="pill">same everywhere</span></h3><div id="core"></div></div>
+      <div class="card"><h3><span id="pack-title">Domain pack</span><span class="pill" id="pack-status"></span></h3><div id="pack"></div></div>
+    </div>
+    <p class="note">Today the datacenter pack is wired in directly. Pulling it behind a <code>DomainPack</code> interface (twin, faults, tools, actions, policy, checks, scene) is proposed, not built.</p>
+  </section>
+
+  <section id="domains">
+    <div class="head"><div><span class="label">Domains</span><h2>Where the loop applies</h2>
+      <p>AI Datacenter is built. The other four are concepts: designed, not operational.</p></div></div>
+    <div class="card tbl-wrap"><table class="doms" id="doms"></table></div>
+    <div class="next">
+      <div class="card"><b>Easiest second build: Logistics</b><p>Closest match to the datacenter shape, every action is reversible, and order flow is a textbook SimPy queue.</p></div>
+      <div class="card"><b>Strongest story: Healthcare, as decision support</b><p>Unflagged lab results are the same silent failure as the dropped tool call. Nexus proposes and simulates; a named human approves anything patient-facing.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="card">
+    <span class="label">What is real today</span>
+    <ul>
+      <li>Doctor reasoning is a rule-based stand-in until Nemotron is connected. Tool calls, actions and verification run for real on the SimPy twin.</li>
+      <li>The twin is uncalibrated; it has not been fitted to Brev Prometheus or DCGM data yet.</li>
+      <li>On Brev, the loud tool-calling faults reproduce. The silent vLLM #32926 drop does not yet.</li>
+      <li>Healthcare, Agriculture, Education and Logistics are concepts. Their tool names are illustrative.</li>
+    </ul>
+    <span>Source in the repo: <code>apps/twin/static/design.html</code>. The live twin runs locally with <code>./scripts/twin.sh</code>.</span>
+  </div>
+</footer>
+
+<script>
+const SLOTS = [
+  { origin: ['u1', 'u2'], spread: ['dA'], doctor: 'd1', target: ['u1', 'u2'], silent: true },
+  { origin: ['u3'], spread: ['gw', 'dA', 'dB'], doctor: 'd2', target: ['u3'] },
+  { origin: ['u4'], spread: ['gw', 'dB'], doctor: 'd2', target: ['u4'] },
+  { origin: ['gw'], spread: ['u1', 'u2', 'u3', 'u4', 'dA', 'dB'], doctor: 'd2', target: ['gw'] },
+  { origin: ['s1'], spread: ['gw', 'u3', 'u4'], doctor: 'd2', target: ['gw'] },
+  { origin: ['s2'], spread: ['u2'], doctor: 'd2', target: ['u2'], human: true },
+  { origin: ['s3'], spread: ['s2', 'u1', 'u2', 'u3', 'u4'], doctor: 'd2', target: ['s2'], human: true },
+  { origin: ['s4'], spread: ['s2', 'u3', 'u4'], doctor: 'd2', target: ['s2'], human: true },
+];
+const SLOT_NAMES = ['Silent contract break', 'Unit crash', 'Unit stalls', 'Demand surge', 'Network', 'Equipment', 'Cooling', 'Power'];
+const BADGE_AT = ['u1', 'u3', 'u4', 'gw', 's1', 's2', 's3', 's4'];
+const f = (s, t, see, dash, detect, tools, act, human, verify) => ({ s, t, see, dash, detect, tools, act, human, verify });
+
+const DOMAINS = [
+  {
+    id: 'datacenter', name: 'AI Datacenter', color: '#76b900', bg: '#f2f8e6', built: true,
+    hero: 'agents and humans', title: 'Agents and humans → vLLM replicas → Nexus Doctors',
+    nodes: {
+      dA: ['AI agents', 'tool-calling clients'], dB: ['Humans', 'chat & API users'], gw: ['Gateway', 'route · drain · reweight'],
+      u1: ['vLLM replica a1', 'Qwen3-4B · GPU 0'], u2: ['vLLM replica a2', 'Qwen3-4B · GPU 1'], u3: ['vLLM replica b1', 'Qwen3-4B · GPU 2'], u4: ['vLLM replica b2', 'Qwen3-4B · GPU 3'],
+      s1: ['Network', 'ToR · fabric'], s2: ['GPUs', 'H100 · DCGM'], s3: ['Cooling', 'CRAH · airflow'], s4: ['Power', 'UPS · PDU'],
+      tel: ['Telemetry', 'Prometheus · DCGM · vLLM metrics · canary'], d1: ['Tool-Calling Doctor', 'contract failures'], d2: ['Infrastructure Doctor', 'fleet & facility'],
+    },
+    failures: [
+      f('Silent tool-call drop', 'Silent tool-call drop after the vLLM upgrade', 'Agents get HTTP 200 with tool_calls: [] and quietly stop acting.', 'All green: 200 OK, latency normal, GPUs busy.', 'A functional canary’s tool call comes back empty; change history shows the 0.27.1 → 0.28.0 rollout.', ['run_canary', 'get_change_history', 'read_raw_generation', 'read_serving_config'], 'Apply the matched parser + template profile, 2 replicas at a time, with drain and re-admit.', 'Any serving profile outside the approved list.', 'Canaries and hidden canaries pass, TTFT/TPOT SLO held, replicas back in rotation.'),
+      f('Replica crash', 'vLLM replica crashes', 'A burst of 5xx errors, then slower answers from the survivors.', 'Red: target down, error rate up.', 'Worker health and error-rate alarm.', ['list_workers', 'read_logs', 'inspect_gpu'], 'Drain, restart and re-admit the replica.', 'Repeated crash after restart.', 'Replica healthy; errors and TTFT under SLO.'),
+      f('Hung replica', 'Replica hangs: up, but 0 tokens/s', 'Requests routed there wait until they time out.', 'Mostly green: process up, health check passes.', 'tokens/s = 0 while requests are in flight.', ['list_workers', 'read_logs', 'query_metrics'], 'Drain the hung replica, restart, re-admit.', 'Hang reproduces on a fresh start.', 'tokens/s restored; nothing stuck past the timeout.'),
+      f('Traffic burst', 'Traffic burst causes KV-cache pressure', 'Time to first token climbs for everyone.', 'Amber: latency up, all replicas healthy.', 'TTFT p95 over SLO with queues growing on every replica.', ['query_metrics', 'list_workers'], 'Throttle at the gateway and cap in-flight requests per replica.', 'Buying more capacity.', 'TTFT p95 under SLO; shed rate within budget.'),
+      f('ToR link', 'Degraded top-of-rack link', 'Slow, flaky answers from one rack.', 'Amber: latency up, no errors.', 'Latency localized to one rack’s replicas.', ['inspect_network', 'query_metrics'], 'Reweight traffic away from the rack.', 'Replacing the optic or cable.', 'TTFT under SLO; rack drained cleanly.'),
+      f('GPU XID', 'GPU fault (XID 79, fell off the bus)', 'One replica errors or disappears.', 'Red: XID in DCGM, target down.', 'DCGM_FI_DEV_XID_ERRORS on the node.', ['inspect_gpu', 'list_workers', 'read_logs'], 'Cordon the node and drain its replica.', 'Hardware ticket: reseat or RMA the GPU.', 'Traffic served by healthy GPUs; SLO held.'),
+      f('CRAH trip', 'CRAH unit trips and the hot aisle heats up', 'Throughput drops as GPUs thermally throttle.', 'Amber, then red: GPU temperatures rising.', 'Facility alarm plus rising GPU °C across a row.', ['inspect_facility', 'query_metrics', 'inspect_gpu'], 'Pause batch jobs on all rows to shed heat; keep inference.', 'Restart or repair the CRAH.', 'GPU °C below limit; inference SLO held.'),
+      f('UPS feed lost', 'UPS feed lost, racks on a single feed', 'GPUs get power-capped; answers slow down.', 'Red: feed alarm, power over budget.', 'Facility alarm plus draw over the single-feed budget.', ['inspect_facility', 'query_metrics'], 'Cap batch GPUs to 250 W; keep inference at full power.', 'Restore the feed.', 'Power under budget; inference SLO held.'),
+    ],
+    pack: {
+      twin: ['Requests, continuous batching, KV cache, GPU power and thermals, CRAH, UPS feeds.', 'nexus/simulator/model.py'],
+      telemetry: ['vLLM and DCGM metric names, Prometheus text, 10 Hz frames.', 'nexus/simulator/telemetry.py'],
+      faults: ['8 injectors tied to issue candidates (VLLM-32926, XID 79, CRAH…).', 'nexus/simulator/faults.py'],
+      tools: ['11 read/test tools split across the two Doctors.', 'nexus/doctors/tools.py'],
+      actions: ['restart, drain, patch_config, throttle, power cap, pause batch, cordon. Each returns a rollback token.', 'nexus/simulator/actions.py'],
+      policy: ['Approved serving profiles only; facility and hardware go to a human.', 'nexus/doctors/*.py'],
+      checks: ['TTFT/TPOT p95, error rate, functional and hidden canaries.', 'nexus/doctors/base.py'],
+      scene: ['3D racks, aisles, CRAH and UPS in Three.js.', 'apps/twin/static/js/scene.js'],
+    },
+    guard: 'Allow-listed mutations · facility and hardware escalate · one reversible change per run',
+  },
+  {
+    id: 'healthcare', name: 'Healthcare', color: '#0891b2', bg: '#ecfeff',
+    hero: 'patients and clinicians', title: 'Patients and clinicians → care units → Nexus Doctors',
+    nodes: {
+      dA: ['Patients', 'arrivals · ED walk-ins'], dB: ['Clinicians', 'orders · results'], gw: ['Triage & bed management', 'route · admit · divert'],
+      u1: ['Emergency dept', 'ED bays'], u2: ['ICU', 'critical-care beds'], u3: ['Theatres', 'surgery'], u4: ['Wards', 'inpatient beds'],
+      s1: ['EHR & paging', 'HL7 · network'], s2: ['Equipment', 'CT · MRI · pumps'], s3: ['HVAC & med gas', 'isolation rooms'], s4: ['Power', 'utility · generator'],
+      tel: ['Telemetry', 'ADT events · census · BMS · interface logs'], d1: ['Integration Doctor', 'interface contracts'], d2: ['Operations Doctor', 'flow & facility'],
+    },
+    failures: [
+      f('Unflagged results', 'Lab results lose abnormal flags after an EHR interface upgrade', 'Critical values file as final with no flag, so no one is alerted.', 'All green: interface up, every message acknowledged.', 'A synthetic test patient’s known critical value comes back unflagged.', ['send_test_order', 'get_change_history', 'read_raw_hl7', 'read_interface_mapping'], 'Stage the previous mapping on the test path and list every affected result.', 'Production change (informatics sign-off) and contacting ordering clinicians.', 'Test order flags correctly end to end; affected results reviewed.'),
+      f('Theatre closed', 'Operating theatre closed (sterilizer failure)', 'Scheduled cases are bumped; waits grow.', 'Red: theatre unavailable.', 'Theatre status change plus case-queue growth.', ['get_theatre_schedule', 'read_equipment_status'], 'Simulate re-sequencing across open theatres and draft a new list.', 'Surgeon and theatre manager approve the list.', 'No urgent case over its target time.'),
+      f('Bed turnover stall', 'Discharged beds never released', 'ED patients board for hours while beds sit empty.', 'Looks normal: occupancy full, no alarm.', 'Discharges logged but cleaning moves at 0 beds/hour.', ['query_bed_census', 'read_evs_queue'], 'Re-prioritize the cleaning queue toward stalled beds.', 'Staffing changes.', 'Beds released; ED boarding time falling.'),
+      f('ED surge', 'ED arrival surge', 'The waiting room fills; door-to-doctor time climbs.', 'Amber: census up.', 'Arrivals and waits over target, forecast still rising.', ['get_admission_queue', 'simulate_diversion'], 'Trigger step 1 of the pre-approved surge protocol.', 'Ambulance diversion, opening surge beds.', 'Door-to-doctor time under target.'),
+      f('Paging network', 'Paging and EHR network degraded on one floor', 'Pages and orders reach the floor late.', 'Amber: latency up, no outage.', 'Page acknowledgement times spike on one floor.', ['inspect_network', 'read_page_log'], 'Fail pages over to the backup channel.', 'Downtime procedures, IT repair.', 'Test page delivered in under 30 s.'),
+      f('CT down', 'CT scanner fails mid-shift', 'Imaging backlog builds; stroke pathway at risk.', 'Red: device offline.', 'Device status plus imaging-queue growth.', ['read_equipment_status', 'get_imaging_queue'], 'Propose routing non-urgent scans to the second CT.', 'Stroke-pathway rerouting, vendor service.', 'Urgent scans within target time.'),
+      f('Isolation airflow', 'Isolation room loses negative pressure', 'Infection-control risk for patients and staff.', 'Amber: BMS pressure alarm.', 'Room pressure differential lost.', ['read_hvac_zone', 'query_bed_census'], 'Hold admissions to the room; alert infection control.', 'Patient relocation, HVAC repair.', 'Pressure restored; room re-certified.'),
+      f('Utility power', 'Utility power lost, generator transfer', 'Non-essential circuits drop.', 'Red: utility feed alarm.', 'Feed alarm plus generator load.', ['inspect_facility', 'read_generator'], 'Shed non-essential loads per the approved plan.', 'Elective surgery hold, fuel resupply.', 'Critical circuits on generator within rating.'),
+    ],
+    pack: {
+      twin: ['Arrivals, triage, beds, length of stay, staff shifts, isolation rooms, generator.'], telemetry: ['ADT events, bed census, BMS points, HL7 interface logs.'],
+      faults: ['Mapping drift, theatre closure, turnover stall, surge, device down, HVAC, power.'], tools: ['query_bed_census, read_evs_queue, send_test_order, read_raw_hl7.'],
+      actions: ['Re-prioritize queues, stage fixes, start surge step 1. Anything clinical is only a proposal.'], policy: ['Never moves a patient; staffing and diversion need charge-nurse approval.'],
+      checks: ['Door-to-doctor, ED boarding, critical-result delivery; synthetic test patient.'], scene: ['Hospital floors with a bed-occupancy heatmap.'],
+    },
+    guard: 'Decision support only · patient-facing actions need a named human · data stays on-prem',
+  },
+  {
+    id: 'agriculture', name: 'Agriculture', color: '#65a30d', bg: '#f7fee7',
+    hero: 'crops and growers', title: 'Crops and growers → field blocks → Nexus Doctors',
+    nodes: {
+      dA: ['Crops', 'water demand per block'], dB: ['Growers', 'targets · schedules'], gw: ['Irrigation scheduler', 'allocate · sequence'],
+      u1: ['Block A', 'drip zone'], u2: ['Block B', 'drip zone'], u3: ['Block C', 'center pivot'], u4: ['Greenhouse', 'climate zone'],
+      s1: ['Sensor network', 'LoRaWAN gateways'], s2: ['Pumps & valves', 'stations · lines'], s3: ['Cold storage', 'post-harvest'], s4: ['Power', 'grid · solar'],
+      tel: ['Telemetry', 'soil probes · flow meters · weather'], d1: ['Integration Doctor', 'sensor contracts'], d2: ['Field Doctor', 'water & equipment'],
+    },
+    failures: [
+      f('Probe unit drift', 'Probe firmware update changes moisture units', 'The controller reads soil as wet and skips irrigation.', 'All green: probes reporting, schedule ran.', 'Reference probe and flow meters disagree with reported moisture.', ['read_soil_moisture', 'get_change_history', 'read_raw_payload', 'cross_check_flow'], 'Apply the unit conversion on affected probes and re-run the schedule.', 'Rolling firmware back across the fleet.', 'Moisture matches the reference probe; blocks back in band.'),
+      f('Valve offline', 'Valve controller offline', 'Block C gets no water.', 'Red: controller heartbeat lost.', 'Heartbeat lost.', ['read_controller', 'read_logs'], 'Move Block C to the backup valve on a manual schedule.', 'Field technician visit.', 'Flow to Block C at target.'),
+      f('Stuck valve', 'Greenhouse valve stuck: command OK, no flow', 'The greenhouse dries while the schedule says watered.', 'Green: command acknowledged.', 'Commanded open, but the flow meter reads 0.', ['read_flow_meter', 'read_valve_state'], 'Cycle the valve; route water through the alternate line.', 'Valve replacement.', 'Measured flow matches the command.'),
+      f('Heatwave', 'Heatwave: demand exceeds pump capacity', 'Every block is under-watered.', 'Amber: moisture falling everywhere.', 'Evapotranspiration forecast above pump capacity.', ['get_weather_forecast', 'simulate_irrigation'], 'Re-sequence by crop-stress priority and water at night.', 'Buying extra water allocation.', 'Priority blocks in band; water budget held.'),
+      f('LoRa gateway', 'LoRaWAN gateway degraded', 'Stale readings from two blocks.', 'Amber: packet loss.', 'Readings older than 30 min behind one gateway.', ['inspect_network', 'read_soil_moisture'], 'Fall back to a forecast-based schedule for those blocks.', 'Gateway repair.', 'Fresh readings; schedule back on sensor data.'),
+      f('Pump failure', 'Pump bearing failure', 'Station 2 pressure drops.', 'Red: pressure low.', 'Pressure and vibration anomaly.', ['read_pump_telemetry', 'inspect_station'], 'Shift load to station 1 within its limits.', 'Pump repair.', 'Line pressure in range.'),
+      f('Cold room trip', 'Cold-storage compressor trips', 'Harvest at risk of spoilage.', 'Amber: room temperature rising.', 'Temperature slope plus compressor current at 0.', ['inspect_facility', 'read_room_temp'], 'Move intake to backup room capacity.', 'Compressor repair, moving produce.', 'Room temperature back in band.'),
+      f('Grid outage', 'Grid outage at the pump station', 'Irrigation stops.', 'Red: feed alarm.', 'Feed alarm.', ['inspect_facility', 'read_solar_battery'], 'Run priority blocks on solar and battery.', 'Generator rental.', 'Priority blocks watered.'),
+    ],
+    pack: {
+      twin: ['Soil water balance per block, evapotranspiration, pumps, valves, cold room.'], telemetry: ['Probe readings, flow meters, pump pressure, weather API.'],
+      faults: ['Unit drift, valve offline or stuck, heatwave, gateway, pump, cold room, grid.'], tools: ['read_soil_moisture, read_flow_meter, cross_check_flow, get_weather_forecast.'],
+      actions: ['Valve schedules within the water budget, load shifts between stations.'], policy: ['Water budget per block is hard; chemicals and harvest never automated.'],
+      checks: ['Moisture in band, water use, cold-room temperature; reference probe.'], scene: ['Fields with a soil-moisture heatmap.'],
+    },
+    guard: 'Water budget per block is hard · valve changes logged and reversible · no chemical or harvest decisions',
+  },
+  {
+    id: 'education', name: 'Education', color: '#7c3aed', bg: '#f5f3ff',
+    hero: 'students and instructors', title: 'Students and instructors → learning services → Nexus Doctors',
+    nodes: {
+      dA: ['Students', 'submit · attend · test'], dB: ['Instructors', 'teach · grade'], gw: ['LMS & scheduling', 'route · enroll · book rooms'],
+      u1: ['Assignments', 'submit · grade'], u2: ['Online exams', 'proctored'], u3: ['Proctoring', 'exam service'], u4: ['Exam waiting room', 'admission queue'],
+      s1: ['Campus Wi-Fi', 'APs · core'], s2: ['Lab & AV', 'PCs · projectors'], s3: ['HVAC', 'building zones'], s4: ['Power', 'building feeds'],
+      tel: ['Telemetry', 'LMS logs · room sensors · Wi-Fi'], d1: ['Integration Doctor', 'LMS contracts'], d2: ['Campus Doctor', 'services & rooms'],
+    },
+    failures: [
+      f('Dropped attachments', 'LMS plugin update drops file attachments on submit', 'Students see “Submitted”; instructors get empty submissions.', 'All green: 200 OK, submissions counted.', 'A synthetic test student submits a known file; the attachment is missing.', ['submit_test_assignment', 'get_change_history', 'read_raw_request', 'read_plugin_config'], 'Pin the previous plugin version on the submission path.', 'Notifying students, deadline policy.', 'Test submission round-trips with its attachment.'),
+      f('Proctoring down', 'Proctoring service down', 'Exams cannot start.', 'Red: service unavailable.', 'Health check plus exam-start failures.', ['list_services', 'read_logs'], 'Restart the service and hold the exam clock.', 'Rescheduling the exam.', 'A test candidate can start an exam.'),
+      f('Stuck waiting room', 'Exam waiting room never admits', 'Students stuck at “please wait”.', 'Green: service up.', 'Admissions = 0 with a queue of students.', ['query_metrics', 'read_logs'], 'Drain and restart the stuck queue worker.', 'Extending exam time.', 'Admission rate normal; queue empty.'),
+      f('Registration surge', 'Registration-day surge', 'Timeouts and double enrolments.', 'Amber: latency high.', 'Request rate 10× normal with a latency SLO breach.', ['query_metrics', 'simulate_waiting_room'], 'Enable a fair waiting room and rate limit.', 'Extending the registration window.', 'Latency under SLO; no duplicate enrolments.'),
+      f('Exam-hall Wi-Fi', 'Wi-Fi degraded in the exam hall', 'The online exam drops students.', 'Amber: AP errors on one floor.', 'Disconnects localized to one hall.', ['inspect_network', 'get_room_schedule'], 'Move the exam to a wired lab (simulated first).', 'Room change notice to students.', 'Test device stays connected for 10 min.'),
+      f('Lab image', 'Lab workstation image fails to boot', 'A lab section cannot run its software.', 'Red: boot failures.', 'Boot error rate on one image.', ['read_fleet_status', 'get_change_history'], 'Roll back to the last-known-good image.', 'Rescheduling the lab.', 'Test login runs the required software.'),
+      f('Hall HVAC', 'HVAC fails in an exam hall during a heatwave', 'Room too hot for a 3-hour exam.', 'Amber: zone temperature rising.', 'Zone temperature plus chiller status.', ['read_hvac_zone', 'simulate_room_swap'], 'Propose a room swap within the building group.', 'Approving the swap and notifying students.', 'Room within the comfort band at start time.'),
+      f('Building power', 'Building power loss', 'Classes interrupted.', 'Red: feed alarm.', 'Feed alarm.', ['inspect_facility', 'get_room_schedule'], 'Plan relocations for the next 2 hours.', 'Campus emergency notice.', 'Every affected class has a room.'),
+    ],
+    pack: {
+      twin: ['Submission and enrolment traffic, exam sessions, rooms, HVAC zones, Wi-Fi.'], telemetry: ['LMS logs, room sensors, Wi-Fi controller, timetable.'],
+      faults: ['Plugin drift, proctoring down, stuck queue, surge, Wi-Fi, lab image, HVAC, power.'], tools: ['submit_test_assignment, get_room_schedule, read_hvac_zone, inspect_network.'],
+      actions: ['Restart services, pin plugin versions, waiting room, room swaps within a group.'], policy: ['Exams and accessibility are hard constraints; student notices reviewed.'],
+      checks: ['Submission success, exam start rate, classes disrupted; synthetic test student.'], scene: ['Campus map with room status.'],
+    },
+    guard: 'Exams and accessibility are hard constraints · swaps within a building group · notices reviewed before sending',
+  },
+  {
+    id: 'logistics', name: 'Logistics', color: '#d97706', bg: '#fff8e6',
+    hero: 'shippers and customers', title: 'Shippers and customers → hubs and lines → Nexus Doctors',
+    nodes: {
+      dA: ['Shippers', 'orders via API'], dB: ['Customers', 'tracking · returns'], gw: ['Order router / WMS', 'allocate · route'],
+      u1: ['Carrier labels', 'booking API'], u2: ['East hub', 'pick · pack'], u3: ['West hub', 'pick · pack'], u4: ['Sort line 3', 'sortation'],
+      s1: ['Scanner network', 'handhelds · Wi-Fi'], s2: ['Sorters & conveyors', 'motors · PLCs'], s3: ['Cold chain', 'reefers · freezers'], s4: ['Power', 'site feeds'],
+      tel: ['Telemetry', 'scans · WMS events · telematics'], d1: ['Integration Doctor', 'carrier contracts'], d2: ['Operations Doctor', 'sites & fleet'],
+    },
+    failures: [
+      f('Service-level drop', 'Carrier API upgrade drops the service-level field', 'Express parcels ship as standard; promises missed days later.', 'All green: labels print, API returns 200.', 'A test parcel booked as express comes back labelled standard.', ['book_test_parcel', 'get_change_history', 'read_raw_label', 'read_carrier_mapping'], 'Restore the field mapping and re-label affected parcels still on site.', 'Customer credits, carrier escalation.', 'Test parcel labelled express; affected parcels re-labelled.'),
+      f('Hub WMS down', 'West hub WMS node down', 'Orders stop releasing to pickers.', 'Red: node down.', 'Health check.', ['list_services', 'read_logs'], 'Restart the node; route new orders to the East hub meanwhile.', 'Overtime shift.', 'Order release rate normal.'),
+      f('Conveyor jam', 'Conveyor jam: parcels scanned in, never out', 'Parcels miss the truck.', 'Green: belt motor running.', 'Scan-in rate above scan-out rate on line 3.', ['read_sorter_status', 'query_scans'], 'Divert line 3 inbound to line 2.', 'Clearing the jam on site.', 'Scan-out matches scan-in.'),
+      f('Peak surge', 'Peak-season surge', 'Backlog grows; SLA misses.', 'Amber: backlog up.', 'Backlog forecast above capacity before cutoff.', ['get_order_backlog', 'simulate_reroute'], 'Shift orders between hubs within limits.', 'Booking extra carrier capacity (spend).', 'Orders past SLA under target.'),
+      f('Scanner network', 'Handheld scanner network degraded', 'Pick confirmations lag.', 'Amber: Wi-Fi errors.', 'Scan latency localized to one zone.', ['inspect_network', 'query_scans'], 'Switch the zone to batch-scan mode.', 'Network repair.', 'Scan latency normal.'),
+      f('Sorter motor', 'Sorter motor failure', 'Sorting slows at the East hub.', 'Red: PLC fault.', 'PLC fault code.', ['read_sorter_status', 'read_logs'], 'Reroute to the remaining lines and open a manual sort lane.', 'Maintenance.', 'Throughput at plan.'),
+      f('Reefer failure', 'Reefer unit fails on a trailer', 'Cold-chain breach for food or vaccines.', 'Amber: trailer temperature rising.', 'Temperature slope plus unit status.', ['read_reefer', 'get_fleet_positions'], 'Divert the trailer to the nearest cold dock.', 'Product disposition decision.', 'Temperature in band within 30 min.'),
+      f('Hub power', 'Site power loss at a hub', 'The site stops.', 'Red: feed alarm.', 'Feed alarm.', ['inspect_facility', 'get_order_backlog'], 'Route all new orders to the other hub.', 'Generator, staff instructions.', 'Orders flowing through the other hub.'),
+    ],
+    pack: {
+      twin: ['Order arrivals, pick/pack, sort lines, docks, trucks, reefer thermals.'], telemetry: ['Scan events, WMS, PLC fault codes, telematics.'],
+      faults: ['Carrier mapping drift, WMS down, jam, surge, scanners, sorter, reefer, power.'], tools: ['book_test_parcel, read_sorter_status, get_order_backlog, get_fleet_positions.'],
+      actions: ['Divert lines, shift orders between hubs, re-label, reroute trailers.'], policy: ['Spend above a threshold and driver-hour limits need approval.'],
+      checks: ['Orders past SLA, on-time delivery, cold-chain band; test parcel.'], scene: ['Hubs, conveyors and routes.'],
+    },
+    guard: 'Delivery windows are the SLO · spend over threshold needs approval · driver-hour limits never exceeded',
+  },
+];
+
+const CORE = [
+  ['Controller', 'Nemotron proposes the next tool call; a state machine owns budgets (12 steps, 20 tool calls, 1 mutation), policy and audit.', 'nexus/agent · nexus/doctors/base.py'],
+  ['Tool runtime', 'Typed, allow-listed tools; read, test and mutate classes allowed per state.', 'nexus/agent/tools.py'],
+  ['Evidence ledger', 'Every claim cites a tool result; hypotheses move only on evidence.', 'nexus/doctors/base.py'],
+  ['Shadow twin', 'Forks the live twin and races candidate fixes over several seeds.', 'nexus/simulator/whatif.py'],
+  ['Verifier', 'Canaries, hidden canaries, SLOs and policy, independent of the model. Failure rolls back.', 'nexus/doctors/base.py'],
+  ['Certificate', 'sha256-sealed record, matched by signature on the next incident.', 'nexus/certificate/'],
+  ['UI shell', 'Mission Control, Doctor views, Break the system, Proof of Recovery.', 'apps/twin/static/'],
+];
+const PACK = [['twin', 'Twin model'], ['telemetry', 'Telemetry'], ['faults', 'Faults'], ['tools', 'Doctor tools'], ['actions', 'Actions'], ['policy', 'Policy'], ['checks', 'SLOs & canaries'], ['scene', 'Scene']];
+const ICONS = {
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  bot: '<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01"/>',
+};
+const STEPS = ['Break', 'Dashboards', 'Detect', 'Shadow test', 'Act', 'Verify'];
+
+const L = {
+  dA: { x: 30, y: 128, w: 172, h: 92, icon: 'bot' }, dB: { x: 30, y: 262, w: 172, h: 92, icon: 'user' },
+  gw: { x: 252, y: 128, w: 152, h: 226 },
+  u1: { x: 456, y: 62, w: 200, h: 74 }, u2: { x: 456, y: 150, w: 200, h: 74 }, u3: { x: 456, y: 238, w: 200, h: 74 }, u4: { x: 456, y: 326, w: 200, h: 74 },
+  tel: { x: 708, y: 128, w: 140, h: 226 },
+  s1: { x: 252, y: 482, w: 140, h: 76 }, s2: { x: 404, y: 482, w: 140, h: 76 }, s3: { x: 556, y: 482, w: 140, h: 76 }, s4: { x: 708, y: 482, w: 140, h: 76 },
+  ctrl: { x: 902, y: 66, w: 314, h: 66, fixed: ['Nemotron controller', 'state machine · budgets · policy · audit'] },
+  d1: { x: 902, y: 156, w: 152, h: 84 }, d2: { x: 1064, y: 156, w: 152, h: 84 },
+  twin: { x: 902, y: 264, w: 314, h: 64, fixed: ['Shadow twin', 'fork · race candidate fixes over seeds'] },
+  act: { x: 902, y: 352, w: 152, h: 70, fixed: ['Act', 'allow-listed · rollback token'] },
+  ver: { x: 1064, y: 352, w: 152, h: 70, fixed: ['Verify', 'canary · SLO · policy'] },
+  cert: { x: 902, y: 446, w: 314, h: 64, fixed: ['Recovery certificate', 'proof · memory · morning summary'] },
+};
+const cx = (id) => L[id].x + L[id].w / 2, cy = (id) => L[id].y + L[id].h / 2;
+const hcurve = (x1, y1, x2, y2) => { const m = (x1 + x2) / 2; return `M${x1} ${y1} C ${m} ${y1}, ${m} ${y2}, ${x2} ${y2}`; };
+const EDGES = [
+  ['dA>gw', hcurve(202, cy('dA'), 252, cy('gw') - 40), ''],
+  ['dB>gw', hcurve(202, cy('dB'), 252, cy('gw') + 40), ''],
+  ...['u1', 'u2', 'u3', 'u4'].map((u) => [`gw>${u}`, hcurve(404, cy('gw'), 456, cy(u)), '']),
+  ...['u1', 'u2', 'u3', 'u4'].map((u) => [`${u}>tel`, hcurve(656, cy(u), 708, cy('tel')), 'thin']),
+  ...['s1', 's2', 's3', 's4'].map((s) => [`${s}>units`, `M${cx(s)} 482 C ${cx(s)} 450, 556 440, 556 400`, 'sup']),
+  ['sub>tel', 'M778 482 L 778 354', 'thin'],
+  ['tel>ctrl', hcurve(848, cy('tel'), 902, cy('ctrl')), ''],
+  ['ctrl>d1', `M${cx('d1')} 132 L ${cx('d1')} 156`, ''], ['ctrl>d2', `M${cx('d2')} 132 L ${cx('d2')} 156`, ''],
+  ['d1>twin', `M${cx('d1')} 240 L ${cx('d1')} 264`, ''], ['d2>twin', `M${cx('d2')} 240 L ${cx('d2')} 264`, ''],
+  ['twin>act', `M${cx('act')} 328 L ${cx('act')} 352`, ''], ['act>ver', 'M1054 387 L 1064 387', ''],
+  ['ver>cert', `M${cx('ver')} 422 L ${cx('ver')} 446`, ''],
+  ['act>fleet', 'M902 400 C 870 440, 760 430, 656 386', 'thin'],
+];
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cur = { d: DOMAINS[0], i: 0, step: -1, playing: false, timer: null };
+
+function buildSvg() {
+  const bands = [['DEMAND', 30], ['FRONT DOOR', 252], ['SERVING UNITS', 456], ['TELEMETRY', 708]].map(([t, x]) => `<text class="band" x="${x + 2}" y="44">${t}</text>`).join('')
+    + '<text class="band" x="256" y="577">PHYSICAL SUBSTRATE · SHARED BY EVERY UNIT</text>';
+  const edges = EDGES.map(([id, d, cls]) => `<path id="e-${id.replace('>', '-')}" data-e="${id}" class="edge ${cls}" d="${d}"/>`).join('');
+  const lanes = ['u1', 'u2', 'u3', 'u4'].map((u, k) => `<g class="flow lane" data-u="${u}">${[0, 1, 2].map((j) => `<circle r="3.4"><animateMotion dur="1.6s" begin="${(j * 0.53 + k * 0.17).toFixed(2)}s" repeatCount="indefinite"><mpath href="#e-gw-${u}"/></animateMotion></circle>`).join('')}</g>`).join('');
+  const inbound = ['dA', 'dB'].map((d, k) => `<g class="flow">${[0, 1].map((j) => `<circle r="3.4"><animateMotion dur="1.4s" begin="${(j * 0.7 + k * 0.3).toFixed(2)}s" repeatCount="indefinite"><mpath href="#e-${d}-gw"/></animateMotion></circle>`).join('')}</g>`).join('');
+  const nodes = Object.entries(L).map(([id, n]) => `<g class="node" data-id="${id}">
+      <rect class="halo" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="14"/>
+      <rect class="box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="14"/>
+      <foreignObject x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}"><div xmlns="http://www.w3.org/1999/xhtml" class="nd">${n.icon ? `<span class="ico"><svg viewBox="0 0 24 24">${ICONS[n.icon]}</svg></span>` : ''}<b></b><small></small></div></foreignObject>
+      <rect class="tgbg" rx="7" x="${n.x + 10}" y="${n.y - 9}" height="18" width="60"/><text class="tg" x="${n.x + 17}" y="${n.y + 3.5}"></text></g>`).join('');
+  const badges = BADGE_AT.map((id, i) => { const n = L[id]; return `<g class="badge ${SLOTS[i].silent ? 'silent' : ''}" data-i="${i}" transform="translate(${n.x + n.w - 4} ${n.y + 4})"><circle r="12"/><text>${i + 1}</text><title></title></g>`; }).join('');
+  $('#sys').innerHTML = `<rect class="sub-bg" x="240" y="466" width="620" height="120" rx="18"/>
+    <rect class="panel-bg" x="886" y="22" width="346" height="504" rx="22"/>
+    <text class="panel-label" x="904" y="48">NEXUS Ω · 1 MODEL · 2 DOCTORS</text>${bands}${edges}${inbound}${lanes}${nodes}${badges}`;
+  $$('#sys .badge').forEach((b) => b.addEventListener('click', () => select(+b.dataset.i, true)));
+}
+
+function labelNodes() {
+  const d = cur.d;
+  for (const [id, n] of Object.entries(L)) {
+    const g = $(`.node[data-id="${id}"]`);
+    const [t, s] = n.fixed ?? d.nodes[id];
+    $('b', g).textContent = t;
+    $('small', g).textContent = s;
+  }
+  $('.node[data-id="dA"] .ico').hidden = d.id !== 'datacenter'; // robot icon only fits AI agents
+  $$('#sys .badge').forEach((b, i) => { $('title', b).textContent = `${i + 1} · ${d.failures[i].t}`; });
+}
+
+function renderChips() {
+  $('#chips').innerHTML = cur.d.failures.map((x, i) => `<button type="button" class="chip ${SLOTS[i].silent ? 'silent' : ''} ${i === cur.i ? 'on' : ''}" data-i="${i}" title="${esc(x.t)}"><b>${i + 1}</b>${esc(x.s)}</button>`).join('');
+  $$('#chips .chip').forEach((b) => b.addEventListener('click', () => select(+b.dataset.i, true)));
+}
+
+function renderIncident() {
+  const x = cur.d.failures[cur.i], slot = SLOTS[cur.i];
+  const row = (label, body, step) => `<div class="irow" data-step="${step}"><span class="label">${label}</span>${body}</div>`;
+  $('#incident').innerHTML = `<div class="title"><div class="tags"><span class="pill">${cur.i + 1} · ${esc(SLOT_NAMES[cur.i])}</span>${slot.silent ? '<span class="pill warn">silent</span>' : '<span class="pill bad">loud</span>'}${slot.human ? '<span class="pill">ends with a human</span>' : '<span class="pill ok">autopilot can fix</span>'}</div><h3>${esc(x.t)}</h3></div>
+    ${row('Dashboards say', `<p>${esc(x.dash)}</p>`, 1)}
+    ${row(esc(cur.d.nodes[slot.doctor][0]), `<p>${esc(x.detect)}</p><div class="tools">${x.tools.map((t) => `<code>${esc(t)}</code>`).join('')}</div>`, 2)}
+    ${row('Fix', `<p>${esc(x.act)}</p>`, 4)}
+    ${row('Proof', `<p>${esc(x.verify)}</p><p><b>Needs a human:</b> ${esc(x.human)}</p>`, 5)}`;
+}
+
+function stateAt(k) {
+  const slot = SLOTS[cur.i], x = cur.d.failures[cur.i];
+  const S = {}, hot = new Set(), bad = new Set();
+  const set = (ids, st, tag) => ids.forEach((id) => { S[id] = { st, tag }; });
+  let cap = ['Healthy', 'Every unit is serving. Requests flow from callers through the front door to the serving units.', ''];
+  if (k >= 0) {
+    set(slot.origin, 'bad', slot.silent ? 'wrong output' : 'failing');
+    set(slot.spread, 'warn', 'impacted');
+    slot.origin.forEach((o) => EDGES.forEach(([id]) => { const [a, b] = id.split('>'); if ((a === o && slot.spread.includes(b)) || (b === o && slot.spread.includes(a))) bad.add(id); }));
+    cap = ['Break', `${x.t}. ${x.see}`, 'bad'];
+  }
+  if (k >= 1) { S.tel = slot.silent ? { st: 'ok', tag: 'all green' } : { st: 'bad', tag: 'alarm' }; cap = ['Dashboards', x.dash, slot.silent ? 'ok' : 'bad']; }
+  if (k >= 2) {
+    S.ctrl = { st: 'active', tag: 'engaged' }; S[slot.doctor] = { st: 'active', tag: 'diagnosing' };
+    hot.add('tel>ctrl'); hot.add(`ctrl>${slot.doctor}`);
+    cap = [cur.d.nodes[slot.doctor][0], `${x.detect} Calls ${x.tools.join(', ')}.`, ''];
+  }
+  if (k >= 3) { S.twin = { st: 'active', tag: 'racing fixes' }; hot.add(`${slot.doctor}>twin`); cap = ['Shadow test', 'Forks the live twin and races every candidate fix before touching anything real.', '']; }
+  if (k >= 4) {
+    S.act = { st: 'active', tag: slot.human ? 'contain' : 'apply' }; hot.add('twin>act'); hot.add('act>fleet');
+    set(slot.target, 'ok', slot.human ? 'protected' : 'repairing'); bad.clear();
+    cap = ['Act', x.act, 'ok'];
+  }
+  if (k >= 5) {
+    S.ver = { st: 'active', tag: 'checking' }; S.cert = { st: 'active', tag: slot.human ? '+ escalation' : 'issued' };
+    hot.add('act>ver'); hot.add('ver>cert');
+    set(slot.spread, 'ok', slot.human ? 'protected' : 'recovered');
+    if (slot.human) set(slot.origin, 'bad', 'needs human'); else set(slot.origin, 'ok', 'verified');
+    S.tel = { st: 'ok', tag: 'green' };
+    cap = ['Verify', slot.human ? `${x.verify} Handed to a human: ${x.human}` : `${x.verify} Certificate issued.`, 'ok'];
+  }
+  return { S, hot, bad, cap };
+}
+
+function paint() {
+  const { S, hot, bad, cap } = stateAt(cur.step);
+  for (const id of Object.keys(L)) {
+    const g = $(`.node[data-id="${id}"]`), s = S[id];
+    g.classList.remove('st-bad', 'st-warn', 'st-ok', 'st-active');
+    if (s) g.classList.add(`st-${s.st}`);
+    g.classList.toggle('has-tag', !!s?.tag);
+    if (s?.tag) { $('.tg', g).textContent = s.tag; $('.tgbg', g).setAttribute('width', s.tag.length * 6.4 + 14); }
+  }
+  $$('#sys .edge').forEach((p) => { p.classList.toggle('hot', hot.has(p.dataset.e)); p.classList.toggle('badline', bad.has(p.dataset.e)); });
+  for (const u of ['u1', 'u2', 'u3', 'u4']) {
+    const lane = $(`.lane[data-u="${u}"]`), st = S[u]?.st;
+    lane.classList.remove('warn', 'dead');
+    if (st === 'bad') lane.classList.add(SLOTS[cur.i].silent ? 'warn' : 'dead');
+    else if (st === 'warn') lane.classList.add('warn');
+  }
+  $$('#sys .badge').forEach((b) => b.classList.toggle('on', +b.dataset.i === cur.i && cur.step >= 0));
+  $$('#steps button').forEach((b, j) => { b.classList.toggle('done', j < cur.step); b.classList.toggle('cur', j === cur.step); });
+  $('#caption').innerHTML = `<span class="k ${cap[2]}">${esc(cap[0])}</span><span>${esc(cap[1])}</span>`;
+  $$('#incident .irow').forEach((r) => r.classList.toggle('lit', +r.dataset.step === cur.step));
+  const end = cur.step >= STEPS.length - 1;
+  $('#play-lbl').textContent = cur.playing ? 'Pause' : end ? 'Replay' : cur.step < 0 ? 'Play' : 'Resume';
+  $('#play-ico').innerHTML = cur.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+}
+
+function stop() { cur.playing = false; clearTimeout(cur.timer); }
+function tick() {
+  if (!cur.playing) return;
+  if (cur.step >= STEPS.length - 1) { stop(); paint(); return; }
+  cur.step += 1; paint();
+  cur.timer = setTimeout(tick, 2400);
+}
+function play() {
+  if (cur.playing) { stop(); paint(); return; }
+  if (cur.step >= STEPS.length - 1) cur.step = -1;
+  cur.playing = true; paint();
+  cur.timer = setTimeout(tick, cur.step < 0 ? 400 : 900);
+}
+function select(i, autoplay) {
+  stop(); cur.i = i; cur.step = -1;
+  renderChips(); renderIncident(); paint(); renderMatrix();
+  if (autoplay) play();
+}
+
+function renderMatrix() {
+  const head = `<thead><tr><th>Slot</th>${DOMAINS.map((d) => `<th style="--c:${d.color}"><i></i>${esc(d.name)}</th>`).join('')}</tr></thead>`;
+  const body = SLOTS.map((s, i) => `<tr class="${s.silent ? 'silent' : ''}"><th class="slot"><b>${i + 1}</b>${esc(SLOT_NAMES[i])}${s.silent ? ' · silent' : ''}</th>${DOMAINS.map((d) => {
+    const cls = d === cur.d ? (i === cur.i ? 'col cell' : 'col') : '';
+    return `<td class="${cls}" data-d="${d.id}" data-i="${i}" title="${esc(d.failures[i].t)}" tabindex="0">${esc(d.failures[i].s)}</td>`;
+  }).join('')}</tr>`).join('');
+  $('#matrix').innerHTML = head + `<tbody>${body}</tbody>`;
+  $$('#matrix td').forEach((td) => {
+    const go = () => { if (td.dataset.d !== cur.d.id) setDomain(td.dataset.d); select(+td.dataset.i, true); $('#architecture').scrollIntoView(); };
+    td.addEventListener('click', go);
+    td.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  });
+}
+
+function renderModules() {
+  $('#core').innerHTML = CORE.map(([t, p, path]) => `<div class="mod"><b>${esc(t)}</b><p>${esc(p)}</p><span class="path">${esc(path)}</span></div>`).join('');
+}
+function renderPack() {
+  const d = cur.d;
+  $('#pack-title').textContent = `${d.name} pack`;
+  $('#pack-status').textContent = d.built ? 'built' : 'concept';
+  $('#pack-status').className = `pill ${d.built ? 'ok' : 'warn'}`;
+  $('#pack').innerHTML = PACK.map(([k, t]) => { const [ex, path] = d.pack[k]; return `<div class="mod"><b>${esc(t)}</b><p>${esc(ex)}</p><span class="path">${esc(path ?? 'to build')}</span></div>`; }).join('');
+}
+function renderDomains() {
+  $('#doms').innerHTML = `<thead><tr><th>Domain</th><th>Status</th><th>Doctors</th><th>Guardrails</th></tr></thead><tbody>${DOMAINS.map((d) => `<tr data-d="${d.id}"><td style="--c:${d.color}"><i></i>${esc(d.name)}</td><td><span class="pill ${d.built ? 'ok' : 'warn'}">${d.built ? 'built' : 'concept'}</span></td><td>${esc(d.nodes.d1[0])}<br>${esc(d.nodes.d2[0])}</td><td>${esc(d.guard)}</td></tr>`).join('')}</tbody>`;
+  $$('#doms tbody tr').forEach((tr) => tr.addEventListener('click', () => { setDomain(tr.dataset.d); $('#architecture').scrollIntoView(); }));
+}
+
+function setDomain(id) {
+  cur.d = DOMAINS.find((d) => d.id === id) ?? DOMAINS[0];
+  document.documentElement.style.setProperty('--accent', cur.d.color);
+  document.documentElement.style.setProperty('--accent-bg', cur.d.bg);
+  $$('#domain-tabs button').forEach((b) => { const on = b.dataset.d === cur.d.id; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  $('#hero-word').textContent = cur.d.hero;
+  $('#arch-title').textContent = cur.d.title;
+  $('#dom-status').textContent = cur.d.built ? 'Built · runs in the SimPy twin' : 'Concept · not operational';
+  $('#dom-status').className = `pill ${cur.d.built ? 'ok' : 'warn'}`;
+  labelNodes(); renderPack();
+  select(0, false);
+}
+
+function init() {
+  $('#domain-tabs').innerHTML = DOMAINS.map((d) => `<button type="button" role="tab" data-d="${d.id}" style="--c:${d.color}"><i></i>${esc(d.name)}</button>`).join('');
+  $$('#domain-tabs button').forEach((b) => b.addEventListener('click', () => { setDomain(b.dataset.d); play(); }));
+  $('#steps').innerHTML = STEPS.map((s) => `<button type="button"><i></i><span>${s}</span></button>`).join('');
+  $$('#steps button').forEach((b, j) => b.addEventListener('click', () => { stop(); cur.step = j; paint(); }));
+  $('#play').addEventListener('click', play);
+  buildSvg(); renderModules(); renderDomains();
+  const hash = location.hash.slice(1);
+  setDomain(DOMAINS.some((d) => d.id === hash) ? hash : 'datacenter');
+  play();
+  window.addEventListener('keydown', (e) => {
+    if (e.target.closest('button, td, input')) return;
+    if (e.key === ' ') { e.preventDefault(); play(); }
+    else if (e.key >= '1' && e.key <= '8') select(+e.key - 1, true);
+    else if (e.key === 'ArrowRight') { stop(); cur.step = Math.min(cur.step + 1, STEPS.length - 1); paint(); }
+    else if (e.key === 'ArrowLeft') { stop(); cur.step = Math.max(cur.step - 1, -1); paint(); }
+  });
+}
+init();
+</script>
+
+</body>
+</html>

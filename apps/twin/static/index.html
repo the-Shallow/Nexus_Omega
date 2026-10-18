@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nexus Ω Recovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2376b900'/%3E%3Ctext x='7' y='24' font-size='20' font-family='Arial' font-weight='700' fill='white'%3E%CE%A9%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="view-mission">
+  <header class="appbar">
+    <div class="brand">
+      <span class="logo">Ω</span>
+      <div><b>NEXUS Ω</b><small>Autonomous Operations &amp; Recovery Intelligence</small></div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="mission" class="on">Mission Control</button>
+      <button data-view="tool">Tool-Calling Doctor<i class="dot" id="dot-tool"></i></button>
+      <button data-view="infra">Infrastructure Doctor<i class="dot" id="dot-infra"></i></button>
+      <button data-view="arch">Architecture</button>
+    </nav>
+    <div class="bar-right">
+      <div class="domain-select">
+        <button id="domain-btn"><span class="sw" id="domain-sw"></span><span id="domain-name">AI Datacenter</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="menu" id="domain-menu"></div>
+      </div>
+      <div class="clockbox" title="Twin time shown as time of day for the 2 AM story">
+        <span class="sim">Twin</span><b id="clock">01:48:30</b>
+        <div class="speed" id="speed">
+          <button data-speed="0" title="Pause (space)">❚❚</button><button data-speed="1">1×</button><button data-speed="4">4×</button><button data-speed="10">10×</button><button id="reset" title="Reset the twin for a fresh take (R)">↺</button>
+        </div>
+      </div>
+      <label class="switch" title="Doctors act within policy without waiting for a human"><input type="checkbox" id="autopilot" checked /><span></span>Autopilot</label>
+      <button class="break" id="break-btn"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Break the system</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Mission Control -->
+    <section class="view" id="view-mission">
+      <aside class="col left">
+        <div class="card status" id="status-card"></div>
+        <div class="card"><h3>Vital signs</h3><div class="kpis" id="kpis"></div></div>
+        <div class="doctors" id="doctor-cards"></div>
+      </aside>
+      <div class="stage-host" id="mission-stage"></div>
+      <aside class="col right">
+        <div class="card"><h3>Incidents</h3><div id="incidents"></div></div>
+        <div class="card gap" id="gap-card"></div>
+        <div class="card"><h3>Recovery certificates</h3><div id="certs"></div></div>
+      </aside>
+      <div class="card timeline" id="mission-timeline"></div>
+    </section>
+
+    <!-- Tool-Calling Doctor -->
+    <section class="view doctor-view" id="view-tool">
+      <div class="card railcard"><div class="rail-meta"><div><span class="eyebrow">Tool-Calling Doctor</span><h2 id="tool-title">Watching tool calls</h2><small class="controller" id="tool-ctrl"></small></div><div class="budget" id="tool-budget"></div></div><div id="tool-rail"></div></div>
+      <aside class="col left wide">
+        <div class="card"><h3>Request anatomy <small>where the tool call goes missing</small></h3><div id="anatomy"></div></div>
+        <div class="card"><h3>Raw generation vs API response</h3><div id="rawdiff"></div></div>
+        <div class="card"><h3>Serving contract <small>parser × chat template per replica</small></h3><div id="contract"></div></div>
+      </aside>
+      <div class="card stream-card"><h3>AI reasoning &amp; tool execution <small id="tool-count"></small></h3><div class="stream" id="tool-stream"></div></div>
+      <aside class="col right">
+        <div class="card"><h3>Hypotheses</h3><div class="hyps" id="tool-hyps"></div></div>
+        <div class="card"><h3>Incident memory</h3><div id="tool-memory"></div></div>
+        <div class="card"><h3>Shadow test</h3><div id="tool-branches"></div></div>
+      </aside>
+      <div class="card timeline" id="tool-timeline"></div>
+    </section>
+
+    <!-- Infrastructure Doctor -->
+    <section class="view doctor-view" id="view-infra">
+      <div class="card railcard"><div class="rail-meta"><div><span class="eyebrow">Infrastructure Doctor</span><h2 id="infra-title">Watching the fleet</h2><small class="controller" id="infra-ctrl"></small></div><div class="budget" id="infra-budget"></div></div><div id="infra-rail"></div></div>
+      <aside class="col left">
+        <div class="card"><h3>Hypotheses</h3><div class="hyps" id="infra-hyps"></div></div>
+        <div class="card"><h3>Incident memory</h3><div id="infra-memory"></div></div>
+      </aside>
+      <div class="infra-center">
+        <div class="stage-host" id="infra-stage"></div>
+        <div class="card branches-card"><h3>Shadow twin · what-if <small>fork the live twin, race candidate fixes</small><button class="btn small ghost" id="manual-preview">Run what-if now</button></h3><div id="infra-branches"></div></div>
+      </div>
+      <div class="card stream-card"><h3>AI reasoning &amp; tool execution <small id="infra-count"></small></h3><div class="stream" id="infra-stream"></div></div>
+      <div class="card timeline" id="infra-timeline"></div>
+    </section>
+
+    <section class="view" id="view-arch"></section>
+    <section class="view" id="view-domain"></section>
+  </main>
+
+  <div class="stage" id="stage">
+    <div class="stage-tools">
+      <div class="seg" id="cams">
+        <button data-cam="overview">Overview</button><button data-cam="cold">Cold aisle</button><button data-cam="hot">Hot aisle</button><button data-cam="top">Top</button><button data-cam="power">Power</button><button data-cam="network">Network</button>
+      </div>
+      <div class="seg"><button data-toggle="cinematic">Orbit</button><button data-toggle="thermal" class="on">Thermal</button><button data-toggle="labels" class="on">Labels</button></div>
+    </div>
+    <div class="inspector" id="inspector"></div>
+    <div class="legend">
+      <span><i style="--c:#0ea5e9"></i>request</span><span><i style="--c:#65a30d"></i>200 OK</span><span><i style="--c:#f59e0b"></i>200 OK, tool call dropped</span><span><i style="--c:#e11d48"></i>error</span><span><i style="--c:#7c3aed"></i>shed</span>
+      <span class="ramp">GPU °C <b></b></span>
+    </div>
+  </div>
+
+  <aside class="drawer" id="drawer">
+    <header><div><span class="eyebrow">Chaos mode</span><h2>Break the system</h2><p>Inject a failure and watch it spread. A doctor engages on its own.</p></div><button class="btn ghost icon" id="drawer-close" aria-label="Close">✕</button></header>
+    <div id="chaos"></div>
+  </aside>
+  <div class="modal" id="proof"></div>
+  <div id="toasts"></div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

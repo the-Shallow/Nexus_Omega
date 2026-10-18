@@ -74,3 +74,25 @@ def verify_diagnosis(
             "expected_paths": list(expected.expected_paths),
         },
     )
+
+
+def verify_repair_reproduction(
+    baseline: dict[str, Any], post_change: dict[str, Any]
+) -> VerificationReport:
+    """Require the original symptom to vanish and the probe's success contract to pass."""
+    checks = {
+        "baseline_reproduced": baseline.get("reproduced") is True
+        and baseline.get("exit_code") == 0,
+        "post_probe_completed": post_change.get("exit_code") == 0
+        and post_change.get("timed_out") is False,
+        "original_symptom_absent": post_change.get("reproduced") is False,
+        "regression_contract_passed": post_change.get("passed") is True,
+    }
+    return VerificationReport(
+        passed=all(checks.values()),
+        checks=checks,
+        details={
+            "baseline_artifact_id": baseline.get("artifact_id"),
+            "post_change_artifact_id": post_change.get("artifact_id"),
+        },
+    )
