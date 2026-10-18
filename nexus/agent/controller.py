@@ -151,6 +151,8 @@ class AgentController:
                 self._record_model_turn(turn)
                 if turn.tool_calls and any(c.name == REPAIR_TOOL for c in turn.tool_calls):
                     turn = self._redirect_repair_call(messages, turn)
+                elif turn.tool_calls and self.context_budget.rounds >= self.context_budget.max_rounds:
+                    turn = self._conclude_at_context_budget(messages)
                 elif turn.tool_calls:
                     self._expand_context(messages, turn)
                     continue
@@ -158,6 +160,7 @@ class AgentController:
                 decision = parse_decision(
                     self.client, messages, turn,
                     consume_step=self.run_budget.consume_step, log=self.event_log.append,
+                    validate=self._validate_decision, response_format=self._final_format(),
                 )
                 self._validate_decision(decision)
                 self.event_log.append("decision_validated", decision.to_dict())
@@ -383,8 +386,47 @@ class AgentController:
                 raise ContractError("PLAN requires at least one hypothesis")
             if not decision.hypotheses[0].supports:
                 raise ContractError("PLAN requires evidence for the leading hypothesis")
+            plan = decision.repair_plan
+            if plan is not None:
+                # RepairPrecheck enforces the same; checking here lets a wrong
+                # citation get one guided retry instead of failing the run.
+                hypothesis = next((h for h in decision.hypotheses if h.hypothesis_id == plan.hypothesis_id), None)
+                if hypothesis is None:
+                    raise ContractError(f"repair plan cites unknown hypothesis: {plan.hypothesis_id}")
+                unrelated = set(plan.evidence) - set(hypothesis.supports)
+                if unrelated:
+                    raise ContractError(
+                        f"repair plan evidence does not support hypothesis {plan.hypothesis_id}: "
+                        f"{sorted(unrelated)}"
+                    )
         elif decision.repair_plan is not None:
             raise ContractError("ABSTAIN must not include a repair plan")
+
+    def _final_format(self) -> dict[str, Any]:
+        """Decision schema for this run: citations limited to issued evidence IDs."""
+        return decision_response_format(
+            [record.evidence_id for record in self.evidence.records], ("PLAN", "ABSTAIN")
+        )
+
+    def _conclude_at_context_budget(self, messages: list[dict[str, Any]]) -> ModelTurn:
+        """Ask for the final decision instead of failing when rounds run out.
+
+        Seen live: the model kept requesting metrics until the round budget
+        was spent, and the run aborted with no decision. The requested calls
+        are not executed; the model must conclude from the evidence it has,
+        and ABSTAIN remains a valid answer.
+        """
+        self.event_log.append("context_budget_reached", {"rounds": self.context_budget.rounds})
+        messages.append({
+            "role": "user",
+            "content": (
+                f"The context budget ({self.context_budget.max_rounds} rounds) is used up; no more "
+                "evidence can be requested. Return your final decision now from the evidence you "
+                "have: PLAN with a repair_plan citing evidence IDs, or ABSTAIN if it is insufficient."
+            ),
+        })
+        self.run_budget.consume_step()
+        return self.client.complete(messages, [], response_format=self._final_format())
 
     def _redirect_repair_call(
         self,
@@ -426,7 +468,7 @@ class AgentController:
                 "content": json.dumps({"status": "not_executed", "message": note}),
             })
         self.run_budget.consume_step()
-        return self.client.complete(messages, [], response_format=decision_response_format())
+        return self.client.complete(messages, [], response_format=self._final_format())
 
     def _prepare_repair(
         self,

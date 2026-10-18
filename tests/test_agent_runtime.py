@@ -137,6 +137,33 @@ class AgentRuntimeTests(unittest.TestCase):
         self.assertEqual(result.state, "PRECHECK")
         self.assertEqual(result.precheck.approval.parameters, {"profile": "matched-v1"})
 
+    def test_unknown_citation_gets_one_retry_limited_to_issued_evidence(self):
+        turns = successful_turns(with_repair=True)
+        bad = json.loads(turns[-1].content)
+        bad["hypotheses"][0]["supports"] = ["tool_call_parser mismatch between target-a and target-b"]
+        client = ScriptedNemotronClient([*turns[:-1], ModelTurn(content=json.dumps(bad)), turns[-1]])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); provider = FakeEnvironmentProvider(); tokens = iter(("004", "rollback-004"))
+            precheck = RepairPrecheck(RepairPolicy(manifest()), provider, token_factory=lambda: next(tokens))
+            result = self.make_controller(root, client, provider, precheck=precheck).run(diagnostic_input("Diagnose contract failure."))
+        self.assertEqual(result.state, "PRECHECK")
+        schema = client.requests[-1]["response_format"]["json_schema"]["schema"]
+        cite = schema["properties"]["hypotheses"]["items"]["properties"]["supports"]["items"]
+        self.assertEqual(cite["enum"], ["ev-001", "ev-002", "ev-003"])
+        self.assertEqual(schema["properties"]["state"]["enum"], ["PLAN", "ABSTAIN"])
+
+    def test_context_budget_ends_in_a_decision_not_a_crash(self):
+        probe = lambda i: ModelTurn(tool_calls=(ToolCall(f"call-{i}", "query_metrics", {**context(), "resource_id": "target-a", "metric": "error_rate", "window": f"{i}m"}),))
+        abstain = ModelTurn(content=json.dumps({"state": "ABSTAIN", "summary": "Not enough evidence.", "hypotheses": [], "stop_reason": "context budget reached"}))
+        client = ScriptedNemotronClient([*(probe(i) for i in range(1, 10)), abstain])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result = self.make_controller(root, client).run(diagnostic_input())
+            events = [json.loads(line)["event_type"] for line in (root / "events.jsonl").read_text().splitlines()]
+        self.assertEqual((result.state, result.expansion_rounds), ("ABSTAIN", 8))
+        self.assertIn("context_budget_reached", events)
+        self.assertEqual(client.requests[-1]["tools"], [])
+
     def test_default_budgets_allow_eight_expansion_rounds(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(Path(directory), ScriptedNemotronClient([]))
@@ -147,8 +174,9 @@ class AgentRuntimeTests(unittest.TestCase):
     def test_fabricated_evidence_and_missing_context_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             unsupported = ModelTurn(content=json.dumps({"state": "PLAN", "summary": "Guess.", "hypotheses": [{"id": "guess", "confidence": 0.9, "supports": ["ev-999"], "contradicts": []}], "stop_reason": None}))
+            # A rejected decision gets one schema-guided retry; fabricating again still fails.
             with self.assertRaisesRegex(ContractError, "unknown evidence"):
-                self.make_controller(Path(directory), ScriptedNemotronClient([unsupported])).run(diagnostic_input())
+                self.make_controller(Path(directory), ScriptedNemotronClient([unsupported, unsupported])).run(diagnostic_input())
         with tempfile.TemporaryDirectory() as directory:
             call = ModelTurn(tool_calls=(ToolCall("call-1", "run_probe", {"probe_id": "contract-check", "inputs": {"case": "visible-operation"}}),))
             with self.assertRaisesRegex(ContractError, "missing arguments"):

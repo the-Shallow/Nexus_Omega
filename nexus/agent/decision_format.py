@@ -14,8 +14,10 @@ The canonical schema is schemas/agent-decision.schema.json.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
@@ -58,10 +60,35 @@ def normalize_citations(raw: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def decision_response_format() -> dict[str, Any]:
+def _base_schema() -> dict[str, Any]:
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     for key in ("$schema", "$id", "title"):
         schema.pop(key, None)
+    return schema
+
+
+def decision_response_format(
+    evidence_ids: Sequence[str] | None = None,
+    states: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """The decision schema as a vLLM response_format.
+
+    With evidence_ids, every citation (hypothesis supports/contradicts and
+    repair_plan.evidence) is restricted to those IDs, so constrained decoding
+    cannot produce a citation the controller would reject. Seen live: the
+    model cited prose ("tool_call_parser mismatch ...") and action names. The
+    controller still checks that each cited ID supports its hypothesis.
+    With states, the decision state is restricted to them.
+    """
+    schema = copy.deepcopy(_base_schema())
+    if evidence_ids:
+        cite = {"type": "string", "enum": list(evidence_ids)}
+        hypothesis = schema["properties"]["hypotheses"]["items"]["properties"]
+        hypothesis["supports"]["items"] = dict(cite)
+        hypothesis["contradicts"]["items"] = dict(cite)
+        schema["properties"]["repair_plan"]["properties"]["evidence"]["items"] = dict(cite)
+    if states:
+        schema["properties"]["state"] = {"enum": list(states)}
     return {
         "type": "json_schema",
         "json_schema": {"name": "agent_decision", "schema": schema, "strict": True},
@@ -75,14 +102,24 @@ def parse_decision(
     *,
     consume_step: Callable[[], None],
     log: Callable[[str, dict[str, Any]], None],
+    validate: Callable[[AgentDecision], None] | None = None,
+    response_format: dict[str, Any] | None = None,
 ) -> AgentDecision:
     """Validate the final answer; on a contract error, retry once under the schema.
 
-    The retry counts as a step against the run budget. A second invalid
-    answer raises ContractError, as before.
+    validate is the caller's semantic check (e.g. citations must be known
+    evidence); its ContractError also triggers the retry. response_format
+    defaults to the plain decision schema. The retry counts as a step against
+    the run budget. A second invalid answer raises ContractError, as before.
     """
+    def check(content: str) -> AgentDecision:
+        decision = AgentDecision.from_json(normalize_citations(content))
+        if validate is not None:
+            validate(decision)
+        return decision
+
     try:
-        return AgentDecision.from_json(normalize_citations(turn.content or ""))
+        return check(turn.content or "")
     except ContractError as exc:
         first_error = str(exc)
     consume_step()
@@ -91,12 +128,13 @@ def parse_decision(
     messages.append({
         "role": "user",
         "content": (
-            f"Your final answer did not match the required decision format: {first_error}. "
-            "Return the same decision again as one JSON object that matches the schema. "
-            "Each hypothesis must be an object with id, confidence, supports, and contradicts."
+            f"Your final answer was rejected: {first_error}. "
+            "Return the decision again as one JSON object that matches the schema. "
+            "Each hypothesis must be an object with id, confidence, supports, and contradicts, "
+            "and every citation must be an evidence ID issued by the controller (ev-...)."
         ),
     })
-    retry = client.complete(messages, [], response_format=decision_response_format())
-    decision = AgentDecision.from_json(normalize_citations(retry.content or ""))
+    retry = client.complete(messages, [], response_format=response_format or decision_response_format())
+    decision = check(retry.content or "")
     log("decision_reformatted", {"first_error": first_error, "state": decision.state})
     return decision
