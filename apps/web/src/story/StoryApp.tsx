@@ -8,13 +8,14 @@ import { SHOT, STORIES, useDirector } from './director';
 import { loadRealStory } from './script/real';
 import type { Story } from './script/types';
 import { actsOf } from './script/types';
+import { Caption } from './ui/caption';
 import { ActCard, FlowMapPanel } from './ui/flow';
 import { INTRO_WIDTH, IntroPanel, LandingBar, stageBeat } from './ui/intro';
 import { RealityBar, RoomTitle, StepRail, TopBar, Transport } from './ui/parts';
 import { FLEET_REAL, FLEET_SCRIPTED } from './world/layout';
 import { World } from './world/world';
 
-const RAIL = 400;   // left rail plus margin, px
+const RAIL = 260;   // progress spine plus margin, px
 const params = new URLSearchParams(location.search);
 /** The recorded run the landing page plays behind the brief. */
 const LANDING_RUN = 'run-96915174';
@@ -107,7 +108,8 @@ function Player({ story, onStory, onRun, loading, error }: { story: Story; onSto
       ) : (
         <>
           <TopBar stories={STORIES} story={story} onStory={onStory} onRun={onRun} loading={loading} clock={d.h.clock} engineer={engineer} setEngineer={setEngineer} onAbout={() => { d.setPlaying(false); setBeat(0); setIntro(true); }} />
-          {!finale && <StepRail story={story} hop={d.hop} engineer={engineer} waiting={d.waiting} onApprove={d.approve} onGo={d.go} />}
+          {!finale && <StepRail story={story} hop={d.hop} onGo={d.go} />}
+          {!finale && <Caption h={d.h} act={acts[d.hop]} engineer={engineer} waiting={d.waiting} onApprove={d.approve} left={RAIL} />}
           {!finale && <RoomTitle h={d.h} room={d.room} subs={story.subs} />}
           <AnimatePresence>
             {/* Only when the two sides disagree: agreement needs no box. */}

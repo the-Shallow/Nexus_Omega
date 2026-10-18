@@ -38,3 +38,7 @@ body.story-finale .lbl.story-room span { display: block; font-size: 10.5px; colo
 /* Transport: the current hop's progress. */
 .story-fill { width: 0; animation-name: story-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
 @keyframes story-fill { to { width: 100%; } }
+
+/* Crossfade between pages instead of a hard reload flash (Chromium; others simply skip it). */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }

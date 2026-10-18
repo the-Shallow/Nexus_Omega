@@ -10,7 +10,7 @@ export const storyUrl = (q: string) => `story.html?${q}`;
 export function Nav({ page }: { page: 'home' | 'results' }) {
   const links = page === 'home'
     ? [['#problem', 'Problem'], ['#how', 'How it works'], ['#evidence', 'Evidence'], ['#next', 'What’s next']]
-    : [['about.html', 'About'], ['#scoreboard', 'Scoreboard'], ['#profiles', 'Tool calling'], ['#runs', 'Runs']];
+    : [['#scoreboard', 'Scoreboard'], ['#profiles', 'Tool calling'], ['#runs', 'Runs']];
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-6 px-5">
@@ -24,8 +24,10 @@ export function Nav({ page }: { page: 'home' | 'results' }) {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          {page === 'home' && <a href="results.html" className="hidden rounded-xl px-3.5 py-2 text-[13.5px] text-ink-2 hover:text-ink sm:block">Results</a>}
-          <a href="platform.html" className="hidden rounded-xl px-3.5 py-2 text-[13.5px] text-ink-2 hover:text-ink sm:block">Live twin</a>
+          {/* The other page is always reachable, at every width. */}
+          {page === 'home'
+            ? <a href="results.html" className="rounded-xl px-3.5 py-2 text-[13.5px] text-ink-2 hover:text-ink">Results</a>
+            : <a href="about.html" className="rounded-xl px-3.5 py-2 text-[13.5px] text-ink-2 hover:text-ink">About</a>}
           <a href={storyUrl(`run=${REFERENCE_RUN}`)} className="rounded-xl bg-accent px-4 py-2 text-[13.5px] font-semibold text-bg">Watch a real incident</a>
         </div>
       </div>

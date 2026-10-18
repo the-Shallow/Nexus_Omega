@@ -12,3 +12,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
   --zone-nexus: #1b1c35;
   --ground: #0a0c0d;
 }
+
+/* Crossfade between pages instead of a hard reload flash (Chromium; others simply skip it). */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }

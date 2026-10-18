@@ -177,7 +177,6 @@ export function LandingBar() {
       <nav className="ml-auto flex items-center gap-1 text-[13.5px]">
         <a href="about.html" className="rounded-lg px-3 py-1.5 text-ink-2 hover:bg-white/[0.05] hover:text-ink">About</a>
         <a href="results.html" className="rounded-lg px-3 py-1.5 text-ink-2 hover:bg-white/[0.05] hover:text-ink">Results</a>
-        <a href="platform.html" className="rounded-lg px-3 py-1.5 text-ink-2 hover:bg-white/[0.05] hover:text-ink">Live twin</a>
       </nav>
     </motion.header>
   );

@@ -1,5 +1,5 @@
 // Story-mode overlays: top bar, step rail, room title, reality bar, transport, finale.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../../lib/api';
 import type { EpisodeSummary } from '../../lib/types';
@@ -51,86 +51,46 @@ export function TopBar({ stories, story, onStory, onRun, loading, clock, enginee
   );
 }
 
-export function StepRail({ story, hop, engineer, waiting, onApprove, onGo }: {
-  story: Story; hop: number; engineer: boolean; waiting: boolean; onApprove: () => void; onGo: (i: number) => void;
-}) {
-  const cur = useRef<HTMLButtonElement>(null);
-  useEffect(() => { cur.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [hop, story]);
+/**
+ * The progress spine: where you are in the story, at a glance. Acts with a dot per step;
+ * only the current step's title is written out. The narration itself is the caption.
+ */
+export function StepRail({ story, hop, onGo }: { story: Story; hop: number; onGo: (i: number) => void }) {
   const acts = actsOf(story);
   const now = acts[hop];
   return (
     <motion.aside initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease, delay: 0.1 }}
-      className="glass absolute bottom-24 left-4 top-[88px] z-10 flex w-[380px] flex-col rounded-2xl">
-      <div className="flex-1 overflow-y-auto px-2.5 py-3">
+      className="glass absolute left-4 top-[88px] z-10 w-[236px] rounded-2xl px-4 py-4" aria-label="Progress">
+      <ol className="space-y-4">
         {ACTS.map((a) => {
           const idx = story.hops.map((_, i) => i).filter((i) => acts[i] === a.n);
           if (!idx.length) return null;
           const state = a.n < now ? 'done' : a.n === now ? 'open' : 'later';
           return (
-            <div key={a.n} className={`mb-1.5 rounded-xl ${state === 'open' ? 'bg-white/[0.035] pb-1.5' : ''}`}>
-              <button onClick={() => onGo(idx[0])} className="flex w-full items-baseline gap-3 rounded-xl px-3 pb-1.5 pt-2.5 text-left">
-                <span className={`font-mono text-[10.5px] tracking-[0.18em] ${state === 'later' ? 'text-ink-4' : 'text-accent'}`}>ACT {a.n}</span>
-                <span className={`text-[14.5px] font-semibold ${state === 'later' ? 'text-ink-3' : 'text-ink'}`}>{a.title}</span>
-                <span className="ml-auto font-mono text-[10.5px] text-ink-4">{state === 'done' ? '✓' : `${idx.length} steps`}</span>
+            <li key={a.n}>
+              <button onClick={() => onGo(idx[0])} className="flex w-full items-baseline gap-2 text-left">
+                <span className={`font-mono text-[10px] tracking-[0.18em] ${state === 'later' ? 'text-ink-4' : 'text-accent'}`}>ACT {a.n}</span>
+                <span className={`text-[13.5px] font-semibold ${state === 'open' ? 'text-ink' : state === 'done' ? 'text-ink-2' : 'text-ink-3'}`}>{a.title}</span>
+                {state === 'done' && <span className="ml-auto text-[11px] text-accent">✓</span>}
               </button>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {idx.map((i) => (
+                  <button key={story.id + story.hops[i].id} onClick={() => onGo(i)} title={story.hops[i].title} aria-label={story.hops[i].title}
+                    className={`h-1.5 rounded-full transition-all ${i === hop ? 'w-6 bg-accent' : i < hop ? 'w-3 bg-accent/55' : 'w-3 bg-white/15 hover:bg-white/30'}`} />
+                ))}
+              </div>
               <AnimatePresence initial={false}>
                 {state === 'open' && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }} className="overflow-hidden">
-                    {idx.map((i) => {
-                      const h = story.hops[i];
-                      const st = i < hop ? 'past' : i === hop ? 'now' : 'next';
-                      return (
-                        <button key={story.id + h.id} ref={i === hop ? cur : undefined} onClick={() => onGo(i)}
-                          className={`relative block w-full rounded-lg px-3 text-left transition-colors ${st === 'now' ? 'py-2.5' : 'py-1.5 hover:bg-white/[0.03]'}`}>
-                          {st === 'now' && <span className="absolute inset-y-2.5 left-0 w-[2px] rounded-full bg-accent" />}
-                          <div className="flex items-center gap-2.5">
-                            <StepDot state={st} />
-                            <span className={`text-[13.5px] font-medium ${st === 'now' ? 'text-ink' : st === 'past' ? 'text-ink-2' : 'text-ink-4'}`}>{h.title}</span>
-                            {h.room && <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-ink-4">{ROOM[h.room].name}</span>}
-                          </div>
-                          <AnimatePresence initial={false}>
-                            {st === 'now' && (
-                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }} className="overflow-hidden pl-[26px]">
-                                <p className="pt-2 text-[15px] leading-[1.5] text-ink">{h.plain}</p>
-                                <p className="mt-2 font-mono text-[11.5px] leading-snug text-ink-3">{h.tech}</p>
-                                {engineer && h.engineer && (
-                                  <ul className="mt-2 space-y-1 border-l border-line-2 pl-3">
-                                    {h.engineer.map((l) => <li key={l} className="font-mono text-[11px] leading-snug text-ink-3">{l}</li>)}
-                                  </ul>
-                                )}
-                                {h.wait && waiting && (
-                                  <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onApprove(); }}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') onApprove(); }}
-                                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-warn px-3.5 py-2 text-[13px] font-semibold text-bg">
-                                    <span className="size-2 animate-pulse rounded-full bg-bg" />{h.wait.label}
-                                  </span>
-                                )}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </button>
-                      );
-                    })}
-                  </motion.div>
+                  <motion.div key={story.hops[hop].id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease }}
+                    className="mt-2 text-[12.5px] leading-snug text-ink-2">{story.hops[hop].title}</motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </motion.aside>
   );
-}
-
-function StepDot({ state }: { state: 'past' | 'now' | 'next' }) {
-  if (state === 'past') return <span className="grid size-4 place-items-center rounded-full bg-accent/20 text-[9px] text-accent">✓</span>;
-  if (state === 'now') return (
-    <span className="relative grid size-4 place-items-center">
-      <motion.span className="absolute inset-0 rounded-full border border-accent" animate={{ scale: [0.7, 1.5], opacity: [0.9, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }} />
-      <span className="size-2 rounded-full bg-accent shadow-[0_0_10px_rgb(118_185_0/0.9)]" />
-    </span>
-  );
-  return <span className="grid size-4 place-items-center"><span className="size-1.5 rounded-full bg-ink-4" /></span>;
 }
 
 export function RoomTitle({ h, room, subs = {} }: { h: Hop; room: RoomId | null; subs?: Partial<Record<RoomId, string>> }) {
@@ -153,7 +113,7 @@ export function RealityBar({ r }: { r: Reality }) {
   const realC = r.tone === 'ok' ? 'bg-ok' : r.tone === 'lie' ? 'bg-warn' : 'bg-bad';
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease }}
-      className="glass absolute bottom-24 right-4 z-10 w-[300px] rounded-2xl p-4">
+      className="glass absolute right-4 top-[196px] z-10 w-[300px] rounded-2xl p-4">
       <div className="label mb-3">{r.head ?? 'What the dashboards say vs what’s true'}</div>
       <Row dot={r.labels ? 'bg-info' : 'bg-ok'} k={r.labels?.[0] ?? 'Dashboards'} v={r.dash} />
       <div className="my-2 h-px bg-line" />
